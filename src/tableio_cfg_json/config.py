@@ -1,16 +1,21 @@
 #! /usr/local/bin/python3
-"""Config-as-json bridge for framework-neutral tableio configuration."""
+"""JSON-backed configuration classes for TableIO settings.
+
+The module adapts tableio's framework-neutral configuration data classes to
+config-as-json. The public classes keep tableio's durable values while adding
+JSON reading, writing, nested-section handling and validation.
+"""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
 import sys
-from typing import Callable, NoReturn, Optional, TextIO, override
+from typing import Optional, TextIO, override
 
 from config_as_json import CharEncodingValidator, Config, \
     ConfigAutoChangeHook, ConfigNesting, ConfigNestingKind, \
-    InvalidConfiguration, MemberValidationStep, MemberValidatorSequence, \
-    IntFloatValidator, \
+    InvalidConfiguration, IntFloatValidator, MemberValidationStep, \
+    MemberValidatorSequence, \
     NestedConfigs, OptionalMemberValidator, ParseConverter, PathOrStr, \
     StrLenValidator, StrValidator, ValidationPlan, \
     ValueTypeValidator, WholeConfigValidationStep, WholeConfigValidator
@@ -21,62 +26,37 @@ from tableio import Capabilities, ConfigData, ConfigError, CsvConfigData, \
 
 
 def _choices(name: str) -> tuple[str, ...]:
-    """Return advertised choices for one tableio configuration member."""
+    """Return tableio choices for one configuration member.
+
+    TableIO owns the accepted values. Looking them up here keeps this bridge
+    aligned with currently registered formats, implementations and options.
+    """
     choices = tio_config_specs()[name].choices
     assert choices is not None
     return choices
 
 
-def _format_choices() -> tuple[str, ...]:
-    """Return currently registered tableio format names."""
-    return _choices('format_name')
+def _choice_validator(name: str) -> StrValidator:
+    """Return a validator for one required tableio choice member."""
+    return StrValidator(_choices(name), ignore_case=True, normalize=True)
 
 
-def _impl_choices() -> tuple[str, ...]:
-    """Return currently registered tableio implementation names."""
-    return _choices('implementation')
-
-
-def _paper_choices() -> tuple[str, ...]:
-    """Return advertised paper size values."""
-    return _choices('paper_size')
-
-
-def _align_choices() -> tuple[str, ...]:
-    """Return advertised text table alignment values."""
-    return _choices('table_alignment')
-
-
-def _quoting_choices() -> tuple[str, ...]:
-    """Return advertised CSV quoting values."""
-    return _choices('csv.quoting')
-
-
-def _latex_doc_choices() -> tuple[str, ...]:
-    """Return advertised LaTeX document class values."""
-    return _choices('latex.document_class')
-
-
-def _raise_invalid(message: str, stderr_file: TextIO) -> NoReturn:
-    """Write one validation message and raise InvalidConfiguration."""
-    print(message, file=stderr_file)
-    raise InvalidConfiguration(message)
+def _optional_choice(name: str) -> OptionalMemberValidator:
+    """Return a validator for one optional tableio choice member."""
+    return OptionalMemberValidator(_choice_validator(name))
 
 
 def _optional_string() -> OptionalMemberValidator:
-    """Return a validator for an optional string member."""
+    """Return a validator for an optional plain string member."""
     return OptionalMemberValidator(ValueTypeValidator(str))
 
 
-def _optional_choice(
-        choices: Callable[[], tuple[str, ...]]) -> OptionalMemberValidator:
-    """Return a validator for an optional string with known choices."""
-    return OptionalMemberValidator(
-        StrValidator(choices, ignore_case=True, normalize=True))
-
-
 def _optional_int_at_least(min_value: int) -> OptionalMemberValidator:
-    """Return a validator for an optional integer lower bound."""
+    """Return a validator for an optional strict integer lower bound.
+
+    The numeric validator checks the range, and the strict type validator
+    rejects bools and floats that Python would otherwise treat as numbers.
+    """
     validator1 = IntFloatValidator(min_value=min_value, max_value=None,
                                    allowed_values=None)
     validator2 = ValueTypeValidator(value_type=int, strict=True)
@@ -84,25 +64,27 @@ def _optional_int_at_least(min_value: int) -> OptionalMemberValidator:
     return OptionalMemberValidator(validators)
 
 
-def _none_members(config: object, names: list[str]) -> list[str]:
-    """Return member names whose current value is None."""
-    return [name for name in names if getattr(config, name) is None]
-
-
 # pylint: disable=too-few-public-methods
-class TioWholeValidator(WholeConfigValidator):
-    """Validate the complete bridge object with tableio rules."""
+class _TioWholeValidator(WholeConfigValidator):
+    """Run tableio whole-configuration validation for TioJsonConfig.
 
+    Member validators check individual JSON values. This validator asks
+    tableio to validate relationships between values, including selected
+    format, implementation, runtime capabilities and file access.
+    """
+
+    @override
     def validate(self, config: Config,
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Validate one complete tableio JSON configuration."""
+        """Validate one complete TioJsonConfig instance."""
         assert isinstance(config, TioJsonConfig)
         try:
             tio_config_validate(config, capabilities=config.capabilities,
                                 file_access=config.file_access)
         except ConfigError as err:
             message = _issue_message(err)
-            _raise_invalid(message, stderr_file)
+            print(message, file=stderr_file)
+            raise InvalidConfiguration(message) from err
 
 
 def _issue_message(error: ConfigError) -> str:
@@ -111,19 +93,24 @@ def _issue_message(error: ConfigError) -> str:
         f'{issue.name}: {issue.message}' for issue in error.issues)
 
 
-def _one_char_validator() -> OptionalMemberValidator:
+def _optional_one_char() -> OptionalMemberValidator:
     """Return a validator for optional one-character strings."""
     return OptionalMemberValidator(StrLenValidator(min_length=1, max_length=1))
 
 
-def _non_empty_validator() -> OptionalMemberValidator:
+def _optional_non_empty() -> OptionalMemberValidator:
     """Return a validator for optional non-empty strings."""
     validator = StrLenValidator(min_length=1, max_length=None)
     return OptionalMemberValidator(validator)
 
 
 class TioJsonCsvConfig(CsvConfigData, Config):
-    """CSV tableio configuration section backed by config-as-json."""
+    """JSON-backed CSV configuration section for TableIO.
+
+    The class stores the same durable CSV values as CsvConfigData and adds
+    config-as-json support for the optional nested ``csv`` section in
+    TioJsonConfig.
+    """
 
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(self, dialect: Optional[CsvDialect] = None,
@@ -135,7 +122,11 @@ class TioJsonCsvConfig(CsvConfigData, Config):
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Initialize the CSV configuration section."""
+        """Create CSV settings or read them from a JSON source.
+
+        Constructor arguments provide defaults. If JSON text or a filename is
+        supplied, config-as-json applies the JSON values over those defaults.
+        """
         CsvConfigData.__init__(self, dialect=dialect, delimiter=delimiter,
                                quoting=quoting, quotechar=quotechar,
                                lineterminator=lineterminator,
@@ -146,42 +137,59 @@ class TioJsonCsvConfig(CsvConfigData, Config):
 
     @override
     def _omit_none_from_json(self) -> list[str]:
-        """Return optional CSV members omitted while set to None."""
-        return _none_members(
-            self, ['dialect', 'delimiter', 'quoting', 'quotechar',
-                   'lineterminator', 'escapechar'])
+        """Return optional CSV keys omitted from JSON while set to None."""
+        return ['dialect', 'delimiter', 'quoting', 'quotechar',
+                'lineterminator', 'escapechar']
 
     @override
     def parse_converters(self) -> dict[str, ParseConverter]:
-        """Return JSON read conversions for CSV values."""
+        """Return JSON converters for CSV members.
+
+        ``dialect`` is a CsvDialect enum member in tableio and a string name
+        in JSON.
+        """
         return {'dialect': self.get_converter_dict(CsvDialect)}
 
+    @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return config-as-json validation steps for CSV values."""
+        """Return validation for CSV-only JSON values.
+
+        Missing values are accepted as ``None``. Delimiter, quote character
+        and escape character must be single-character strings, while line
+        terminator only needs to be a non-empty string.
+        """
         _ = stderr_file
-        quoting_validator = _optional_choice(_quoting_choices)
         return [
             MemberValidationStep(member_names=['delimiter'],
-                                 validator=_one_char_validator()),
+                                 validator=_optional_one_char()),
             MemberValidationStep(member_names=['quoting'],
-                                 validator=quoting_validator),
+                                 validator=_optional_choice('csv.quoting')),
             MemberValidationStep(member_names=['quotechar'],
-                                 validator=_one_char_validator()),
+                                 validator=_optional_one_char()),
             MemberValidationStep(member_names=['lineterminator'],
-                                 validator=_non_empty_validator()),
+                                 validator=_optional_non_empty()),
             MemberValidationStep(member_names=['escapechar'],
-                                 validator=_one_char_validator())
+                                 validator=_optional_one_char())
         ]
 
 
 class TioJsonHtmlConfig(HtmlConfigData, Config):
-    """HTML tableio configuration section backed by config-as-json."""
+    """JSON-backed HTML configuration section for TableIO.
+
+    The class stores the same durable HTML values as HtmlConfigData and adds
+    config-as-json support for the optional nested ``html`` section in
+    TioJsonConfig.
+    """
 
     def __init__(self, css_file: Optional[str] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Initialize the HTML configuration section."""
+        """Create HTML settings or read them from a JSON source.
+
+        Constructor arguments provide defaults. If JSON text or a filename is
+        supplied, config-as-json applies the JSON values over those defaults.
+        """
         HtmlConfigData.__init__(self, css_file=css_file)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
@@ -189,11 +197,12 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
 
     @override
     def _omit_none_from_json(self) -> list[str]:
-        """Return optional HTML members omitted while set to None."""
-        return _none_members(self, ['css_file'])
+        """Return optional HTML keys omitted from JSON while set to None."""
+        return ['css_file']
 
+    @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return config-as-json validation steps for HTML values."""
+        """Return validation for HTML-only JSON values."""
         _ = stderr_file
         return [
             MemberValidationStep(member_names=['css_file'],
@@ -202,7 +211,12 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
 
 
 class TioJsonLatexConfig(LatexConfigData, Config):
-    """LaTeX tableio configuration section backed by config-as-json."""
+    """JSON-backed LaTeX configuration section for TableIO.
+
+    The class stores the same durable LaTeX values as LatexConfigData and
+    adds config-as-json support for the optional nested ``latex`` section in
+    TioJsonConfig.
+    """
 
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(self, document_class: Optional[str] = None,
@@ -210,7 +224,11 @@ class TioJsonLatexConfig(LatexConfigData, Config):
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Initialize the LaTeX configuration section."""
+        """Create LaTeX settings or read them from a JSON source.
+
+        Constructor arguments provide defaults. If JSON text or a filename is
+        supplied, config-as-json applies the JSON values over those defaults.
+        """
         LatexConfigData.__init__(self, document_class=document_class,
                                  preamble=preamble)
         Config.__init__(self, from_json_data_text=from_json_data_text,
@@ -219,23 +237,30 @@ class TioJsonLatexConfig(LatexConfigData, Config):
 
     @override
     def _omit_none_from_json(self) -> list[str]:
-        """Return optional LaTeX members omitted while set to None."""
-        return _none_members(self, ['document_class', 'preamble'])
+        """Return optional LaTeX keys omitted from JSON while set to None."""
+        return ['document_class', 'preamble']
 
+    @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return config-as-json validation steps for LaTeX values."""
+        """Return validation for LaTeX-only JSON values."""
         _ = stderr_file
         return [
             MemberValidationStep(member_names=['document_class'],
                                  validator=_optional_choice(
-                                     _latex_doc_choices)),
+                                     'latex.document_class')),
             MemberValidationStep(member_names=['preamble'],
                                  validator=_optional_string())
         ]
 
 
 class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
-    """Complete tableio configuration backed by config-as-json."""
+    """Complete JSON-backed TableIO configuration.
+
+    Instances are both tableio ConfigData objects and config-as-json Config
+    objects. Runtime capabilities and file access are used for default
+    selection and validation, but they are private runtime context rather
+    than durable JSON configuration values.
+    """
 
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     # pylint: disable=super-init-not-called
@@ -247,7 +272,12 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Initialize a tableio JSON configuration."""
+        """Create TableIO settings or read them from a JSON source.
+
+        Default values come from tableio's recommended configuration for the
+        supplied capabilities and file access. If JSON text or a filename is
+        supplied, config-as-json applies the JSON values over those defaults.
+        """
         data = tio_config_default(capabilities, file_access,
                                   format_name=format_name,
                                   implementation=implementation,
@@ -261,26 +291,24 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
 
     @property
     def capabilities(self) -> Capabilities:
-        """Return runtime capabilities used for validation."""
+        """Return capabilities used to choose and validate the backend."""
         return self._capabilities
 
     @property
     def file_access(self) -> FileAccess:
-        """Return runtime file access used for validation."""
+        """Return file access used to choose and validate the backend."""
         return self._file_access
 
     @override
     def _omit_none_from_json(self) -> list[str]:
-        """Return optional top-level members omitted while set to None."""
-        return _none_members(
-            self, ['implementation', 'character_encoding', 'language',
-                   'title', 'paper_size', 'line_length',
-                   'table_max_line_length', 'table_alignment', 'csv', 'html',
-                   'latex'])
+        """Return optional top-level keys omitted while set to None."""
+        return ['implementation', 'character_encoding', 'language', 'title',
+                'paper_size', 'line_length', 'table_max_line_length',
+                'table_alignment', 'csv', 'html', 'latex']
 
     @override
     def nested_configs(self) -> NestedConfigs:
-        """Return nested tableio configuration section declarations."""
+        """Return declarations for optional format-specific sections."""
         return {
             'csv': ConfigNesting(kind=ConfigNestingKind.OPTIONAL_MEMBER,
                                  config_type=TioJsonCsvConfig),
@@ -290,32 +318,35 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
                                    config_type=TioJsonLatexConfig)
         }
 
+    @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return config-as-json validation steps for top-level values."""
+        """Return validation for top-level JSON values.
+
+        Member validation checks value shapes and normalizes tableio choices.
+        The final whole-config step lets tableio validate combinations that
+        depend on capabilities, file access, format and implementation.
+        """
         _ = stderr_file
-        paper_validator = _optional_choice(_paper_choices)
-        align_validator = _optional_choice(_align_choices)
         return [
             MemberValidationStep(member_names=['format_name'],
-                                 validator=StrValidator(_format_choices,
-                                                        ignore_case=True,
-                                                        normalize=True)),
+                                 validator=_choice_validator('format_name')),
             MemberValidationStep(member_names=['implementation'],
-                                 validator=_optional_choice(_impl_choices)),
+                                 validator=_optional_choice('implementation')),
             MemberValidationStep(member_names=['character_encoding'],
                                  validator=OptionalMemberValidator(
                                      CharEncodingValidator())),
             MemberValidationStep(member_names=['language', 'title'],
                                  validator=_optional_string()),
             MemberValidationStep(member_names=['paper_size'],
-                                 validator=paper_validator),
+                                 validator=_optional_choice('paper_size')),
             MemberValidationStep(member_names=['line_length'],
                                  validator=_optional_int_at_least(11)),
             MemberValidationStep(member_names=['table_max_line_length'],
                                  validator=_optional_int_at_least(10)),
             MemberValidationStep(member_names=['table_alignment'],
-                                 validator=align_validator),
-            WholeConfigValidationStep(validator=TioWholeValidator())
+                                 validator=_optional_choice(
+                                     'table_alignment')),
+            WholeConfigValidationStep(validator=_TioWholeValidator())
         ]
 
 
@@ -326,7 +357,12 @@ def tio_json_config_default(capabilities: Capabilities,
                             implementation: Optional[str] = None,
                             include_all_options: bool = False,
                             stderr_file: TextIO = sys.stderr) -> TioJsonConfig:
-    """Return a default tableio configuration backed by config-as-json."""
+    """Return a TioJsonConfig with tableio's recommended defaults.
+
+    The returned object can be used directly as a tableio ConfigData object
+    and can also read or write the same settings as JSON through
+    config-as-json.
+    """
     return TioJsonConfig(
         capabilities=capabilities, file_access=file_access,
         format_name=format_name, implementation=implementation,

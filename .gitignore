@@ -23,6 +23,7 @@ __pycache__
 .claudeignore
 AGENTS.md
 non_cursor_AGENTS.md
+depdoc/*
 *.docx
 *.odt
 *.dvi

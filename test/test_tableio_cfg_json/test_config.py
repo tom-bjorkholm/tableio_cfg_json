@@ -140,6 +140,26 @@ def test_compact_read_nested_section() -> None:
     assert tio_config_optional_args(config) == {'csv_delimiter': ';'}
 
 
+def test_compact_read_full() -> None:
+    """Compact JSON omits optional keys even when defaults are explicit."""
+    text = _json_text({
+        'format_name': 'Excel',
+        'implementation': 'XlsxWriter'
+    })
+    config = TioJsonConfig(Capabilities(), FileAccess.CREATE,
+                           include_all_options=True, from_json_data_text=text)
+    assert config.character_encoding is None
+    assert config.language is None
+    assert config.title is None
+    assert config.paper_size is None
+    assert config.line_length is None
+    assert config.table_max_line_length is None
+    assert config.table_alignment is None
+    assert config.csv is None
+    assert config.html is None
+    assert config.latex is None
+
+
 def test_member_choice_normalization() -> None:
     """Member validators normalize case-insensitive choices."""
     text = _json_text({
@@ -208,6 +228,28 @@ def test_lengths_require_int(member_name: str, value: object) -> None:
     assert member_name in str(exc_info.value)
 
 
+@pytest.mark.parametrize(
+    ('member_name', 'value'),
+    [pytest.param('delimiter', '', id='delimiter-empty'),
+     pytest.param('delimiter', '::', id='delimiter-long'),
+     pytest.param('quotechar', '', id='quotechar-empty'),
+     pytest.param('quotechar', '""', id='quotechar-long'),
+     pytest.param('lineterminator', '', id='lineterminator-empty'),
+     pytest.param('escapechar', '', id='escapechar-empty'),
+     pytest.param('escapechar', '\\\\', id='escapechar-long')])
+def test_csv_string_lengths(member_name: str, value: str) -> None:
+    """CSV string validators reject empty or multi-character values."""
+    text = _json_text({
+        'format_name': 'CSV',
+        'implementation': 'csv',
+        'csv': {member_name: value}
+    })
+    with pytest.raises(InvalidConfiguration) as exc_info:
+        TioJsonConfig(Capabilities(), FileAccess.CREATE,
+                      from_json_data_text=text)
+    assert member_name in str(exc_info.value)
+
+
 def test_member_bad_value() -> None:
     """Bridge member validators reject invalid individual values."""
     text = _json_text({
@@ -229,6 +271,18 @@ def test_whole_impl_format() -> None:
     })
     with pytest.raises(InvalidConfiguration) as exc_info:
         TioJsonConfig(Capabilities(), FileAccess.CREATE,
+                      from_json_data_text=text)
+    assert 'implementation' in str(exc_info.value)
+
+
+def test_whole_file_access() -> None:
+    """Whole-config validation uses runtime file access."""
+    text = _json_text({
+        'format_name': 'Excel',
+        'implementation': 'XlsxWriter'
+    })
+    with pytest.raises(InvalidConfiguration) as exc_info:
+        TioJsonConfig(Capabilities(), FileAccess.READ,
                       from_json_data_text=text)
     assert 'implementation' in str(exc_info.value)
 

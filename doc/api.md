@@ -1,8 +1,6 @@
 # Table of Contents
 
 * [tableio\_cfg\_json.config](#tableio_cfg_json.config)
-  * [TioWholeValidator](#tableio_cfg_json.config.TioWholeValidator)
-    * [validate](#tableio_cfg_json.config.TioWholeValidator.validate)
   * [TioJsonCsvConfig](#tableio_cfg_json.config.TioJsonCsvConfig)
     * [\_\_init\_\_](#tableio_cfg_json.config.TioJsonCsvConfig.__init__)
     * [parse\_converters](#tableio_cfg_json.config.TioJsonCsvConfig.parse_converters)
@@ -25,27 +23,11 @@
 
 # tableio\_cfg\_json.config
 
-Config-as-json bridge for framework-neutral tableio configuration.
+JSON-backed configuration classes for TableIO settings.
 
-<a id="tableio_cfg_json.config.TioWholeValidator"></a>
-
-## TioWholeValidator Objects
-
-```python
-class TioWholeValidator(WholeConfigValidator)
-```
-
-Validate the complete bridge object with tableio rules.
-
-<a id="tableio_cfg_json.config.TioWholeValidator.validate"></a>
-
-#### validate
-
-```python
-def validate(config: Config, stderr_file: TextIO = sys.stderr) -> None
-```
-
-Validate one complete tableio JSON configuration.
+The module adapts tableio's framework-neutral configuration data classes to
+config-as-json. The public classes keep tableio's durable values while adding
+JSON reading, writing, nested-section handling and validation.
 
 <a id="tableio_cfg_json.config.TioJsonCsvConfig"></a>
 
@@ -55,7 +37,11 @@ Validate one complete tableio JSON configuration.
 class TioJsonCsvConfig(CsvConfigData, Config)
 ```
 
-CSV tableio configuration section backed by config-as-json.
+JSON-backed CSV configuration section for TableIO.
+
+The class stores the same durable CSV values as CsvConfigData and adds
+config-as-json support for the optional nested ``csv`` section in
+TioJsonConfig.
 
 <a id="tableio_cfg_json.config.TioJsonCsvConfig.__init__"></a>
 
@@ -73,7 +59,10 @@ def __init__(dialect: Optional[CsvDialect] = None,
              stderr_file: TextIO = sys.stderr) -> None
 ```
 
-Initialize the CSV configuration section.
+Create CSV settings or read them from a JSON source.
+
+Constructor arguments provide defaults. If JSON text or a filename is
+supplied, config-as-json applies the JSON values over those defaults.
 
 <a id="tableio_cfg_json.config.TioJsonCsvConfig.parse_converters"></a>
 
@@ -84,17 +73,25 @@ Initialize the CSV configuration section.
 def parse_converters() -> dict[str, ParseConverter]
 ```
 
-Return JSON read conversions for CSV values.
+Return JSON converters for CSV members.
+
+``dialect`` is a CsvDialect enum member in tableio and a string name
+in JSON.
 
 <a id="tableio_cfg_json.config.TioJsonCsvConfig.get_validation_plan"></a>
 
 #### get\_validation\_plan
 
 ```python
+@override
 def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
 ```
 
-Return config-as-json validation steps for CSV values.
+Return validation for CSV-only JSON values.
+
+Missing values are accepted as ``None``. Delimiter, quote character
+and escape character must be single-character strings, while line
+terminator only needs to be a non-empty string.
 
 <a id="tableio_cfg_json.config.TioJsonHtmlConfig"></a>
 
@@ -104,7 +101,11 @@ Return config-as-json validation steps for CSV values.
 class TioJsonHtmlConfig(HtmlConfigData, Config)
 ```
 
-HTML tableio configuration section backed by config-as-json.
+JSON-backed HTML configuration section for TableIO.
+
+The class stores the same durable HTML values as HtmlConfigData and adds
+config-as-json support for the optional nested ``html`` section in
+TioJsonConfig.
 
 <a id="tableio_cfg_json.config.TioJsonHtmlConfig.__init__"></a>
 
@@ -117,17 +118,21 @@ def __init__(css_file: Optional[str] = None,
              stderr_file: TextIO = sys.stderr) -> None
 ```
 
-Initialize the HTML configuration section.
+Create HTML settings or read them from a JSON source.
+
+Constructor arguments provide defaults. If JSON text or a filename is
+supplied, config-as-json applies the JSON values over those defaults.
 
 <a id="tableio_cfg_json.config.TioJsonHtmlConfig.get_validation_plan"></a>
 
 #### get\_validation\_plan
 
 ```python
+@override
 def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
 ```
 
-Return config-as-json validation steps for HTML values.
+Return validation for HTML-only JSON values.
 
 <a id="tableio_cfg_json.config.TioJsonLatexConfig"></a>
 
@@ -137,7 +142,11 @@ Return config-as-json validation steps for HTML values.
 class TioJsonLatexConfig(LatexConfigData, Config)
 ```
 
-LaTeX tableio configuration section backed by config-as-json.
+JSON-backed LaTeX configuration section for TableIO.
+
+The class stores the same durable LaTeX values as LatexConfigData and
+adds config-as-json support for the optional nested ``latex`` section in
+TioJsonConfig.
 
 <a id="tableio_cfg_json.config.TioJsonLatexConfig.__init__"></a>
 
@@ -151,17 +160,21 @@ def __init__(document_class: Optional[str] = None,
              stderr_file: TextIO = sys.stderr) -> None
 ```
 
-Initialize the LaTeX configuration section.
+Create LaTeX settings or read them from a JSON source.
+
+Constructor arguments provide defaults. If JSON text or a filename is
+supplied, config-as-json applies the JSON values over those defaults.
 
 <a id="tableio_cfg_json.config.TioJsonLatexConfig.get_validation_plan"></a>
 
 #### get\_validation\_plan
 
 ```python
+@override
 def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
 ```
 
-Return config-as-json validation steps for LaTeX values.
+Return validation for LaTeX-only JSON values.
 
 <a id="tableio_cfg_json.config.TioJsonConfig"></a>
 
@@ -171,7 +184,12 @@ Return config-as-json validation steps for LaTeX values.
 class TioJsonConfig(ConfigData, Config)
 ```
 
-Complete tableio configuration backed by config-as-json.
+Complete JSON-backed TableIO configuration.
+
+Instances are both tableio ConfigData objects and config-as-json Config
+objects. Runtime capabilities and file access are used for default
+selection and validation, but they are private runtime context rather
+than durable JSON configuration values.
 
 <a id="tableio_cfg_json.config.TioJsonConfig.__init__"></a>
 
@@ -189,7 +207,11 @@ def __init__(capabilities: Capabilities,
              stderr_file: TextIO = sys.stderr) -> None
 ```
 
-Initialize a tableio JSON configuration.
+Create TableIO settings or read them from a JSON source.
+
+Default values come from tableio's recommended configuration for the
+supplied capabilities and file access. If JSON text or a filename is
+supplied, config-as-json applies the JSON values over those defaults.
 
 <a id="tableio_cfg_json.config.TioJsonConfig.capabilities"></a>
 
@@ -200,7 +222,7 @@ Initialize a tableio JSON configuration.
 def capabilities() -> Capabilities
 ```
 
-Return runtime capabilities used for validation.
+Return capabilities used to choose and validate the backend.
 
 <a id="tableio_cfg_json.config.TioJsonConfig.file_access"></a>
 
@@ -211,7 +233,7 @@ Return runtime capabilities used for validation.
 def file_access() -> FileAccess
 ```
 
-Return runtime file access used for validation.
+Return file access used to choose and validate the backend.
 
 <a id="tableio_cfg_json.config.TioJsonConfig.nested_configs"></a>
 
@@ -222,17 +244,22 @@ Return runtime file access used for validation.
 def nested_configs() -> NestedConfigs
 ```
 
-Return nested tableio configuration section declarations.
+Return declarations for optional format-specific sections.
 
 <a id="tableio_cfg_json.config.TioJsonConfig.get_validation_plan"></a>
 
 #### get\_validation\_plan
 
 ```python
+@override
 def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
 ```
 
-Return config-as-json validation steps for top-level values.
+Return validation for top-level JSON values.
+
+Member validation checks value shapes and normalizes tableio choices.
+The final whole-config step lets tableio validate combinations that
+depend on capabilities, file access, format and implementation.
 
 <a id="tableio_cfg_json.config.tio_json_config_default"></a>
 
@@ -247,5 +274,9 @@ def tio_json_config_default(capabilities: Capabilities,
                             stderr_file: TextIO = sys.stderr) -> TioJsonConfig
 ```
 
-Return a default tableio configuration backed by config-as-json.
+Return a TioJsonConfig with tableio's recommended defaults.
+
+The returned object can be used directly as a tableio ConfigData object
+and can also read or write the same settings as JSON through
+config-as-json.
 
