@@ -6,6 +6,8 @@
 
 from tableio_cfg_json.config import TioJsonConfig, TioJsonCsvConfig, \
     TioJsonHtmlConfig, TioJsonLatexConfig, tio_json_config_default
+from tableio_cfg_json.describe import describe_config, get_general_cfg_info
 
 __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
-           'TioJsonLatexConfig', 'tio_json_config_default']
+           'TioJsonLatexConfig', 'describe_config',
+           'get_general_cfg_info', 'tio_json_config_default']

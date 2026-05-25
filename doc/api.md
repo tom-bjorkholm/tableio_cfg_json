@@ -1,5 +1,8 @@
 # Table of Contents
 
+* [tableio\_cfg\_json.describe](#tableio_cfg_json.describe)
+  * [get\_general\_cfg\_info](#tableio_cfg_json.describe.get_general_cfg_info)
+  * [describe\_config](#tableio_cfg_json.describe.describe_config)
 * [tableio\_cfg\_json.config](#tableio_cfg_json.config)
   * [TioJsonCsvConfig](#tableio_cfg_json.config.TioJsonCsvConfig)
     * [\_\_init\_\_](#tableio_cfg_json.config.TioJsonCsvConfig.__init__)
@@ -18,6 +21,98 @@
     * [nested\_configs](#tableio_cfg_json.config.TioJsonConfig.nested_configs)
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
+
+<a id="tableio_cfg_json.describe"></a>
+
+# tableio\_cfg\_json.describe
+
+Describe the configuration file format of tableio-cfg-json.
+
+<a id="tableio_cfg_json.describe.get_general_cfg_info"></a>
+
+#### get\_general\_cfg\_info
+
+```python
+def get_general_cfg_info() -> str
+```
+
+Get a description of the general configuration file format.
+
+**Returns**:
+
+  A description of the general configuration file format.
+  This is a string suitable as introduction text in a plain
+  text file that later will describe the
+  specific configuration options for a use case in
+  more detail. This description concentrates on the syntax
+  of the JSON configuration file, how values are represented
+  and how the configuration file is structured, including
+  that many values are optional.
+  The line length in the returned string is limited
+  to 79 characters.
+
+<a id="tableio_cfg_json.describe.describe_config"></a>
+
+#### describe\_config
+
+```python
+def describe_config(capabilities: Optional[Capabilities] = None,
+                    file_access: Optional[FileAccess] = None,
+                    format_name: Optional[str] = None,
+                    include_compact_example: bool = True,
+                    include_full_example: bool = False) -> str
+```
+
+Get a description of the configuration file format of tableio-cfg-json.
+
+**Arguments**:
+
+- `capabilities` - The capabilities of the application. If provided the
+  description will be limited to the configuration options
+  that are relevant for the given capabilities. If not
+  provided the description will include all configuration
+  options that are relevant for the given file access.
+- `file_access` - The file access of the application. If provided the
+  description will be limited to the configuration options
+  that are relevant for the given file access. If not
+  provided the description will include all configuration
+  options that are relevant for the given capabilities.
+  For instance if the file access is READ, only
+  format_name values that are READ-capable will be
+  included.
+- `format_name` - The name of the format to describe. If provided the
+  description will be limited to the configuration options
+  that are relevant for the given format name. If not
+  provided the description will include all configuration
+  options that are relevant for the given capabilities and
+  file access.
+- `include_compact_example` - Whether to include a compact configuration
+  example (that is JSON string produced by the
+  configuration that is described), with the default
+  values omitted to keep the example compact.
+- `include_full_example` - Whether to include a full configuration example
+  (that is JSON string produced by the configuration
+  that is described), with all values (also default values)
+  included. Both include_compact_example and
+  include_full_example can be True, in which case both
+  examples are included.
+  
+
+**Returns**:
+
+  A description of the configuration file format of tableio-cfg-json.
+  The returned string is suitable as a section in a plain text file
+  that describes the configuration file format of tableio-cfg-json.
+  The line length in the returned string is limited to 79 characters.
+  It is assumed that the string returned by get_general_cfg_info()
+  has been added to the plain text file before the return value of
+  this function.
+  
+
+**Raises**:
+
+- `TableIOFactoryNoCapabilityMatch` - The requested capabilities cannot be
+  matched to any available implementation.
 
 <a id="tableio_cfg_json.config"></a>
 
