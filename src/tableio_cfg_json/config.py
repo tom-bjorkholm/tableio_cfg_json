@@ -469,6 +469,10 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
                                   format_name=format_name,
                                   implementation=implementation,
                                   include_all_options=include_all_options)
+        # Compact output should not lock the runtime implementation unless
+        # the caller explicitly requested one.
+        if implementation is None and not include_all_options:
+            data.implementation = None
         self._capabilities = add_access_capabilities(file_access, capabilities,
                                                      error_file=stderr_file)
         self._file_access = file_access

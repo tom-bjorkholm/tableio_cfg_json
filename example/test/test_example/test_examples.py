@@ -9,7 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from example import e01_create_config, e02_write_table, e03_read_table
+from example import e01_create_config, e02_write_table, e03_read_table, \
+    e04_create_custom_config
 
 
 def _read_json(json_file: Path) -> dict[str, object]:
@@ -64,10 +65,7 @@ def test_csv_write_config(tmp_path: Path) -> None:
                    access_arg='--write', format_name='CSV')
     config_data = _read_json(config_file)
     syntax_text = syntax_file.read_text(encoding='utf-8')
-    assert config_data == {
-        'format_name': 'CSV',
-        'implementation': 'csv'
-    }
+    assert config_data == {'format_name': 'CSV'}
     assert 'Matching formats: CSV.' in syntax_text
     assert 'Compact example (CREATE)' in syntax_text
     assert 'Full example' not in syntax_text
@@ -100,6 +98,69 @@ def test_csv_write_and_read(tmp_path: Path,
                                  '--output', str(output_file)]) == 0
     assert 'Capital' in output_file.read_text(encoding='utf-8')
     assert e03_read_table.main(['--cfg', str(config_file),
+                                '--input', str(output_file)]) == 0
+    assert capsys.readouterr().out == _expected_text()
+
+
+def test_custom_csv_config(tmp_path: Path) -> None:
+    """The custom example writes explicit CSV and general values."""
+    config_file = tmp_path / 'custom-csv.json'
+    syntax_file = tmp_path / 'custom-csv.txt'
+    assert e04_create_custom_config.main([
+        '--cfg', str(config_file),
+        '--txt', str(syntax_file),
+        '--write',
+        '--format', 'CSV']) == 0
+    config_data = _read_json(config_file)
+    assert config_data == {
+        'character_encoding': 'utf-8',
+        'csv': {'delimiter': ':'},
+        'format_name': 'CSV',
+        'table_alignment': 'CENTER'
+    }
+    assert 'File formats' in syntax_file.read_text(encoding='utf-8')
+
+
+def test_custom_full_defaults(tmp_path: Path) -> None:
+    """The custom example keeps other defaults in complete output."""
+    config_file = tmp_path / 'custom-full.json'
+    syntax_file = tmp_path / 'custom-full.txt'
+    assert e04_create_custom_config.main([
+        '--cfg', str(config_file),
+        '--txt', str(syntax_file),
+        '--write',
+        '--format', 'CSV',
+        '--complete']) == 0
+    config_data = _read_json(config_file)
+    csv_config = config_data['csv']
+    assert isinstance(csv_config, dict)
+    assert config_data['implementation'] == 'csv'
+    assert csv_config['delimiter'] == ':'
+    assert 'dialect' in csv_config
+
+
+def test_custom_excel_table(tmp_path: Path,
+                            capsys: pytest.CaptureFixture[str]) -> None:
+    """CSV-only custom values may be stored with an Excel config."""
+    write_file = tmp_path / 'custom-excel-write.json'
+    write_text = tmp_path / 'custom-excel-write.txt'
+    read_file = tmp_path / 'custom-excel-read.json'
+    read_text = tmp_path / 'custom-excel-read.txt'
+    output_file = tmp_path / 'custom-capitals.xlsx'
+    assert e04_create_custom_config.main([
+        '--cfg', str(write_file), '--txt', str(write_text), '--write',
+        '--format', 'Excel', '--csv-delimiter', ':',
+        '--alignment', 'LEFT']) == 0
+    assert e04_create_custom_config.main([
+        '--cfg', str(read_file), '--txt', str(read_text), '--read',
+        '--format', 'Excel', '--csv-delimiter', ':']) == 0
+    write_data = _read_json(write_file)
+    assert write_data['format_name'] == 'Excel'
+    assert write_data['csv'] == {'delimiter': ':'}
+    assert 'implementation' not in write_data
+    assert e02_write_table.main(['--cfg', str(write_file),
+                                 '--output', str(output_file)]) == 0
+    assert e03_read_table.main(['--cfg', str(read_file),
                                 '--input', str(output_file)]) == 0
     assert capsys.readouterr().out == _expected_text()
 

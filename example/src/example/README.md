@@ -31,6 +31,10 @@ table with the columns `Capital`, `Country` and `Continent`.
 `e03_read_table.py` reads a read-capable JSON config and prints the table from
 an existing file as tab-separated text.
 
+`e04_create_custom_config.py` writes the same kind of config as
+`e01_create_config.py`, but then stores a few explicit non-default values:
+character encoding, table alignment and a CSV delimiter.
+
 ## CSV walkthrough
 
 CSV is the easiest format to inspect because the output file is plain text.
@@ -64,6 +68,32 @@ python -m example.e01_create_config \
   --complete
 ```
 
+## Custom configuration walkthrough
+
+The compact config from `e01_create_config.py` only stores the durable choices
+that need to be fixed. `e04_create_custom_config.py` shows the next step:
+start from the same default object and then set a few values before writing
+the JSON file.
+
+```sh
+python -m example.e04_create_custom_config \
+  --cfg capitals-custom-csv.json \
+  --txt capitals-custom-csv-syntax.txt \
+  --write \
+  --format CSV \
+  --csv-delimiter : \
+  --encoding utf-8 \
+  --alignment CENTER
+
+python -m example.e02_write_table \
+  --cfg capitals-custom-csv.json \
+  --output capitals-custom.csv
+```
+
+The CSV delimiter is stored in the optional nested `csv` section. If you use
+the same option while creating an Excel config, the value is still valid JSON
+configuration, but it has no effect when TableIO later uses an Excel backend.
+
 ## Excel walkthrough
 
 Excel is a useful second example because TableIO commonly uses one
@@ -93,14 +123,18 @@ python -m example.e03_read_table \
 ```
 
 This is an important point for real programs: the JSON file stores durable
-TableIO choices such as `format_name` and `implementation`, but file access is
-a runtime fact. A configuration that selects the best Excel writer may not be
-the same as a configuration that selects the best Excel reader.
+TableIO choices such as `format_name`, and may also store an explicit
+`implementation` when the user wants to lock one down. When `implementation`
+is omitted, TableIO selects the best matching implementation at runtime. File
+access is also a runtime fact. A configuration that selects the best Excel
+writer may not be the same as a configuration that selects the best Excel
+reader.
 
 ## What to look for in the code
 
 The configuration creator shows how to ask TableIO for a recommended default
-configuration and then write that object as JSON:
+configuration and then write that object as JSON. In compact output, an
+unselected implementation is omitted so TableIO can choose at runtime:
 
 ```python
 config = tio_json_config_default(capabilities=capabilities,
@@ -122,7 +156,7 @@ with tio_config_create(config=config, file_name=table_file,
     ...
 ```
 
-The resulting config supplies the durable TableIO choices such as format and
-implementation. `tio_config_create()` then validates those choices for the
-runtime task, filters the format-specific optional settings, and returns the
-actual TableIO backend object.
+The resulting config supplies durable TableIO choices such as format and any
+explicit optional settings. `tio_config_create()` then validates those choices
+for the runtime task, filters the format-specific optional settings, and
+returns the actual TableIO backend object.

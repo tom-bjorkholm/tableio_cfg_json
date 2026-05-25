@@ -392,16 +392,14 @@ def get_general_cfg_info() -> str:
         to 79 characters.
     """
     paragraphs = [
-        'TioJsonConfig stores TableIO settings as a JSON object. If an '
-        'application nests it inside a larger config-as-json configuration, '
-        'the same object appears as the value of the application member that '
-        'owns the TableIO settings.',
-        'JSON object keys are public configuration member names. The required '
-        'top-level key is format_name. Optional keys may be omitted when '
-        'their value is not set.',
-        'Format-specific settings are grouped in optional nested objects '
-        'named csv, html and latex. These nested objects may be omitted when '
-        'no value in the group is set.',
+        'The configuration is stored as a JSON object. If this object is '
+        'nested inside a larger config-as-json configuration file, it appears '
+        'as the value of the application member that owns these settings.',
+        'JSON object keys are public configuration member names. Required '
+        'members must be present. Optional members may be omitted when their '
+        'value is not set.',
+        'Related settings may be grouped in optional nested JSON objects. '
+        'Nested objects may be omitted when no value in the group is set.',
         'String values use JSON strings, integers use JSON numbers without a '
         'fractional part, and unset optional values use null when present. '
         'Compact configuration output omits null optional values.'
@@ -465,12 +463,15 @@ def describe_config(capabilities: Optional[Capabilities] = None,
     format_names = _format_names(match_caps, format_name)
     impls_by_fmt = _impls_by_format(format_names, match_caps)
     impl_names = _unique_impls(impls_by_fmt)
-    lines = ['TioJsonConfig options', '']
+    lines = ['File formats', '']
     _add_value_list(lines, 'Matching formats', tuple(format_names))
-    for fmt_name, impls in impls_by_fmt.items():
-        _add_value_list(lines, f'{fmt_name} implementations', tuple(impls))
     lines.append('')
-    lines.append('Members')
+    lines.append('Possible implementations for each file format')
+    lines.append('')
+    for fmt_name, impls in impls_by_fmt.items():
+        _add_value_list(lines, fmt_name, tuple(impls))
+    lines.append('')
+    lines.append('Configuration options')
     for spec in _relevant_specs(format_names, impls_by_fmt):
         lines.append('')
         _add_member(lines, spec, format_names, impl_names)

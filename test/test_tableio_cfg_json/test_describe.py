@@ -42,8 +42,10 @@ def test_general_info_lines() -> None:
     text = get_general_cfg_info()
     _assert_line_limit(text)
     assert 'JSON object' in text
-    assert 'nests' in text
+    assert 'nested' in text
     assert 'larger config-as-json' in text
+    assert 'TableIO' not in text
+    assert 'TioJsonConfig' not in text
     assert 'Members' not in text
 
 
@@ -62,7 +64,7 @@ def test_read_filtering() -> None:
                            include_compact_example=False)
     _assert_line_limit(text)
     assert 'Choices: CSV, Excel, ODS.' in text
-    assert 'Excel implementations: OpenPyXL, pylightxl.' in text
+    assert 'Excel: OpenPyXL, pylightxl.' in text
     assert 'XlsxWriter' not in text
 
 
@@ -106,10 +108,7 @@ def test_both_examples() -> None:
     text = describe_config(format_name='CSV', include_full_example=True)
     compact = _json_after(text, 'Compact example')
     full = _json_after(text, 'Full example')
-    assert compact == {
-        'format_name': 'CSV',
-        'implementation': 'csv'
-    }
+    assert compact == {'format_name': 'CSV'}
     assert 'character_encoding' in full
 
 

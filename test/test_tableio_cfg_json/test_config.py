@@ -38,7 +38,7 @@ def test_compact_default_bridge() -> None:
     assert isinstance(config, ConfigData)
     assert isinstance(config, Config)
     assert config.format_name == 'Excel'
-    assert config.implementation == 'XlsxWriter'
+    assert config.implementation is None
     assert config.csv is None
     assert config.html is None
     assert config.latex is None
@@ -58,6 +58,7 @@ def test_teaching_default_bridge() -> None:
     assert config.line_length is not None
     assert config.table_max_line_length is not None
     assert config.table_alignment is not None
+    assert config.implementation == 'XlsxWriter'
     assert config.csv.dialect is CsvDialect.UNIX
     assert config.csv.delimiter is not None
     assert config.csv.quoting is not None
@@ -75,10 +76,15 @@ def test_compact_write_omits_none(tmp_path: Path) -> None:
     config_file = tmp_path / 'tableio.json'
     config.write(to_json_filename=config_file)
     data = json.loads(config_file.read_text(encoding='utf-8'))
-    assert data == {
-        'format_name': 'Excel',
-        'implementation': 'XlsxWriter'
-    }
+    assert data == {'format_name': 'Excel'}
+
+
+def test_explicit_impl_file() -> None:
+    """Compact defaults keep an implementation explicitly requested."""
+    config = tio_json_config_default(Capabilities(), FileAccess.CREATE,
+                                     format_name='CSV', implementation='csv')
+    assert config.format_name == 'CSV'
+    assert config.implementation == 'csv'
 
 
 def test_teaching_roundtrip(tmp_path: Path) -> None:
