@@ -24,7 +24,7 @@ This repository uses submodules. Clone it with:
 
 ```sh
 git clone --recurse-submodules \
-  git@bitbucket.org:tom-bjorkholm/config_as_json.git
+  git@bitbucket.org:tom-bjorkholm/tableio_cfg_json
 ```
 
 If you already cloned without submodules, initialize them with:
