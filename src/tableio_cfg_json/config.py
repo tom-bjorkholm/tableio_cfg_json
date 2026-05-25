@@ -600,7 +600,8 @@ def tio_json_config_default(capabilities: Capabilities,
     Returns:
         A JSON-backed tableio configuration object.
     """
-    return TioJsonConfig(
-        capabilities=capabilities, file_access=file_access,
-        format_name=format_name, implementation=implementation,
-        include_all_options=include_all_options, stderr_file=stderr_file)
+    return TioJsonConfig(capabilities=capabilities, file_access=file_access,
+                         format_name=format_name,
+                         implementation=implementation,
+                         include_all_options=include_all_options,
+                         stderr_file=stderr_file)
