@@ -12,8 +12,6 @@ __pycache__
 *.egg-info
 dist
 dist/*
-*.pyc
-__pycache__
 .DS_Store
 .cursor
 .cursor/*
@@ -41,4 +39,3 @@ depdoc/*
 *.log
 *.pdf
 *.xlsx
-*.csv

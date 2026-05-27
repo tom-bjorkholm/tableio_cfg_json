@@ -6,7 +6,7 @@
 
 import sys
 from textwrap import wrap
-from typing import Optional
+from typing import NamedTuple, Optional, Sequence
 
 from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
     add_access_capabilities, list_implementations_tableio, \
@@ -16,6 +16,15 @@ from tableio_cfg_json.config import tio_json_config_default
 
 _WIDTH = 79
 _BASE_NAMES = ('format_name', 'implementation')
+
+
+class _DescriptionContext(NamedTuple):
+    """Matched TableIO metadata used by description helpers."""
+
+    format_names: list[str]
+    impls_by_fmt: dict[str, list[str]]
+    impl_names: list[str]
+    specs: list[ConfigSpec]
 
 
 def _wrapped(text: str, initial: str = '',
@@ -122,6 +131,31 @@ def _impls_by_format(format_names: list[str],
     }
 
 
+def _filtered_impls(impls_by_fmt: dict[str, list[str]],
+                    implementation: Optional[str]) -> dict[str, list[str]]:
+    """Return implementations limited to one requested implementation.
+
+    Args:
+        impls_by_fmt: Matching implementation names keyed by format.
+        implementation: Optional requested implementation name.
+    Raises:
+        TableIOFactoryNoCapabilityMatch: No matching implementation exists.
+    Returns:
+        Implementation names keyed by matching format.
+    """
+    if implementation is None:
+        return impls_by_fmt
+    ret: dict[str, list[str]] = {}
+    for fmt_name, impls in impls_by_fmt.items():
+        for impl_name in impls:
+            if impl_name.lower() == implementation.lower():
+                ret[fmt_name] = [impl_name]
+    if ret:
+        return ret
+    msg = f'Implementation "{implementation}" does not match the filters.'
+    raise TableIOFactoryNoCapabilityMatch(msg)
+
+
 def _unique_impls(impls_by_fmt: dict[str, list[str]]) -> list[str]:
     """Return implementation names without duplicates.
 
@@ -185,6 +219,39 @@ def _relevant_specs(format_names: list[str],
         spec for spec in tio_config_specs().values()
         if _spec_matches(spec, format_names, impl_names)
     ]
+
+
+def _description_context(capabilities: Optional[Capabilities],
+                         file_access: Optional[FileAccess],
+                         format_name: Optional[str],
+                         implementation: Optional[str]) -> \
+        _DescriptionContext:
+    """Return matched TableIO metadata for one endpoint description.
+
+    Args:
+        capabilities: Application capability requirements.
+        file_access: Optional file access that adds read/write requirements.
+        format_name: Optional requested format name.
+        implementation: Optional requested implementation name.
+    Raises:
+        TableIOFactoryNoCapabilityMatch: The requested filters match no
+            registered format or implementation.
+    Returns:
+        Matched metadata shared by the public description helpers.
+    """
+    match_caps = _matching_caps(capabilities, file_access)
+    format_names = _format_names(match_caps, format_name)
+    impls_by_fmt = _impls_by_format(format_names, match_caps)
+    impls_by_fmt = _filtered_impls(impls_by_fmt, implementation)
+    format_names = [
+        name for name in format_names
+        if name in impls_by_fmt
+    ]
+    impl_names = _unique_impls(impls_by_fmt)
+    specs = _relevant_specs(format_names, impls_by_fmt)
+    return _DescriptionContext(format_names=format_names,
+                               impls_by_fmt=impls_by_fmt,
+                               impl_names=impl_names, specs=specs)
 
 
 def _member_choices(spec: ConfigSpec, format_names: list[str],
@@ -274,6 +341,58 @@ def _add_member(lines: list[str], spec: ConfigSpec, format_names: list[str],
                     _filtered(spec.relevant_impls, impl_names))
 
 
+def _add_ref_member(lines: list[str], spec: ConfigSpec) -> None:
+    """Append unfiltered documentation for one configuration member.
+
+    Args:
+        lines: Lines to extend.
+        spec: TableIO configuration specification.
+    Returns:
+        None.
+    """
+    lines.append(spec.name)
+    _add_wrapped(lines, spec.description, '  ', '  ')
+    _add_wrapped(lines, f'Type: {spec.value_type}.', '  ', '  ')
+    if spec.default_text is not None:
+        _add_wrapped(lines, f'Default: {_end_sentence(spec.default_text)}',
+                     '  ', '  ')
+    _add_value_list(lines, 'Choices', spec.choices)
+    _add_value_list(lines, 'Relevant formats', spec.relevant_formats)
+    _add_value_list(lines, 'Relevant implementations', spec.relevant_impls)
+
+
+def _reference_specs(member_names: Optional[Sequence[str]],
+                     include_all_members: bool) -> list[ConfigSpec]:
+    """Return specs selected for a one-time member reference.
+
+    Args:
+        member_names: Optional member names to describe.
+        include_all_members: Whether to describe all known members.
+    Raises:
+        ValueError: The selection arguments are ambiguous or missing.
+        KeyError: A requested member name is unknown.
+    Returns:
+        Selected specs in TableIO metadata order.
+    """
+    if member_names is None and not include_all_members:
+        msg = 'member_names or include_all_members must be supplied.'
+        raise ValueError(msg)
+    if member_names is not None and include_all_members:
+        msg = 'member_names and include_all_members cannot both be supplied.'
+        raise ValueError(msg)
+    specs = tio_config_specs()
+    if member_names is None:
+        return list(specs.values())
+    missing = [name for name in member_names if name not in specs]
+    if missing:
+        raise KeyError(missing[0])
+    selected = set(member_names)
+    return [
+        spec for spec in specs.values()
+        if spec.name in selected
+    ]
+
+
 def _uses_read_caps(capabilities: Capabilities) -> bool:
     """Return whether capabilities imply a read-oriented example.
 
@@ -330,7 +449,7 @@ def _example_accesses(capabilities: Capabilities,
 
 def _example_text(capabilities: Optional[Capabilities],
                   file_access: Optional[FileAccess],
-                  format_name: Optional[str],
+                  format_name: Optional[str], implementation: Optional[str],
                   include_all_options: bool) -> tuple[FileAccess, str]:
     """Return one example JSON document and the access used for it.
 
@@ -338,6 +457,7 @@ def _example_text(capabilities: Optional[Capabilities],
         capabilities: Application capability requirements.
         file_access: Optional file access supplied by the caller.
         format_name: Optional requested format name.
+        implementation: Optional requested implementation name.
         include_all_options: Whether all options should be visible.
     Raises:
         TableIOFactoryNoCapabilityMatch: No default example can be selected.
@@ -350,6 +470,7 @@ def _example_text(capabilities: Optional[Capabilities],
         try:
             config = tio_json_config_default(
                 capabilities=caps, file_access=access, format_name=format_name,
+                implementation=implementation,
                 include_all_options=include_all_options)
             return access, config.as_json_string(stderr_file=sys.stderr)
         except ConfigError as error:
@@ -407,13 +528,172 @@ def get_general_cfg_info() -> str:
     return '\n\n'.join(_paragraph(text) for text in paragraphs)
 
 
+def get_config_member_names(capabilities: Optional[Capabilities] = None,
+                            file_access: Optional[FileAccess] = None,
+                            format_name: Optional[str] = None,
+                            implementation: Optional[str] = None) -> \
+        tuple[str, ...]:
+    """Get relevant configuration member names for one TableIO endpoint.
+
+    Use this helper when an application wants to compose its own
+    documentation text instead of using the complete text returned by
+    describe_config(). It is especially useful for larger application
+    configuration files with several TableIO endpoints: call it once for each
+    endpoint, combine the names, and pass the result to
+    describe_config_reference() so the long parameter descriptions appear
+    only once.
+
+    Args:
+        capabilities: Capabilities needed by the application endpoint.
+            Passing this filters the result to formats and options that can
+            satisfy those capabilities.
+        file_access: File access for the endpoint, for example READ for an
+            input endpoint or CREATE for an output endpoint. Passing this
+            filters the result to backends that support that access.
+        format_name: Optional TableIO format name. Passing this narrows the
+            result to members relevant for that format.
+        implementation: Optional TableIO implementation name. Passing this
+            narrows the result to members relevant for that implementation.
+    Raises:
+        TableIOFactoryNoCapabilityMatch: The requested filters match no
+            registered format or implementation.
+    Returns:
+        Relevant member names in TableIO metadata order.
+    """
+    context = _description_context(capabilities, file_access, format_name,
+                                   implementation)
+    return tuple(spec.name for spec in context.specs)
+
+
+def describe_config_members(capabilities: Optional[Capabilities] = None,
+                            file_access: Optional[FileAccess] = None,
+                            format_name: Optional[str] = None,
+                            implementation: Optional[str] = None) -> str:
+    """Get a compact member summary for one TableIO endpoint.
+
+    Use this helper when the surrounding application already explains what
+    the endpoint means, and only needs a short list of the TableIO choices
+    and member names that are editable for that endpoint. It deliberately
+    avoids the longer per-member descriptions so that an application can show
+    this section once for each input or output, and then use
+    describe_config_reference() once for the shared detailed reference.
+
+    Args:
+        capabilities: Capabilities needed by the application endpoint.
+            Passing this filters format choices, implementation choices and
+            members to what the endpoint can actually use.
+        file_access: File access for the endpoint. For example, READ limits
+            the listed formats to read-capable formats.
+        format_name: Optional TableIO format name. Passing this is useful
+            when documenting one already-selected format.
+        implementation: Optional TableIO implementation name. Passing this
+            is useful when documenting one already-selected backend.
+    Raises:
+        TableIOFactoryNoCapabilityMatch: The requested filters match no
+            registered format or implementation.
+    Returns:
+        A compact text listing format choices, implementation choices and
+        relevant configuration members. The returned line length is limited
+        to 79 characters.
+    """
+    context = _description_context(capabilities, file_access, format_name,
+                                   implementation)
+    lines: list[str] = []
+    _add_value_list(lines, 'format_name choices', tuple(context.format_names))
+    lines.append('')
+    lines.append('implementation choices')
+    for fmt_name, impls in context.impls_by_fmt.items():
+        _add_value_list(lines, fmt_name, tuple(impls))
+    lines.append('')
+    lines.append('Relevant members')
+    for spec in context.specs:
+        lines.append(f'  {spec.name}')
+    return '\n'.join(lines)
+
+
+def describe_config_reference(member_names: Optional[Sequence[str]] = None,
+                              include_all_members: bool = False) -> str:
+    """Get unfiltered reference text for selected configuration members.
+
+    Use this helper for the detailed reference section in user-facing syntax
+    text. In a simple single-endpoint program, describe_config() may be
+    enough. In a larger application config, prefer describing each endpoint
+    with describe_config_members(), collect the relevant names with
+    get_config_member_names(), and call this function once so each parameter
+    description is not repeated for every endpoint.
+
+    Args:
+        member_names: Optional names of members to describe. When supplied,
+            unknown names raise ``KeyError`` and output order follows TableIO
+            metadata order.
+        include_all_members: Whether to describe all known TableIO
+            configuration members.
+    Raises:
+        ValueError: Neither selection argument was supplied, or both were.
+        KeyError: A requested member name is unknown.
+    Returns:
+        A long-form member reference. The returned line length is limited
+        to 79 characters.
+    """
+    lines: list[str] = []
+    for spec in _reference_specs(member_names, include_all_members):
+        if lines:
+            lines.append('')
+        _add_ref_member(lines, spec)
+    return '\n'.join(lines)
+
+
+def describe_config_example(capabilities: Optional[Capabilities] = None,
+                            file_access: Optional[FileAccess] = None,
+                            format_name: Optional[str] = None,
+                            implementation: Optional[str] = None,
+                            complete: bool = False) -> str:
+    """Get one formatted JSON example for one TableIO endpoint.
+
+    Use this helper when the application wants to decide where example JSON
+    belongs in its own text. The return value is only the indented JSON
+    document, with no heading or explanation. Use the compact default for a
+    realistic hand-editable example, and ``complete=True`` when the goal is a
+    template that shows optional defaults.
+
+    Args:
+        capabilities: Capabilities needed by the application endpoint.
+            These capabilities influence which default TableIO backend can be
+            selected for the example.
+        file_access: File access for the endpoint. If omitted, the helper
+            tries a sensible access mode based on the capabilities.
+        format_name: Optional TableIO format name to use in the example.
+        implementation: Optional TableIO implementation name to use in the
+            example.
+        complete: Whether all options should be visible in the example.
+    Raises:
+        TableIOFactoryNoCapabilityMatch: No default example can be selected.
+    Returns:
+        A formatted JSON document string without any heading text.
+    """
+    _access, text = _example_text(capabilities, file_access, format_name,
+                                  implementation, complete)
+    return text
+
+
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def describe_config(capabilities: Optional[Capabilities] = None,
                     file_access: Optional[FileAccess] = None,
                     format_name: Optional[str] = None,
                     include_compact_example: bool = True,
-                    include_full_example: bool = False) -> str:
+                    include_full_example: bool = False,
+                    implementation: Optional[str] = None) -> str:
     """Get a description of the configuration file format of tableio-cfg-json.
+
+    Use this function for a simple program where one configuration file
+    mainly describes one TableIO endpoint. It returns a complete section with
+    matching formats, implementations, relevant members, detailed member
+    descriptions and optional JSON examples. For a larger application config
+    with several TableIO inputs or outputs, prefer composing the text from
+    get_general_cfg_info(), describe_config_members(),
+    get_config_member_names(), describe_config_reference() and
+    describe_config_example() so the application can explain each endpoint in
+    its own words and avoid repeating the long member reference.
 
     Args:
         capabilities: The capabilities of the application. If provided the
@@ -445,6 +725,9 @@ def describe_config(capabilities: Optional[Capabilities] = None,
                       included. Both include_compact_example and
                       include_full_example can be True, in which case both
                       examples are included.
+        implementation: The implementation name to describe. If provided the
+                      description will be limited to the configuration options
+                      that are relevant for that implementation.
 
     Returns:
         A description of the configuration file format of tableio-cfg-json.
@@ -459,28 +742,26 @@ def describe_config(capabilities: Optional[Capabilities] = None,
         TableIOFactoryNoCapabilityMatch: The requested capabilities cannot be
         matched to any available implementation.
     """
-    match_caps = _matching_caps(capabilities, file_access)
-    format_names = _format_names(match_caps, format_name)
-    impls_by_fmt = _impls_by_format(format_names, match_caps)
-    impl_names = _unique_impls(impls_by_fmt)
+    context = _description_context(capabilities, file_access, format_name,
+                                   implementation)
     lines = ['File formats', '']
-    _add_value_list(lines, 'Matching formats', tuple(format_names))
+    _add_value_list(lines, 'Matching formats', tuple(context.format_names))
     lines.append('')
     lines.append('Possible implementations for each file format')
     lines.append('')
-    for fmt_name, impls in impls_by_fmt.items():
+    for fmt_name, impls in context.impls_by_fmt.items():
         _add_value_list(lines, fmt_name, tuple(impls))
     lines.append('')
     lines.append('Configuration options')
-    for spec in _relevant_specs(format_names, impls_by_fmt):
+    for spec in context.specs:
         lines.append('')
-        _add_member(lines, spec, format_names, impl_names)
+        _add_member(lines, spec, context.format_names, context.impl_names)
     if include_compact_example:
         example = _example_text(capabilities, file_access, format_name,
-                                include_all_options=False)
+                                implementation, include_all_options=False)
         _add_example(lines, 'Compact example', example)
     if include_full_example:
         example = _example_text(capabilities, file_access, format_name,
-                                include_all_options=True)
+                                implementation, include_all_options=True)
         _add_example(lines, 'Full example', example)
     return '\n'.join(lines)

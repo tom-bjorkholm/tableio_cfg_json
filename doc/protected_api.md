@@ -1,27 +1,36 @@
 # Table of Contents
 
 * [tableio\_cfg\_json.describe](#tableio_cfg_json.describe)
+  * [\_DescriptionContext](#tableio_cfg_json.describe._DescriptionContext)
   * [\_wrapped](#tableio_cfg_json.describe._wrapped)
   * [\_add\_wrapped](#tableio_cfg_json.describe._add_wrapped)
   * [\_paragraph](#tableio_cfg_json.describe._paragraph)
   * [\_matching\_caps](#tableio_cfg_json.describe._matching_caps)
   * [\_format\_names](#tableio_cfg_json.describe._format_names)
   * [\_impls\_by\_format](#tableio_cfg_json.describe._impls_by_format)
+  * [\_filtered\_impls](#tableio_cfg_json.describe._filtered_impls)
   * [\_unique\_impls](#tableio_cfg_json.describe._unique_impls)
   * [\_overlaps](#tableio_cfg_json.describe._overlaps)
   * [\_spec\_matches](#tableio_cfg_json.describe._spec_matches)
   * [\_relevant\_specs](#tableio_cfg_json.describe._relevant_specs)
+  * [\_description\_context](#tableio_cfg_json.describe._description_context)
   * [\_member\_choices](#tableio_cfg_json.describe._member_choices)
   * [\_filtered](#tableio_cfg_json.describe._filtered)
   * [\_add\_value\_list](#tableio_cfg_json.describe._add_value_list)
   * [\_end\_sentence](#tableio_cfg_json.describe._end_sentence)
   * [\_add\_member](#tableio_cfg_json.describe._add_member)
+  * [\_add\_ref\_member](#tableio_cfg_json.describe._add_ref_member)
+  * [\_reference\_specs](#tableio_cfg_json.describe._reference_specs)
   * [\_uses\_read\_caps](#tableio_cfg_json.describe._uses_read_caps)
   * [\_uses\_write\_caps](#tableio_cfg_json.describe._uses_write_caps)
   * [\_example\_accesses](#tableio_cfg_json.describe._example_accesses)
   * [\_example\_text](#tableio_cfg_json.describe._example_text)
   * [\_add\_example](#tableio_cfg_json.describe._add_example)
   * [get\_general\_cfg\_info](#tableio_cfg_json.describe.get_general_cfg_info)
+  * [get\_config\_member\_names](#tableio_cfg_json.describe.get_config_member_names)
+  * [describe\_config\_members](#tableio_cfg_json.describe.describe_config_members)
+  * [describe\_config\_reference](#tableio_cfg_json.describe.describe_config_reference)
+  * [describe\_config\_example](#tableio_cfg_json.describe.describe_config_example)
   * [describe\_config](#tableio_cfg_json.describe.describe_config)
 * [tableio\_cfg\_json.config](#tableio_cfg_json.config)
   * [\_choices](#tableio_cfg_json.config._choices)
@@ -55,12 +64,38 @@
     * [nested\_configs](#tableio_cfg_json.config.TioJsonConfig.nested_configs)
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
+* [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
+  * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
+  * [\_ask\_format](#tableio_cfg_json.wizard._ask_format)
+  * [\_impl\_names](#tableio_cfg_json.wizard._impl_names)
+  * [\_ask\_implementation](#tableio_cfg_json.wizard._ask_implementation)
+  * [\_start\_data](#tableio_cfg_json.wizard._start_data)
+  * [\_ask\_member](#tableio_cfg_json.wizard._ask_member)
+  * [\_matches](#tableio_cfg_json.wizard._matches)
+  * [\_ask\_config\_member](#tableio_cfg_json.wizard._ask_config_member)
+  * [\_ask\_member\_value](#tableio_cfg_json.wizard._ask_member_value)
+  * [\_parse\_member\_value](#tableio_cfg_json.wizard._parse_member_value)
+  * [\_print\_member\_prompt](#tableio_cfg_json.wizard._print_member_prompt)
+  * [\_ask\_menu](#tableio_cfg_json.wizard._ask_menu)
+  * [\_read\_answer](#tableio_cfg_json.wizard._read_answer)
+  * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
+  * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
 
 <a id="tableio_cfg_json.describe"></a>
 
 # tableio\_cfg\_json.describe
 
 Describe the configuration file format of tableio-cfg-json.
+
+<a id="tableio_cfg_json.describe._DescriptionContext"></a>
+
+## \_DescriptionContext Objects
+
+```python
+class _DescriptionContext(NamedTuple)
+```
+
+Matched TableIO metadata used by description helpers.
 
 <a id="tableio_cfg_json.describe._wrapped"></a>
 
@@ -194,6 +229,30 @@ Return matching implementation names keyed by format.
 
   Matching implementation names for each format.
 
+<a id="tableio_cfg_json.describe._filtered_impls"></a>
+
+#### \_filtered\_impls
+
+```python
+def _filtered_impls(impls_by_fmt: dict[str, list[str]],
+                    implementation: Optional[str]) -> dict[str, list[str]]
+```
+
+Return implementations limited to one requested implementation.
+
+**Arguments**:
+
+- `impls_by_fmt` - Matching implementation names keyed by format.
+- `implementation` - Optional requested implementation name.
+
+**Raises**:
+
+- `TableIOFactoryNoCapabilityMatch` - No matching implementation exists.
+
+**Returns**:
+
+  Implementation names keyed by matching format.
+
 <a id="tableio_cfg_json.describe._unique_impls"></a>
 
 #### \_unique\_impls
@@ -272,6 +331,35 @@ Return TableIO specs relevant to the matching backends.
 **Returns**:
 
   Relevant specs in TableIO metadata order.
+
+<a id="tableio_cfg_json.describe._description_context"></a>
+
+#### \_description\_context
+
+```python
+def _description_context(capabilities: Optional[Capabilities],
+                         file_access: Optional[FileAccess],
+                         format_name: Optional[str],
+                         implementation: Optional[str]) -> _DescriptionContext
+```
+
+Return matched TableIO metadata for one endpoint description.
+
+**Arguments**:
+
+- `capabilities` - Application capability requirements.
+- `file_access` - Optional file access that adds read/write requirements.
+- `format_name` - Optional requested format name.
+- `implementation` - Optional requested implementation name.
+
+**Raises**:
+
+- `TableIOFactoryNoCapabilityMatch` - The requested filters match no
+  registered format or implementation.
+
+**Returns**:
+
+  Matched metadata shared by the public description helpers.
 
 <a id="tableio_cfg_json.describe._member_choices"></a>
 
@@ -375,6 +463,50 @@ Append documentation for one configuration member.
 
   None.
 
+<a id="tableio_cfg_json.describe._add_ref_member"></a>
+
+#### \_add\_ref\_member
+
+```python
+def _add_ref_member(lines: list[str], spec: ConfigSpec) -> None
+```
+
+Append unfiltered documentation for one configuration member.
+
+**Arguments**:
+
+- `lines` - Lines to extend.
+- `spec` - TableIO configuration specification.
+
+**Returns**:
+
+  None.
+
+<a id="tableio_cfg_json.describe._reference_specs"></a>
+
+#### \_reference\_specs
+
+```python
+def _reference_specs(member_names: Optional[Sequence[str]],
+                     include_all_members: bool) -> list[ConfigSpec]
+```
+
+Return specs selected for a one-time member reference.
+
+**Arguments**:
+
+- `member_names` - Optional member names to describe.
+- `include_all_members` - Whether to describe all known members.
+
+**Raises**:
+
+- `ValueError` - The selection arguments are ambiguous or missing.
+- `KeyError` - A requested member name is unknown.
+
+**Returns**:
+
+  Selected specs in TableIO metadata order.
+
 <a id="tableio_cfg_json.describe._uses_read_caps"></a>
 
 #### \_uses\_read\_caps
@@ -438,7 +570,7 @@ Return file accesses to try for example generation.
 ```python
 def _example_text(capabilities: Optional[Capabilities],
                   file_access: Optional[FileAccess],
-                  format_name: Optional[str],
+                  format_name: Optional[str], implementation: Optional[str],
                   include_all_options: bool) -> tuple[FileAccess, str]
 ```
 
@@ -449,6 +581,7 @@ Return one example JSON document and the access used for it.
 - `capabilities` - Application capability requirements.
 - `file_access` - Optional file access supplied by the caller.
 - `format_name` - Optional requested format name.
+- `implementation` - Optional requested implementation name.
 - `include_all_options` - Whether all options should be visible.
 
 **Raises**:
@@ -503,6 +636,169 @@ Get a description of the general configuration file format.
   The line length in the returned string is limited
   to 79 characters.
 
+<a id="tableio_cfg_json.describe.get_config_member_names"></a>
+
+#### get\_config\_member\_names
+
+```python
+def get_config_member_names(
+        capabilities: Optional[Capabilities] = None,
+        file_access: Optional[FileAccess] = None,
+        format_name: Optional[str] = None,
+        implementation: Optional[str] = None) -> tuple[str, ...]
+```
+
+Get relevant configuration member names for one TableIO endpoint.
+
+Use this helper when an application wants to compose its own
+documentation text instead of using the complete text returned by
+describe_config(). It is especially useful for larger application
+configuration files with several TableIO endpoints: call it once for each
+endpoint, combine the names, and pass the result to
+describe_config_reference() so the long parameter descriptions appear
+only once.
+
+**Arguments**:
+
+- `capabilities` - Capabilities needed by the application endpoint.
+  Passing this filters the result to formats and options that can
+  satisfy those capabilities.
+- `file_access` - File access for the endpoint, for example READ for an
+  input endpoint or CREATE for an output endpoint. Passing this
+  filters the result to backends that support that access.
+- `format_name` - Optional TableIO format name. Passing this narrows the
+  result to members relevant for that format.
+- `implementation` - Optional TableIO implementation name. Passing this
+  narrows the result to members relevant for that implementation.
+
+**Raises**:
+
+- `TableIOFactoryNoCapabilityMatch` - The requested filters match no
+  registered format or implementation.
+
+**Returns**:
+
+  Relevant member names in TableIO metadata order.
+
+<a id="tableio_cfg_json.describe.describe_config_members"></a>
+
+#### describe\_config\_members
+
+```python
+def describe_config_members(capabilities: Optional[Capabilities] = None,
+                            file_access: Optional[FileAccess] = None,
+                            format_name: Optional[str] = None,
+                            implementation: Optional[str] = None) -> str
+```
+
+Get a compact member summary for one TableIO endpoint.
+
+Use this helper when the surrounding application already explains what
+the endpoint means, and only needs a short list of the TableIO choices
+and member names that are editable for that endpoint. It deliberately
+avoids the longer per-member descriptions so that an application can show
+this section once for each input or output, and then use
+describe_config_reference() once for the shared detailed reference.
+
+**Arguments**:
+
+- `capabilities` - Capabilities needed by the application endpoint.
+  Passing this filters format choices, implementation choices and
+  members to what the endpoint can actually use.
+- `file_access` - File access for the endpoint. For example, READ limits
+  the listed formats to read-capable formats.
+- `format_name` - Optional TableIO format name. Passing this is useful
+  when documenting one already-selected format.
+- `implementation` - Optional TableIO implementation name. Passing this
+  is useful when documenting one already-selected backend.
+
+**Raises**:
+
+- `TableIOFactoryNoCapabilityMatch` - The requested filters match no
+  registered format or implementation.
+
+**Returns**:
+
+  A compact text listing format choices, implementation choices and
+  relevant configuration members. The returned line length is limited
+  to 79 characters.
+
+<a id="tableio_cfg_json.describe.describe_config_reference"></a>
+
+#### describe\_config\_reference
+
+```python
+def describe_config_reference(member_names: Optional[Sequence[str]] = None,
+                              include_all_members: bool = False) -> str
+```
+
+Get unfiltered reference text for selected configuration members.
+
+Use this helper for the detailed reference section in user-facing syntax
+text. In a simple single-endpoint program, describe_config() may be
+enough. In a larger application config, prefer describing each endpoint
+with describe_config_members(), collect the relevant names with
+get_config_member_names(), and call this function once so each parameter
+description is not repeated for every endpoint.
+
+**Arguments**:
+
+- `member_names` - Optional names of members to describe. When supplied,
+  unknown names raise ``KeyError`` and output order follows TableIO
+  metadata order.
+- `include_all_members` - Whether to describe all known TableIO
+  configuration members.
+
+**Raises**:
+
+- `ValueError` - Neither selection argument was supplied, or both were.
+- `KeyError` - A requested member name is unknown.
+
+**Returns**:
+
+  A long-form member reference. The returned line length is limited
+  to 79 characters.
+
+<a id="tableio_cfg_json.describe.describe_config_example"></a>
+
+#### describe\_config\_example
+
+```python
+def describe_config_example(capabilities: Optional[Capabilities] = None,
+                            file_access: Optional[FileAccess] = None,
+                            format_name: Optional[str] = None,
+                            implementation: Optional[str] = None,
+                            complete: bool = False) -> str
+```
+
+Get one formatted JSON example for one TableIO endpoint.
+
+Use this helper when the application wants to decide where example JSON
+belongs in its own text. The return value is only the indented JSON
+document, with no heading or explanation. Use the compact default for a
+realistic hand-editable example, and ``complete=True`` when the goal is a
+template that shows optional defaults.
+
+**Arguments**:
+
+- `capabilities` - Capabilities needed by the application endpoint.
+  These capabilities influence which default TableIO backend can be
+  selected for the example.
+- `file_access` - File access for the endpoint. If omitted, the helper
+  tries a sensible access mode based on the capabilities.
+- `format_name` - Optional TableIO format name to use in the example.
+- `implementation` - Optional TableIO implementation name to use in the
+  example.
+- `complete` - Whether all options should be visible in the example.
+
+**Raises**:
+
+- `TableIOFactoryNoCapabilityMatch` - No default example can be selected.
+
+**Returns**:
+
+  A formatted JSON document string without any heading text.
+
 <a id="tableio_cfg_json.describe.describe_config"></a>
 
 #### describe\_config
@@ -512,10 +808,21 @@ def describe_config(capabilities: Optional[Capabilities] = None,
                     file_access: Optional[FileAccess] = None,
                     format_name: Optional[str] = None,
                     include_compact_example: bool = True,
-                    include_full_example: bool = False) -> str
+                    include_full_example: bool = False,
+                    implementation: Optional[str] = None) -> str
 ```
 
 Get a description of the configuration file format of tableio-cfg-json.
+
+Use this function for a simple program where one configuration file
+mainly describes one TableIO endpoint. It returns a complete section with
+matching formats, implementations, relevant members, detailed member
+descriptions and optional JSON examples. For a larger application config
+with several TableIO inputs or outputs, prefer composing the text from
+get_general_cfg_info(), describe_config_members(),
+get_config_member_names(), describe_config_reference() and
+describe_config_example() so the application can explain each endpoint in
+its own words and avoid repeating the long member reference.
 
 **Arguments**:
 
@@ -548,6 +855,9 @@ Get a description of the configuration file format of tableio-cfg-json.
   included. Both include_compact_example and
   include_full_example can be True, in which case both
   examples are included.
+- `implementation` - The implementation name to describe. If provided the
+  description will be limited to the configuration options
+  that are relevant for that implementation.
   
 
 **Returns**:
@@ -1269,4 +1579,222 @@ config-as-json.
 **Returns**:
 
   A JSON-backed tableio configuration object.
+
+<a id="tableio_cfg_json.wizard"></a>
+
+# tableio\_cfg\_json.wizard
+
+Interactive helpers for creating TableIO JSON configuration.
+
+The public helper in this module is intentionally scoped to one TableIO
+endpoint. Application code can call it once for each input or output it wants
+to configure, and then place the returned TioJsonConfig objects inside its own
+larger config-as-json configuration class.
+
+<a id="tableio_cfg_json.wizard.tio_json_config_wizard"></a>
+
+#### tio\_json\_config\_wizard
+
+```python
+def tio_json_config_wizard(capabilities: Capabilities,
+                           file_access: FileAccess,
+                           stdin_file: TextIO = sys.stdin,
+                           stdout_file: TextIO = sys.stdout,
+                           stderr_file: TextIO = sys.stderr) -> TioJsonConfig
+```
+
+Interactively create one TableIO JSON endpoint configuration.
+
+Use this function when an application wants to ask a user which TableIO
+format and options should be stored for one input or output endpoint. The
+function first offers only formats that match the supplied capabilities and
+file access. If the selected format has several matching implementations,
+it asks whether to lock one down; a blank answer keeps the recommended
+runtime behavior where TableIO chooses the implementation. It then asks
+for the optional members that can affect the selected backend and validates
+each entered value by constructing a TioJsonConfig.
+
+The returned object is a validated TioJsonConfig. Compact JSON written from
+that object contains only the durable choices entered by the user; omitted
+optional values stay omitted so TableIO can use backend defaults later.
+
+**Arguments**:
+
+- `capabilities` - Capabilities needed by this application endpoint. Pass
+  the capabilities for the one input or output being configured, not
+  for the whole application.
+- `file_access` - File access for this endpoint, such as READ for an input
+  file or CREATE for an output file. This controls which formats and
+  implementations can be offered.
+- `stdin_file` - Stream to read user answers from. Tests can pass a
+  StringIO with scripted answers.
+- `stdout_file` - Stream receiving prompts and retry messages.
+- `stderr_file` - Stream receiving validation diagnostics from TableIO and
+  config-as-json.
+
+**Raises**:
+
+- `EOFError` - Scripted input ends before all required answers are read.
+- `TableIOFactoryNoCapabilityMatch` - No registered backend matches the
+  supplied capabilities and file access.
+- `InvalidConfiguration` - The selected values fail final validation.
+
+**Returns**:
+
+  A validated TableIO JSON config for the one endpoint.
+
+<a id="tableio_cfg_json.wizard._ask_format"></a>
+
+#### \_ask\_format
+
+```python
+def _ask_format(capabilities: Capabilities, stdin_file: TextIO,
+                stdout_file: TextIO) -> str
+```
+
+Ask the user to select one format that matches the endpoint.
+
+<a id="tableio_cfg_json.wizard._impl_names"></a>
+
+#### \_impl\_names
+
+```python
+def _impl_names(format_name: str,
+                capabilities: Capabilities) -> tuple[str, ...]
+```
+
+Return matching implementations for the selected format.
+
+<a id="tableio_cfg_json.wizard._ask_implementation"></a>
+
+#### \_ask\_implementation
+
+```python
+def _ask_implementation(impl_names: Sequence[str], stdin_file: TextIO,
+                        stdout_file: TextIO) -> Optional[str]
+```
+
+Ask for an implementation only when TableIO exposes a choice.
+
+<a id="tableio_cfg_json.wizard._start_data"></a>
+
+#### \_start\_data
+
+```python
+def _start_data(format_name: str,
+                implementation: Optional[str]) -> dict[str, object]
+```
+
+Create the first JSON object used by the wizard.
+
+<a id="tableio_cfg_json.wizard._ask_member"></a>
+
+#### \_ask\_member
+
+```python
+def _ask_member(spec: ConfigSpec, format_name: str,
+                impl_names: Sequence[str]) -> bool
+```
+
+Return True when the wizard should ask for this config member.
+
+<a id="tableio_cfg_json.wizard._matches"></a>
+
+#### \_matches
+
+```python
+def _matches(spec_values: Optional[Sequence[str]],
+             wanted_values: Sequence[str]) -> bool
+```
+
+Return True when metadata values overlap or are unrestricted.
+
+<a id="tableio_cfg_json.wizard._ask_config_member"></a>
+
+#### \_ask\_config\_member
+
+```python
+def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
+                       caps: Capabilities, file_access: FileAccess,
+                       stdin_file: TextIO, stdout_file: TextIO,
+                       stderr_file: TextIO) -> None
+```
+
+Ask for one optional member and keep retrying until it validates.
+
+<a id="tableio_cfg_json.wizard._ask_member_value"></a>
+
+#### \_ask\_member\_value
+
+```python
+def _ask_member_value(spec: ConfigSpec, stdin_file: TextIO,
+                      stdout_file: TextIO) -> Optional[object]
+```
+
+Ask for one optional value and convert simple scalar types.
+
+<a id="tableio_cfg_json.wizard._parse_member_value"></a>
+
+#### \_parse\_member\_value
+
+```python
+def _parse_member_value(spec: ConfigSpec, answer: str) -> object
+```
+
+Convert a free-text answer to the type expected by TableIO.
+
+<a id="tableio_cfg_json.wizard._print_member_prompt"></a>
+
+#### \_print\_member\_prompt
+
+```python
+def _print_member_prompt(spec: ConfigSpec, stdout_file: TextIO) -> None
+```
+
+Print the explanatory prompt for one free-text member.
+
+<a id="tableio_cfg_json.wizard._ask_menu"></a>
+
+#### \_ask\_menu
+
+```python
+def _ask_menu(title: str, choices: Sequence[str], allow_blank: bool,
+              blank_text: str, stdin_file: TextIO, stdout_file: TextIO) -> str
+```
+
+Ask for a numbered menu choice and reject unknown answers.
+
+<a id="tableio_cfg_json.wizard._read_answer"></a>
+
+#### \_read\_answer
+
+```python
+def _read_answer(prompt_name: str, stdin_file: TextIO,
+                 stdout_file: TextIO) -> str
+```
+
+Read one line and fail clearly if scripted input ends too early.
+
+<a id="tableio_cfg_json.wizard._set_json_member"></a>
+
+#### \_set\_json\_member
+
+```python
+def _set_json_member(data: dict[str, object], member_name: str,
+                     value: object) -> None
+```
+
+Set a top-level or dotted member in the JSON data being built.
+
+<a id="tableio_cfg_json.wizard._config_from_data"></a>
+
+#### \_config\_from\_data
+
+```python
+def _config_from_data(data: dict[str, object], capabilities: Capabilities,
+                      file_access: FileAccess,
+                      stderr_file: TextIO) -> TioJsonConfig
+```
+
+Validate JSON data and return it as a TableIO JSON config.
 

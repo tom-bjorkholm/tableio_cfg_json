@@ -12,8 +12,9 @@ import pytest
 from tableio import CAP_NEEDED, Capabilities, FileAccess, \
     list_registered_tableio
 from tableio.factory import TableIOFactoryNoCapabilityMatch
-from tableio_cfg_json import describe_config, get_general_cfg_info, \
-    tio_json_config_default
+from tableio_cfg_json import describe_config, describe_config_example, \
+    describe_config_members, describe_config_reference, \
+    get_config_member_names, get_general_cfg_info, tio_json_config_default
 
 
 def _assert_line_limit(text: str) -> None:
@@ -34,6 +35,10 @@ def _json_after(text: str, heading: str) -> dict[str, object]:
 def test_public_api_exports() -> None:
     """Documentation helpers are exported from the package root."""
     assert callable(describe_config)
+    assert callable(describe_config_example)
+    assert callable(describe_config_members)
+    assert callable(describe_config_reference)
+    assert callable(get_config_member_names)
     assert callable(get_general_cfg_info)
 
 
@@ -78,6 +83,42 @@ def test_csv_member_filter() -> None:
     assert 'latex.document_class' not in text
 
 
+def test_config_member_names() -> None:
+    """Relevant member names are returned in metadata order."""
+    names = get_config_member_names(format_name='CSV')
+    assert names[:2] == ('format_name', 'implementation')
+    assert 'character_encoding' in names
+    assert 'csv.delimiter' in names
+    assert 'html.css_file' not in names
+
+
+def test_member_names_impl() -> None:
+    """An implementation filter limits formats and member names."""
+    names = get_config_member_names(implementation='csv')
+    assert names == get_config_member_names(format_name='CSV')
+
+
+def test_config_members() -> None:
+    """A compact endpoint summary lists choices and relevant names."""
+    text = describe_config_members(file_access=FileAccess.READ)
+    _assert_line_limit(text)
+    assert 'format_name choices: CSV, Excel, ODS.' in text
+    assert 'implementation choices' in text
+    assert 'Excel: OpenPyXL, pylightxl.' in text
+    assert 'Relevant members' in text
+    assert '  format_name' in text
+
+
+def test_members_filter_impl() -> None:
+    """Implementation filtering narrows the compact summary."""
+    text = describe_config_members(format_name='Excel',
+                                   implementation='OpenPyXL')
+    _assert_line_limit(text)
+    assert 'format_name choices: Excel.' in text
+    assert 'Excel: OpenPyXL.' in text
+    assert 'pylightxl' not in text
+
+
 def test_compact_example() -> None:
     """The compact example is the single best TableIO default."""
     text = describe_config()
@@ -87,6 +128,69 @@ def test_compact_example() -> None:
     assert compact == expected
     assert 'Compact example (CREATE)' in text
     assert 'Full example' not in text
+
+
+def test_config_example() -> None:
+    """A standalone example contains only formatted JSON text."""
+    text = describe_config_example(format_name='CSV')
+    _assert_line_limit(text)
+    assert text.startswith('{')
+    assert 'Compact example' not in text
+    assert json.loads(text) == {'format_name': 'CSV'}
+
+
+def test_example_complete() -> None:
+    """A standalone complete example contains all config fields."""
+    text = describe_config_example(format_name='CSV', complete=True)
+    data = json.loads(text)
+    assert 'character_encoding' in data
+    assert isinstance(data['csv'], dict)
+
+
+def test_example_impl() -> None:
+    """An explicit implementation is included in the example JSON."""
+    text = describe_config_example(format_name='CSV', implementation='csv')
+    data = json.loads(text)
+    assert data == {'format_name': 'CSV', 'implementation': 'csv'}
+
+
+def test_reference_selected() -> None:
+    """Selected member references preserve metadata order."""
+    text = describe_config_reference(
+        member_names=('csv.delimiter', 'format_name'))
+    _assert_line_limit(text)
+    assert text.index('format_name') < text.index('csv.delimiter')
+    assert 'The TableIO format name to use.' in text
+    assert 'The one-character CSV delimiter.' in text
+    assert 'html.css_file' not in text
+
+
+def test_ref_empty() -> None:
+    """An empty explicit reference selection returns empty text."""
+    assert describe_config_reference(member_names=()) == ''
+
+
+def test_reference_all() -> None:
+    """The reference can intentionally include all known members."""
+    text = describe_config_reference(include_all_members=True)
+    _assert_line_limit(text)
+    assert 'format_name' in text
+    assert 'latex.preamble' in text
+
+
+def test_reference_selection() -> None:
+    """The reference helper requires an explicit selection mode."""
+    with pytest.raises(ValueError):
+        describe_config_reference()
+    with pytest.raises(ValueError):
+        describe_config_reference(member_names=('format_name',),
+                                  include_all_members=True)
+
+
+def test_reference_unknown() -> None:
+    """Unknown member names are reported as KeyError."""
+    with pytest.raises(KeyError):
+        describe_config_reference(member_names=('missing',))
 
 
 def test_full_example_all() -> None:
