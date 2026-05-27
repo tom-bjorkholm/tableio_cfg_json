@@ -361,25 +361,18 @@ def _add_ref_member(lines: list[str], spec: ConfigSpec) -> None:
     _add_value_list(lines, 'Relevant implementations', spec.relevant_impls)
 
 
-def _reference_specs(member_names: Optional[Sequence[str]],
-                     include_all_members: bool) -> list[ConfigSpec]:
+def _reference_specs(member_names: Optional[Sequence[str]]) -> \
+        list[ConfigSpec]:
     """Return specs selected for a one-time member reference.
 
     Args:
-        member_names: Optional member names to describe.
-        include_all_members: Whether to describe all known members.
+        member_names: Optional member names to describe. None means all
+            known members.
     Raises:
-        ValueError: The selection arguments are ambiguous or missing.
         KeyError: A requested member name is unknown.
     Returns:
         Selected specs in TableIO metadata order.
     """
-    if member_names is None and not include_all_members:
-        msg = 'member_names or include_all_members must be supplied.'
-        raise ValueError(msg)
-    if member_names is not None and include_all_members:
-        msg = 'member_names and include_all_members cannot both be supplied.'
-        raise ValueError(msg)
     specs = tio_config_specs()
     if member_names is None:
         return list(specs.values())
@@ -611,8 +604,8 @@ def describe_config_members(capabilities: Optional[Capabilities] = None,
     return '\n'.join(lines)
 
 
-def describe_config_reference(member_names: Optional[Sequence[str]] = None,
-                              include_all_members: bool = False) -> str:
+def describe_config_reference(member_names: Optional[Sequence[str]] = None) \
+        -> str:
     """Get unfiltered reference text for selected configuration members.
 
     Use this helper for the detailed reference section in user-facing syntax
@@ -623,20 +616,20 @@ def describe_config_reference(member_names: Optional[Sequence[str]] = None,
     description is not repeated for every endpoint.
 
     Args:
-        member_names: Optional names of members to describe. When supplied,
-            unknown names raise ``KeyError`` and output order follows TableIO
-            metadata order.
-        include_all_members: Whether to describe all known TableIO
-            configuration members.
+        member_names: Optional names of members to describe. Pass None, or
+            omit the argument, to describe all known TableIO configuration
+            members. Pass a sequence from get_config_member_names() to limit
+            the reference to members relevant for one or more endpoints. Pass
+            an empty sequence to get an empty string. Unknown names raise
+            ``KeyError`` and output order follows TableIO metadata order.
     Raises:
-        ValueError: Neither selection argument was supplied, or both were.
         KeyError: A requested member name is unknown.
     Returns:
         A long-form member reference. The returned line length is limited
         to 79 characters.
     """
     lines: list[str] = []
-    for spec in _reference_specs(member_names, include_all_members):
+    for spec in _reference_specs(member_names):
         if lines:
             lines.append('')
         _add_ref_member(lines, spec)

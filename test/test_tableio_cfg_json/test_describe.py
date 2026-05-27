@@ -171,20 +171,11 @@ def test_ref_empty() -> None:
 
 
 def test_reference_all() -> None:
-    """The reference can intentionally include all known members."""
-    text = describe_config_reference(include_all_members=True)
+    """Omitting member names describes all known members."""
+    text = describe_config_reference()
     _assert_line_limit(text)
     assert 'format_name' in text
     assert 'latex.preamble' in text
-
-
-def test_reference_selection() -> None:
-    """The reference helper requires an explicit selection mode."""
-    with pytest.raises(ValueError):
-        describe_config_reference()
-    with pytest.raises(ValueError):
-        describe_config_reference(member_names=('format_name',),
-                                  include_all_members=True)
 
 
 def test_reference_unknown() -> None:
