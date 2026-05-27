@@ -9,11 +9,13 @@ from tableio_cfg_json.config import TioJsonConfig, TioJsonCsvConfig, \
 from tableio_cfg_json.describe import describe_config, \
     describe_config_example, describe_config_members, \
     describe_config_reference, get_config_member_names, get_general_cfg_info
-from tableio_cfg_json.wizard import tio_json_config_wizard
+from tableio_cfg_json.wizard import WizardUiBridge, WizardUiBridgeConsole, \
+    tio_json_config_wizard
 
 __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
            'TioJsonLatexConfig', 'describe_config',
            'describe_config_example', 'describe_config_members',
            'describe_config_reference', 'get_config_member_names',
            'get_general_cfg_info', 'tio_json_config_default',
-           'tio_json_config_wizard']
+           'tio_json_config_wizard', 'WizardUiBridge',
+           'WizardUiBridgeConsole']

@@ -65,6 +65,15 @@
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
+  * [WizardUiBridge](#tableio_cfg_json.wizard.WizardUiBridge)
+    * [ask](#tableio_cfg_json.wizard.WizardUiBridge.ask)
+    * [error\_file](#tableio_cfg_json.wizard.WizardUiBridge.error_file)
+    * [show](#tableio_cfg_json.wizard.WizardUiBridge.show)
+  * [WizardUiBridgeConsole](#tableio_cfg_json.wizard.WizardUiBridgeConsole)
+    * [\_\_init\_\_](#tableio_cfg_json.wizard.WizardUiBridgeConsole.__init__)
+    * [ask](#tableio_cfg_json.wizard.WizardUiBridgeConsole.ask)
+    * [error\_file](#tableio_cfg_json.wizard.WizardUiBridgeConsole.error_file)
+    * [show](#tableio_cfg_json.wizard.WizardUiBridgeConsole.show)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
   * [\_ask\_format](#tableio_cfg_json.wizard._ask_format)
   * [\_impl\_names](#tableio_cfg_json.wizard._impl_names)
@@ -74,10 +83,17 @@
   * [\_matches](#tableio_cfg_json.wizard._matches)
   * [\_ask\_config\_member](#tableio_cfg_json.wizard._ask_config_member)
   * [\_ask\_member\_value](#tableio_cfg_json.wizard._ask_member_value)
+  * [\_ask\_text\_member\_value](#tableio_cfg_json.wizard._ask_text_member_value)
   * [\_parse\_member\_value](#tableio_cfg_json.wizard._parse_member_value)
-  * [\_print\_member\_prompt](#tableio_cfg_json.wizard._print_member_prompt)
-  * [\_ask\_menu](#tableio_cfg_json.wizard._ask_menu)
-  * [\_read\_answer](#tableio_cfg_json.wizard._read_answer)
+  * [\_member\_question](#tableio_cfg_json.wizard._member_question)
+  * [\_ask\_choice](#tableio_cfg_json.wizard._ask_choice)
+  * [\_choice\_question](#tableio_cfg_json.wizard._choice_question)
+  * [\_choice\_from\_answer](#tableio_cfg_json.wizard._choice_from_answer)
+  * [\_choice\_from\_index](#tableio_cfg_json.wizard._choice_from_index)
+  * [\_choice\_from\_enum](#tableio_cfg_json.wizard._choice_from_enum)
+  * [\_enum\_type](#tableio_cfg_json.wizard._enum_type)
+  * [\_optional\_type\_name](#tableio_cfg_json.wizard._optional_type_name)
+  * [\_int\_text](#tableio_cfg_json.wizard._int_text)
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
 
@@ -1590,16 +1606,176 @@ endpoint. Application code can call it once for each input or output it wants
 to configure, and then place the returned TioJsonConfig objects inside its own
 larger config-as-json configuration class.
 
+<a id="tableio_cfg_json.wizard.WizardUiBridge"></a>
+
+## WizardUiBridge Objects
+
+```python
+class WizardUiBridge()
+```
+
+Bridge between the wizard and the user interface.
+
+This is an abstract base class for a bridge between the wizard and
+the user interface. Provide concrete classes of this bridge to
+allow the wizard to use console text user interface or a graphical
+user interface.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridge.ask"></a>
+
+#### ask
+
+```python
+def ask(question: str,
+        re_ask_reason: Optional[str] = None,
+        choices: Optional[Sequence[str]] = None) -> str | int
+```
+
+Ask a question and return the user's answer.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `re_ask_reason` - The reason for re-asking the question for
+  instance that the user's answer was invalid.
+- `choices` - The choices to offer the user as a sequence of strings.
+  
+
+**Returns**:
+
+  The user's answer. If the user's answer is one of the choices,
+  then the return value can be either the matching string or the
+  index of what the user selected. If integer index is used it is
+  0-based.
+  The bridge is not required to validate the user's answer in
+  any way. It is the responsibility of the caller to validate the
+  user's answer.
+  If the user entered/selected an empty string as answer, then the
+  return value should be an empty string. The caller may interpret
+  this as a request to use the default value.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridge.error_file"></a>
+
+#### error\_file
+
+```python
+def error_file() -> TextIO
+```
+
+Return the stream used for validation diagnostics.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridge.show"></a>
+
+#### show
+
+```python
+def show(message: str) -> None
+```
+
+Show a message to the user.
+
+If implementing a graphical user interface, this method should
+display the message in a dialog or a message box. If implementing
+a console text user interface, this method should print the message
+to the console.
+
+**Arguments**:
+
+- `message` - The message to show the user.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole"></a>
+
+## WizardUiBridgeConsole Objects
+
+```python
+class WizardUiBridgeConsole(WizardUiBridge)
+```
+
+Bridge between the wizard and the console text user interface.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(stdout_file: TextIO, stdin_file: TextIO,
+             stderr_file: TextIO) -> None
+```
+
+Initialize the bridge.
+
+**Arguments**:
+
+- `stdout_file` - Stream to print messages to.
+- `stdin_file` - Stream to read user answers from.
+- `stderr_file` - Stream to print errors to.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.ask"></a>
+
+#### ask
+
+```python
+def ask(question: str,
+        re_ask_reason: Optional[str] = None,
+        choices: Optional[Sequence[str]] = None) -> str | int
+```
+
+Ask a question and return the user's answer.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `re_ask_reason` - The reason for re-asking the question for
+  instance that the user's answer was invalid.
+- `choices` - The choices to offer the user as a sequence of strings.
+  
+
+**Returns**:
+
+  The user's answer. If the user's answer is one of the choices,
+  then the return value can be either the matching string or the
+  index of what the user selected. If integer index is used it is
+  0-based.
+  The bridge is not required to validate the user's answer in
+  any way. It is the responsibility of the caller to validate the
+  user's answer.
+  If the user entered/selected an empty string as answer, then the
+  return value should be an empty string. The caller may interpret
+  this as a request to use the default value.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.error_file"></a>
+
+#### error\_file
+
+```python
+def error_file() -> TextIO
+```
+
+Return the stream used for validation diagnostics.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.show"></a>
+
+#### show
+
+```python
+def show(message: str) -> None
+```
+
+Show a message to the user.
+
+This method prints the message to the console.
+
+**Arguments**:
+
+- `message` - The message to show the user.
+
 <a id="tableio_cfg_json.wizard.tio_json_config_wizard"></a>
 
 #### tio\_json\_config\_wizard
 
 ```python
-def tio_json_config_wizard(capabilities: Capabilities,
-                           file_access: FileAccess,
-                           stdin_file: TextIO = sys.stdin,
-                           stdout_file: TextIO = sys.stdout,
-                           stderr_file: TextIO = sys.stderr) -> TioJsonConfig
+def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
+                           ui_bridge: WizardUiBridge) -> TioJsonConfig
 ```
 
 Interactively create one TableIO JSON endpoint configuration.
@@ -1625,11 +1801,7 @@ optional values stay omitted so TableIO can use backend defaults later.
 - `file_access` - File access for this endpoint, such as READ for an input
   file or CREATE for an output file. This controls which formats and
   implementations can be offered.
-- `stdin_file` - Stream to read user answers from. Tests can pass a
-  StringIO with scripted answers.
-- `stdout_file` - Stream receiving prompts and retry messages.
-- `stderr_file` - Stream receiving validation diagnostics from TableIO and
-  config-as-json.
+- `ui_bridge` - Bridge between the wizard and the user interface.
 
 **Raises**:
 
@@ -1647,8 +1819,8 @@ optional values stay omitted so TableIO can use backend defaults later.
 #### \_ask\_format
 
 ```python
-def _ask_format(capabilities: Capabilities, stdin_file: TextIO,
-                stdout_file: TextIO) -> str
+def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge,
+                stderr_file: TextIO) -> str
 ```
 
 Ask the user to select one format that matches the endpoint.
@@ -1669,8 +1841,8 @@ Return matching implementations for the selected format.
 #### \_ask\_implementation
 
 ```python
-def _ask_implementation(impl_names: Sequence[str], stdin_file: TextIO,
-                        stdout_file: TextIO) -> Optional[str]
+def _ask_implementation(impl_names: Sequence[str], ui_bridge: WizardUiBridge,
+                        stderr_file: TextIO) -> Optional[str]
 ```
 
 Ask for an implementation only when TableIO exposes a choice.
@@ -1715,8 +1887,7 @@ Return True when metadata values overlap or are unrestricted.
 ```python
 def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
                        caps: Capabilities, file_access: FileAccess,
-                       stdin_file: TextIO, stdout_file: TextIO,
-                       stderr_file: TextIO) -> None
+                       ui_bridge: WizardUiBridge, stderr_file: TextIO) -> None
 ```
 
 Ask for one optional member and keep retrying until it validates.
@@ -1726,11 +1897,23 @@ Ask for one optional member and keep retrying until it validates.
 #### \_ask\_member\_value
 
 ```python
-def _ask_member_value(spec: ConfigSpec, stdin_file: TextIO,
-                      stdout_file: TextIO) -> Optional[object]
+def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
+                      stderr_file: TextIO,
+                      re_ask_reason: Optional[str]) -> Optional[object]
 ```
 
 Ask for one optional value and convert simple scalar types.
+
+<a id="tableio_cfg_json.wizard._ask_text_member_value"></a>
+
+#### \_ask\_text\_member\_value
+
+```python
+def _ask_text_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
+                           re_ask_reason: Optional[str]) -> Optional[object]
+```
+
+Ask for one free-text optional value.
 
 <a id="tableio_cfg_json.wizard._parse_member_value"></a>
 
@@ -1742,37 +1925,107 @@ def _parse_member_value(spec: ConfigSpec, answer: str) -> object
 
 Convert a free-text answer to the type expected by TableIO.
 
-<a id="tableio_cfg_json.wizard._print_member_prompt"></a>
+<a id="tableio_cfg_json.wizard._member_question"></a>
 
-#### \_print\_member\_prompt
-
-```python
-def _print_member_prompt(spec: ConfigSpec, stdout_file: TextIO) -> None
-```
-
-Print the explanatory prompt for one free-text member.
-
-<a id="tableio_cfg_json.wizard._ask_menu"></a>
-
-#### \_ask\_menu
+#### \_member\_question
 
 ```python
-def _ask_menu(title: str, choices: Sequence[str], allow_blank: bool,
-              blank_text: str, stdin_file: TextIO, stdout_file: TextIO) -> str
+def _member_question(spec: ConfigSpec) -> str
 ```
 
-Ask for a numbered menu choice and reject unknown answers.
+Return the explanatory question for one free-text member.
 
-<a id="tableio_cfg_json.wizard._read_answer"></a>
+<a id="tableio_cfg_json.wizard._ask_choice"></a>
 
-#### \_read\_answer
+#### \_ask\_choice
 
 ```python
-def _read_answer(prompt_name: str, stdin_file: TextIO,
-                 stdout_file: TextIO) -> str
+def _ask_choice(title: str,
+                member_name: str,
+                choices: Sequence[str],
+                allow_blank: bool,
+                blank_text: str,
+                ui_bridge: WizardUiBridge,
+                stderr_file: TextIO,
+                enum_type: Optional[type[Enum]] = None,
+                first_re_ask: Optional[str] = None) -> str
 ```
 
-Read one line and fail clearly if scripted input ends too early.
+Ask for one answer from a list of choices.
+
+<a id="tableio_cfg_json.wizard._choice_question"></a>
+
+#### \_choice\_question
+
+```python
+def _choice_question(title: str, allow_blank: bool, blank_text: str) -> str
+```
+
+Return the question text for one list choice.
+
+<a id="tableio_cfg_json.wizard._choice_from_answer"></a>
+
+#### \_choice\_from\_answer
+
+```python
+def _choice_from_answer(answer: str | int, choices: Sequence[str],
+                        allow_blank: bool, member_name: str,
+                        stderr_file: TextIO,
+                        enum_type: Optional[type[Enum]]) -> str
+```
+
+Return a validated choice selected by an answer.
+
+<a id="tableio_cfg_json.wizard._choice_from_index"></a>
+
+#### \_choice\_from\_index
+
+```python
+def _choice_from_index(index: int, choices: Sequence[str]) -> str
+```
+
+Return the choice at a 0-based index.
+
+<a id="tableio_cfg_json.wizard._choice_from_enum"></a>
+
+#### \_choice\_from\_enum
+
+```python
+def _choice_from_enum(answer: str, choices: Sequence[str],
+                      enum_type: type[Enum]) -> str
+```
+
+Return the enum choice whose name best matches the answer.
+
+<a id="tableio_cfg_json.wizard._enum_type"></a>
+
+#### \_enum\_type
+
+```python
+def _enum_type(spec: ConfigSpec) -> Optional[type[Enum]]
+```
+
+Return the enum type used by a config member choice list.
+
+<a id="tableio_cfg_json.wizard._optional_type_name"></a>
+
+#### \_optional\_type\_name
+
+```python
+def _optional_type_name(value_type: str) -> Optional[str]
+```
+
+Return the inner type name from an Optional type description.
+
+<a id="tableio_cfg_json.wizard._int_text"></a>
+
+#### \_int\_text
+
+```python
+def _int_text(text: str) -> Optional[int]
+```
+
+Return an integer from text, or None when text is not an integer.
 
 <a id="tableio_cfg_json.wizard._set_json_member"></a>
 

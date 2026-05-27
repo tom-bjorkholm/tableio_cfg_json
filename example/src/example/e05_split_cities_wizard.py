@@ -13,7 +13,8 @@ from typing import Optional, Sequence, TextIO
 from tableio import Capabilities, FileAccess, access_capabilities
 from tableio_cfg_json import TioJsonConfig, describe_config_members, \
     describe_config_reference, get_config_member_names, \
-    get_general_cfg_info, tio_json_config_wizard
+    get_general_cfg_info, WizardUiBridge, WizardUiBridgeConsole, \
+    tio_json_config_wizard
 
 from example.e06_split_cities import CITY_COLUMNS, SplitCitiesConfig
 
@@ -40,20 +41,19 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
     in_file = sys.stdin if stdin_file is None else stdin_file
     out_file = sys.stdout if stdout_file is None else stdout_file
     err_file = sys.stderr if stderr_file is None else stderr_file
+    ui_bridge = WizardUiBridgeConsole(out_file, in_file, err_file)
     # tio_json_config_wizard(), provided by tableio_cfg_json, creates exactly
     # one TableIO endpoint config. This application composes three endpoint
     # configs into one larger config-as-json configuration file.
-    input_config = _ask_endpoint(INPUT_TITLE, FileAccess.READ, in_file,
-                                 out_file, err_file)
+    input_config = _ask_endpoint(INPUT_TITLE, FileAccess.READ, ui_bridge)
     # The split rule is deliberately application-owned configuration. TableIO
     # knows how to read and write tables, but it does not know which city rows
     # this particular program wants in each output file.
     split_column = _ask_split_column(in_file, out_file)
     split_limit = _ask_split_limit(in_file, out_file)
-    less_config = _ask_endpoint(LESS_TITLE, FileAccess.CREATE, in_file,
-                                out_file, err_file)
-    not_less_config = _ask_endpoint(NOT_LESS_TITLE, FileAccess.CREATE, in_file,
-                                    out_file, err_file)
+    less_config = _ask_endpoint(LESS_TITLE, FileAccess.CREATE, ui_bridge)
+    not_less_config = _ask_endpoint(NOT_LESS_TITLE, FileAccess.CREATE,
+                                    ui_bridge)
     # A config object is first created with defaults. The application then
     # assigns the specific values it collected, just as a real program often
     # starts with defaults and overrides the choices made by the user.
@@ -66,20 +66,20 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
     config.write(to_json_filename=config_file, stderr_file=err_file)
     # The text file is for the human who later opens the JSON by hand. It is
     # intentionally broader than the choices just made by the wizard.
-    syntax_text = _syntax_text(config, err_file)
-    syntax_file.write_text(syntax_text + '\n', encoding='utf-8')
+    syntax_file.write_text(_syntax_text(config, err_file) + '\n',
+                           encoding='utf-8')
 
 
-def _ask_endpoint(title: str, file_access: FileAccess, stdin_file: TextIO,
-                  stdout_file: TextIO, stderr_file: TextIO) -> TioJsonConfig:
+def _ask_endpoint(title: str, file_access: FileAccess,
+                  ui_bridge: WizardUiBridge) -> TioJsonConfig:
     """Ask all wizard questions for one TableIO endpoint config."""
     # File access is part of the runtime task. Passing it here means an input
     # endpoint only offers read-capable formats, while output endpoints only
     # offer create-capable formats.
-    capabilities = access_capabilities(file_access, error_file=stderr_file)
-    print(title, file=stdout_file)
-    return tio_json_config_wizard(capabilities, file_access, stdin_file,
-                                  stdout_file, stderr_file)
+    capabilities = access_capabilities(file_access,
+                                       error_file=ui_bridge.error_file())
+    ui_bridge.show(title)
+    return tio_json_config_wizard(capabilities, file_access, ui_bridge)
 
 
 def _ask_split_column(stdin_file: TextIO, stdout_file: TextIO) -> str:

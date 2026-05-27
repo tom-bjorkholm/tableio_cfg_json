@@ -26,6 +26,15 @@
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
+  * [WizardUiBridge](#tableio_cfg_json.wizard.WizardUiBridge)
+    * [ask](#tableio_cfg_json.wizard.WizardUiBridge.ask)
+    * [error\_file](#tableio_cfg_json.wizard.WizardUiBridge.error_file)
+    * [show](#tableio_cfg_json.wizard.WizardUiBridge.show)
+  * [WizardUiBridgeConsole](#tableio_cfg_json.wizard.WizardUiBridgeConsole)
+    * [\_\_init\_\_](#tableio_cfg_json.wizard.WizardUiBridgeConsole.__init__)
+    * [ask](#tableio_cfg_json.wizard.WizardUiBridgeConsole.ask)
+    * [error\_file](#tableio_cfg_json.wizard.WizardUiBridgeConsole.error_file)
+    * [show](#tableio_cfg_json.wizard.WizardUiBridgeConsole.show)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
 
 <a id="tableio_cfg_json.describe"></a>
@@ -754,16 +763,176 @@ endpoint. Application code can call it once for each input or output it wants
 to configure, and then place the returned TioJsonConfig objects inside its own
 larger config-as-json configuration class.
 
+<a id="tableio_cfg_json.wizard.WizardUiBridge"></a>
+
+## WizardUiBridge Objects
+
+```python
+class WizardUiBridge()
+```
+
+Bridge between the wizard and the user interface.
+
+This is an abstract base class for a bridge between the wizard and
+the user interface. Provide concrete classes of this bridge to
+allow the wizard to use console text user interface or a graphical
+user interface.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridge.ask"></a>
+
+#### ask
+
+```python
+def ask(question: str,
+        re_ask_reason: Optional[str] = None,
+        choices: Optional[Sequence[str]] = None) -> str | int
+```
+
+Ask a question and return the user's answer.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `re_ask_reason` - The reason for re-asking the question for
+  instance that the user's answer was invalid.
+- `choices` - The choices to offer the user as a sequence of strings.
+  
+
+**Returns**:
+
+  The user's answer. If the user's answer is one of the choices,
+  then the return value can be either the matching string or the
+  index of what the user selected. If integer index is used it is
+  0-based.
+  The bridge is not required to validate the user's answer in
+  any way. It is the responsibility of the caller to validate the
+  user's answer.
+  If the user entered/selected an empty string as answer, then the
+  return value should be an empty string. The caller may interpret
+  this as a request to use the default value.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridge.error_file"></a>
+
+#### error\_file
+
+```python
+def error_file() -> TextIO
+```
+
+Return the stream used for validation diagnostics.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridge.show"></a>
+
+#### show
+
+```python
+def show(message: str) -> None
+```
+
+Show a message to the user.
+
+If implementing a graphical user interface, this method should
+display the message in a dialog or a message box. If implementing
+a console text user interface, this method should print the message
+to the console.
+
+**Arguments**:
+
+- `message` - The message to show the user.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole"></a>
+
+## WizardUiBridgeConsole Objects
+
+```python
+class WizardUiBridgeConsole(WizardUiBridge)
+```
+
+Bridge between the wizard and the console text user interface.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(stdout_file: TextIO, stdin_file: TextIO,
+             stderr_file: TextIO) -> None
+```
+
+Initialize the bridge.
+
+**Arguments**:
+
+- `stdout_file` - Stream to print messages to.
+- `stdin_file` - Stream to read user answers from.
+- `stderr_file` - Stream to print errors to.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.ask"></a>
+
+#### ask
+
+```python
+def ask(question: str,
+        re_ask_reason: Optional[str] = None,
+        choices: Optional[Sequence[str]] = None) -> str | int
+```
+
+Ask a question and return the user's answer.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `re_ask_reason` - The reason for re-asking the question for
+  instance that the user's answer was invalid.
+- `choices` - The choices to offer the user as a sequence of strings.
+  
+
+**Returns**:
+
+  The user's answer. If the user's answer is one of the choices,
+  then the return value can be either the matching string or the
+  index of what the user selected. If integer index is used it is
+  0-based.
+  The bridge is not required to validate the user's answer in
+  any way. It is the responsibility of the caller to validate the
+  user's answer.
+  If the user entered/selected an empty string as answer, then the
+  return value should be an empty string. The caller may interpret
+  this as a request to use the default value.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.error_file"></a>
+
+#### error\_file
+
+```python
+def error_file() -> TextIO
+```
+
+Return the stream used for validation diagnostics.
+
+<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.show"></a>
+
+#### show
+
+```python
+def show(message: str) -> None
+```
+
+Show a message to the user.
+
+This method prints the message to the console.
+
+**Arguments**:
+
+- `message` - The message to show the user.
+
 <a id="tableio_cfg_json.wizard.tio_json_config_wizard"></a>
 
 #### tio\_json\_config\_wizard
 
 ```python
-def tio_json_config_wizard(capabilities: Capabilities,
-                           file_access: FileAccess,
-                           stdin_file: TextIO = sys.stdin,
-                           stdout_file: TextIO = sys.stdout,
-                           stderr_file: TextIO = sys.stderr) -> TioJsonConfig
+def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
+                           ui_bridge: WizardUiBridge) -> TioJsonConfig
 ```
 
 Interactively create one TableIO JSON endpoint configuration.
@@ -789,11 +958,7 @@ optional values stay omitted so TableIO can use backend defaults later.
 - `file_access` - File access for this endpoint, such as READ for an input
   file or CREATE for an output file. This controls which formats and
   implementations can be offered.
-- `stdin_file` - Stream to read user answers from. Tests can pass a
-  StringIO with scripted answers.
-- `stdout_file` - Stream receiving prompts and retry messages.
-- `stderr_file` - Stream receiving validation diagnostics from TableIO and
-  config-as-json.
+- `ui_bridge` - Bridge between the wizard and the user interface.
 
 **Raises**:
 
