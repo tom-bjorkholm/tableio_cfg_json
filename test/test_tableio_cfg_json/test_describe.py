@@ -4,8 +4,11 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+# pylint: disable=protected-access
+
 import json
 import sys
+from typing import Optional
 
 import pytest
 
@@ -15,6 +18,7 @@ from tableio.factory import TableIOFactoryNoCapabilityMatch
 from tableio_cfg_json import describe_config, describe_config_example, \
     describe_config_members, describe_config_reference, \
     get_config_member_names, get_general_cfg_info, tio_json_config_default
+import tableio_cfg_json.describe as describe_module
 
 
 def _assert_line_limit(text: str) -> None:
@@ -98,6 +102,13 @@ def test_member_names_impl() -> None:
     assert names == get_config_member_names(format_name='CSV')
 
 
+def test_impl_filter_no_match() -> None:
+    """An implementation filter must match the remaining formats."""
+    with pytest.raises(TableIOFactoryNoCapabilityMatch) as exc_info:
+        get_config_member_names(format_name='CSV', implementation='OpenPyXL')
+    assert 'Implementation "OpenPyXL"' in str(exc_info.value)
+
+
 def test_config_members() -> None:
     """A compact endpoint summary lists choices and relevant names."""
     text = describe_config_members(file_access=FileAccess.READ)
@@ -130,6 +141,21 @@ def test_compact_example() -> None:
     assert 'Full example' not in text
 
 
+@pytest.mark.parametrize(
+    ('capabilities', 'heading'),
+    [pytest.param(Capabilities(can_read=CAP_NEEDED, can_write=CAP_NEEDED),
+                  'Compact example (UPDATE)', id='read-write'),
+     pytest.param(Capabilities(can_read=CAP_NEEDED), 'Compact example (READ)',
+                  id='read'),
+     pytest.param(Capabilities(can_write=CAP_NEEDED),
+                  'Compact example (CREATE)', id='write')])
+def test_example_access_caps(capabilities: Capabilities, heading: str) -> None:
+    """Example access is inferred from read/write capabilities."""
+    text = describe_config(capabilities=capabilities)
+    _assert_line_limit(text)
+    assert heading in text
+
+
 def test_config_example() -> None:
     """A standalone example contains only formatted JSON text."""
     text = describe_config_example(format_name='CSV')
@@ -152,6 +178,14 @@ def test_example_impl() -> None:
     text = describe_config_example(format_name='CSV', implementation='csv')
     data = json.loads(text)
     assert data == {'format_name': 'CSV', 'implementation': 'csv'}
+
+
+def test_no_default_example() -> None:
+    """Example generation reports when no default backend can be selected."""
+    with pytest.raises(TableIOFactoryNoCapabilityMatch) as exc_info:
+        describe_config_example(file_access=FileAccess.READ,
+                                format_name='HTML')
+    assert 'No default configuration matches' in str(exc_info.value)
 
 
 def test_reference_selected() -> None:
@@ -213,3 +247,30 @@ def test_no_matching_format() -> None:
     with pytest.raises(TableIOFactoryNoCapabilityMatch):
         describe_config(capabilities=caps, file_access=FileAccess.CREATE,
                         format_name='CSV')
+
+
+def test_unrestricted_overlap() -> None:
+    """Metadata without restrictions matches every requested choice."""
+    assert describe_module._overlaps(None, []) is True
+
+
+def test_format_lookup_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The impossible unknown-format fall-through has a guard error."""
+    def fake_registered(
+            capabilities: Optional[Capabilities] = None) -> list[str]:
+        """Return no registered formats."""
+        _ = capabilities
+        return []
+
+    def fake_impls(format_name: str,
+                   capabilities: Optional[Capabilities] = None) -> list[str]:
+        """Pretend the implementation lookup unexpectedly succeeded."""
+        _ = format_name
+        _ = capabilities
+        return []
+    monkeypatch.setattr(describe_module, 'list_registered_tableio',
+                        fake_registered)
+    monkeypatch.setattr(describe_module, 'list_implementations_tableio',
+                        fake_impls)
+    with pytest.raises(AssertionError, match='Unreachable'):
+        describe_module._format_names(None, 'missing')

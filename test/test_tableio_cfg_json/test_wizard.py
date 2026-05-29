@@ -4,16 +4,20 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+# pylint: disable=protected-access
+
+import sys
 from io import StringIO
 from typing import Optional, Sequence
 
 import pytest
 
-from tableio import Capabilities, CsvDialect, FileAccess, \
+from tableio import Capabilities, ConfigSpec, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
     list_implementations_tableio, list_registered_tableio
 from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
     WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard
+import tableio_cfg_json.wizard as wizard_module
 
 
 class _ScriptedBridge(WizardUiBridge):
@@ -128,6 +132,16 @@ def test_public_api() -> None:
     assert WizardUiBridgeConsole is not None
 
 
+def test_base_bridge_defaults() -> None:
+    """The base UI bridge exposes default stream and abstract methods."""
+    ui_bridge = WizardUiBridge()
+    assert ui_bridge.error_file() is sys.stderr
+    with pytest.raises(NotImplementedError, match='ask'):
+        ui_bridge.ask('Question?')
+    with pytest.raises(NotImplementedError, match='show'):
+        ui_bridge.show('Message.')
+
+
 def test_console_menu() -> None:
     """Console menu numbers become 0-based indexes."""
     stdin_file = StringIO('2\n')
@@ -139,6 +153,14 @@ def test_console_menu() -> None:
     assert '1: first' in stdout_file.getvalue()
     assert '2: second' in stdout_file.getvalue()
     assert stderr_file.getvalue() == ''
+
+
+def test_console_show() -> None:
+    """Console show writes the message to the configured output stream."""
+    stdout_file = StringIO()
+    ui_bridge = WizardUiBridgeConsole(stdout_file, StringIO(), StringIO())
+    ui_bridge.show('Done.')
+    assert stdout_file.getvalue() == 'Done.\n'
 
 
 def test_wizard_csv_defaults() -> None:
@@ -219,6 +241,17 @@ def test_bridge_int_index() -> None:
     assert config.format_name == 'CSV'
 
 
+def test_bool_choice_rejected() -> None:
+    """Boolean bridge answers are not accepted as integer menu indexes."""
+    answers: list[str | int] = [True, 0]
+    answers.extend(_member_answer_lines('CSV', FileAccess.CREATE))
+    ui_bridge = _ScriptedBridge(answers)
+    config = _run_bridge(FileAccess.CREATE, ui_bridge)
+    assert config.format_name == 'CSV'
+    re_ask_reason = ui_bridge.calls[1][1]
+    assert re_ask_reason == 'Please enter one of the listed choices.'
+
+
 def test_bridge_str_index() -> None:
     """A bridge may return a 0-based choice index as a string."""
     member_answers: dict[str, list[str | int]] = {'csv.quoting': ['1']}
@@ -258,6 +291,41 @@ def test_enum_prefix() -> None:
     assert config.csv.dialect == CsvDialect.UNIX
 
 
+def test_enum_bad_text_retry() -> None:
+    """Enum-backed choices reject invalid text and then ask again."""
+    member_answers: dict[str, list[str | int]] = {
+        'csv.dialect': ['not-a-dialect', 'excel']}
+    answers: list[str | int] = [0]
+    answers.extend(_member_answer_lines('CSV', FileAccess.CREATE,
+                                        member_answers=member_answers))
+    ui_bridge = _ScriptedBridge(answers)
+    config = _run_bridge(FileAccess.CREATE, ui_bridge)
+    assert config.csv is not None
+    assert config.csv.dialect == CsvDialect.EXCEL
+    reasons = [call[1] for call in ui_bridge.calls
+               if call[0].startswith('Select value for csv.dialect')]
+    assert reasons == [None, 'Please enter one of the listed choices.']
+
+
+def test_text_value_retries() -> None:
+    """Free-text members reject non-text and malformed integer values."""
+    member_answers: dict[str, list[str | int]] = {
+        'line_length': [17, '72'],
+        'table_max_line_length': ['not-an-int', '30']}
+    answers: list[str | int] = ['rest']
+    answers.extend(_member_answer_lines('reST', FileAccess.CREATE,
+                                        member_answers=member_answers))
+    ui_bridge = _ScriptedBridge(answers)
+    config = _run_bridge(FileAccess.CREATE, ui_bridge)
+    assert config.format_name == 'reST'
+    assert config.line_length == 72
+    assert config.table_max_line_length == 30
+    reasons = [call[1] for call in ui_bridge.calls
+               if call[1] is not None]
+    assert 'Please enter a text value.' in reasons
+    assert any('Invalid value:' in reason for reason in reasons)
+
+
 def test_bad_bridge_choice() -> None:
     """A bad bridge answer is rejected and the same question is re-asked."""
     answers: list[str | int] = ['not-a-format', 0]
@@ -278,3 +346,29 @@ def test_early_eof() -> None:
     ui_bridge = WizardUiBridgeConsole(stdout_file, stdin_file, stderr_file)
     with pytest.raises(EOFError):
         tio_json_config_wizard(Capabilities(), FileAccess.CREATE, ui_bridge)
+
+
+def test_unrestricted_match() -> None:
+    """Wizard metadata without restrictions matches requested choices."""
+    assert wizard_module._matches(None, ('CSV',)) is True
+
+
+def test_enum_choice_outside() -> None:
+    """Enum answers that resolve outside offered choices are rejected."""
+    with pytest.raises(ValueError, match='listed choices'):
+        wizard_module._choice_from_enum('unix', ('EXCEL',), CsvDialect)
+
+
+def test_plain_type_no_enum() -> None:
+    """Only Optional enum type descriptions produce enum matching."""
+    spec = ConfigSpec(name='x', description='x', value_type='str',
+                      choices=('x',))
+    assert wizard_module._enum_type(spec) is None
+
+
+def test_scalar_json_section() -> None:
+    """Setting a dotted member rejects an existing scalar section."""
+    data: dict[str, object] = {'csv': 'bad'}
+    with pytest.raises(ValueError, match='csv is not a JSON object'):
+        wizard_module._set_json_member(data, 'csv.delimiter', ';')
+    assert data == {'csv': 'bad'}
