@@ -22,7 +22,9 @@ pip install --upgrade tableio-cfg-json
 
 To be written
 
-## Documentation 
+## Documentation
+
+- Teaching examples: [example/src/example/README.md](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/README.md)
 
 - Public API notes: [doc/api.md](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/doc/api.md)
 
@@ -36,7 +38,7 @@ MIT
 
 ## Test summary
 
-- Test result: 286 passed in 10s
+- Test result: 380 passed in 14s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
