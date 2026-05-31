@@ -8,16 +8,18 @@ Use it when an application uses TableIO for table-like files and wants
 persistent, user-editable configuration for formats, implementations and
 format-specific options. The configuration objects are both TableIO
 `ConfigData` objects and config-as-json `Config` objects, so the same object
-can be written as JSON, read back later, validated, and passed to TableIO.
+can be written as configuration file (as JSON), read back later, validated,
+and passed to TableIO.
 
 ## Is this package for you?
 
-This package is a good fit when:
+This package is a good fit when one or more of these apply:
 
 - Your application uses TableIO.
 - You already use config-as-json, or can accept using it for persistent
   configuration.
-- You want one JSON file to describe one TableIO input or output endpoint.
+- You want one configuration file to describe one TableIO input or output
+  endpoint.
 - You want to nest one or more TableIO endpoint configurations inside a
   larger application configuration file.
 - You want validation and generated user documentation for the TableIO
@@ -50,7 +52,7 @@ import sys
 from tableio import FileAccess, access_capabilities
 from tableio_cfg_json import tio_json_config_default
 
-config_file = Path('tableio.json')
+config_file = Path('tableio.cfg')
 file_access = FileAccess.CREATE
 capabilities = access_capabilities(file_access, error_file=sys.stderr)
 config = tio_json_config_default(capabilities=capabilities,
@@ -76,7 +78,7 @@ import sys
 from tableio import FileAccess, access_capabilities, tio_config_create
 from tableio_cfg_json import TioJsonConfig
 
-config_file = Path('tableio.json')
+config_file = Path('tableio.cfg')
 table_file = Path('capitals.csv')
 file_access = FileAccess.CREATE
 capabilities = access_capabilities(file_access, error_file=sys.stderr)
@@ -101,32 +103,45 @@ sections such as `csv`, `html` and `latex`. Compact output omits unset
 optional values, while template-style output can include all current default
 options.
 
+Please see the [teaching examples](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/README.md) for a more
+thorough introduction.
+
 ## Main entry points
 
 - `TioJsonConfig`
   Complete JSON-backed TableIO configuration for one endpoint. It can read
   JSON, write JSON and be passed to TableIO as normal configuration data.
+
+- `tio_config_create()` create a TableIO object from a `TioJsonConfig`
+  object.
+
+### Helpers and details
+
 - `tio_json_config_default()`
   Create a validated default `TioJsonConfig` using TableIO's recommended
   choices for the requested capabilities and file access.
+
 - `TioJsonCsvConfig`, `TioJsonHtmlConfig`, `TioJsonLatexConfig`
   Optional nested configuration sections for format-specific settings.
+
 - `describe_config()`, `describe_config_members()`,
   `describe_config_reference()`, `describe_config_example()`,
   `get_config_member_names()` and `get_general_cfg_info()`
   Helpers for generating plain text syntax guides for configuration files.
+
 - `tio_json_config_wizard()`
   Interactive helper for creating one TableIO endpoint configuration through
   a user interface bridge.
+
 - `WizardUiBridge` and `WizardUiBridgeConsole`
   Interfaces for connecting the wizard to a console, GUI or scripted UI.
 
 ## Validation model
 
-The JSON file stores durable TableIO choices such as `format_name`,
-`implementation`, character encoding, presentation options and
-format-specific settings. Runtime values such as the actual file name are not
-stored in this configuration.
+The configuration file (in JSON) stores durable TableIO choices such
+as `format_name`, `implementation`, character encoding, presentation
+options and format-specific settings. Runtime values such as the actual
+file name are not stored in this configuration.
 
 Validation happens in two layers:
 
@@ -136,8 +151,8 @@ Validation happens in two layers:
   capabilities and file access can work together.
 
 Choice values are matched case-insensitively where TableIO defines a finite
-set of choices. For example, JSON may use `excel` and the config object will
-store TableIO's normal `Excel` spelling after validation.
+set of choices. For example, configuration file may use `excel` and the
+config object will store TableIO's normal `Excel` spelling after validation.
 
 ## Nested application configs
 
@@ -173,5 +188,5 @@ MIT
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
-- Built version(s): 0.0.1
+- Built version(s): 0.1
 - Build and test using Python 3.14.4

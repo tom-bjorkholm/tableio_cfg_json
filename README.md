@@ -6,7 +6,9 @@
 
 ## Repository purpose
 
-This is a small package that 
+This is a small package that stores
+[TableIO](https://pypi.org/project/tableio/) configuration as validated JSON
+by using [config-as-json](https://pypi.org/project/config-as-json/).
 
 ## Related documentation
 
@@ -80,5 +82,5 @@ After a build, the generated reports can be browsed through
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
-- Built version(s): 0.0.1
+- Built version(s): 0.1
 - Build and test using Python 3.14.4
