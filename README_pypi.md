@@ -184,9 +184,9 @@ MIT
 
 ## Test summary
 
-- Test result: 380 passed in 14s
+- Test result: 380 passed in 15s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
-- Built version(s): 0.2
+- Built version(s): 0.2.1
 - Build and test using Python 3.14.5
