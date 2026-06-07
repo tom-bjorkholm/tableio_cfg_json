@@ -14,6 +14,6 @@ setup(
     'setuptools >= 82.0.1',
     'build >= 1.4.2',
     'wheel >= 0.46.3',
-    'tableio >= 0.9',
-    'config-as-json >= 1.1',
+    'tableio >= 1.0',
+    'config-as-json >= 1.2',
   ])
