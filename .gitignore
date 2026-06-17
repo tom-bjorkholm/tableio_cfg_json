@@ -39,3 +39,4 @@ depdoc/*
 *.log
 *.pdf
 *.xlsx
+dep_lib_doc/*
