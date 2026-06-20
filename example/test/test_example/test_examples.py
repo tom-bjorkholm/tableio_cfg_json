@@ -18,7 +18,8 @@ from tableio import FileAccess, access_capabilities, \
 from tableio_cfg_json import get_config_member_names
 
 from example import e01_create_config, e02_write_table, e03_read_table, \
-    e04_create_custom_config, e05_split_cities_wizard, e06_split_cities
+    e04_create_custom_config, e05_split_cities_wizard, e06_split_cities, \
+    e07_split_cities_textual
 
 
 def _read_json(json_file: Path) -> dict[str, object]:
@@ -127,6 +128,28 @@ def _create_split_config(config_file: Path, syntax_file: Path) -> None:
         syntax_file: Plain text syntax guide to write.
     """
     _run_split(_split_happy_answers(), config_file, syntax_file)
+
+
+def test_e07_matches_e05(tmp_path: Path) -> None:
+    """e07 writes the same files as e05 through make_text_ui_bridge.
+
+    The test streams are in-memory, so the factory inside e07 falls back
+    to the console bridge and must produce byte-identical files to e05.
+    """
+    answers = _split_happy_answers()
+    e05_cfg = tmp_path / 'e05.json'
+    e05_txt = tmp_path / 'e05.txt'
+    e07_cfg = tmp_path / 'e07.json'
+    e07_txt = tmp_path / 'e07.txt'
+    _run_split(answers, e05_cfg, e05_txt)
+    create_files = e07_split_cities_textual.create_split_config_files
+    create_files(config_file=e07_cfg, syntax_file=e07_txt,
+                 stdin_file=StringIO('\n'.join(answers) + '\n'),
+                 stdout_file=StringIO(), stderr_file=StringIO())
+    got_cfg = e07_cfg.read_text(encoding='utf-8')
+    got_txt = e07_txt.read_text(encoding='utf-8')
+    assert got_cfg == e05_cfg.read_text(encoding='utf-8')
+    assert got_txt == e05_txt.read_text(encoding='utf-8')
 
 
 def _write_city_input(input_file: Path, header: str) -> None:

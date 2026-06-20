@@ -8,7 +8,7 @@ import argparse
 from pathlib import Path
 import sys
 from textwrap import wrap
-from typing import Optional, Sequence, TextIO
+from typing import Callable, Optional, Sequence, TextIO
 
 from tableio import Capabilities, FileAccess, access_capabilities
 from tableio_cfg_json import TioJsonConfig, describe_config_members, \
@@ -46,6 +46,18 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
     out_file = sys.stdout if stdout_file is None else stdout_file
     err_file = sys.stderr if stderr_file is None else stderr_file
     ui_bridge = WizardUiBridgeConsole(out_file, in_file, err_file)
+    _write_split_files(ui_bridge, config_file, syntax_file, err_file)
+
+
+def _write_split_files(ui_bridge: WizardUiBridge, config_file: Path,
+                       syntax_file: Path, err_file: TextIO) -> None:
+    """Collect answers, build the config and write both files.
+
+    This is the part of the work that does not depend on which bridge is
+    used. e05 calls it with the console bridge; e07 calls it with the
+    bridge that make_text_ui_bridge chooses, so the two examples differ
+    only in how they build the bridge.
+    """
     results = _collect_answers(ui_bridge)
     if results is None:
         return
@@ -311,23 +323,30 @@ def _paragraph(text: str) -> str:
 # Only command line handling below this line.
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Build the command line parser for the split-cities wizard."""
-    parser = argparse.ArgumentParser(
-        description='Create config files for the split-cities example.')
+_DESCRIPTION = 'Create config files for the split-cities example.'
+
+
+def run_split_cli(create_files: Callable[..., None], description: str,
+                  args: Optional[list[str]] = None) -> int:
+    """Parse the --cfg and --txt arguments and run create_files.
+
+    Shared by e05 and e07 so both expose the same command line, differing
+    only in the program description and the create_files they run.
+    """
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-c', '--cfg', dest='config_file', required=True,
                         type=Path, help='JSON configuration file to write.')
     parser.add_argument('-t', '--txt', dest='syntax_file', required=True,
                         type=Path, help='Plain text syntax guide to write.')
-    return parser
+    parsed = parser.parse_args(args)
+    create_files(config_file=parsed.config_file,
+                 syntax_file=parsed.syntax_file)
+    return 0
 
 
 def main(args: Optional[list[str]] = None) -> int:
     """Parse command line arguments and create split-cities config files."""
-    parsed = build_parser().parse_args(args)
-    create_split_config_files(config_file=parsed.config_file,
-                              syntax_file=parsed.syntax_file)
-    return 0
+    return run_split_cli(create_split_config_files, _DESCRIPTION, args)
 
 
 if __name__ == '__main__':

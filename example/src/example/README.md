@@ -204,6 +204,14 @@ The example source files are:
 - [`e06_split_cities.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e06_split_cities.py)
   reads the larger JSON configuration, reads a city table as dictionaries,
   and writes two independently configured output tables.
+- [`e07_split_cities_textual.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e07_split_cities_textual.py)
+  does exactly what `e05_split_cities_wizard.py` does, but builds its bridge
+  with `make_text_ui_bridge()` instead of hard-coding the console bridge. In a
+  real terminal that gives a full-screen Textual interface with selectable
+  lists, check boxes and editable tables; with redirected input it falls back
+  to the console bridge, so the program stays scriptable. It reuses all of
+  e05's question, config and guide logic unchanged, so the only difference is
+  the one line that builds the bridge.
 
 ### Split-Cities Walkthrough
 
@@ -211,6 +219,17 @@ First create the application config and the matching syntax guide:
 
 ```sh
 python -m example.e05_split_cities_wizard \
+  --cfg split-cities.json \
+  --txt split-cities-syntax.txt
+```
+
+To answer the same questions in a full-screen terminal interface instead, run
+`e07_split_cities_textual.py` with the same arguments. In a terminal it shows a
+Textual interface; with redirected input it behaves exactly like the command
+above:
+
+```sh
+python -m example.e07_split_cities_textual \
   --cfg split-cities.json \
   --txt split-cities-syntax.txt
 ```
