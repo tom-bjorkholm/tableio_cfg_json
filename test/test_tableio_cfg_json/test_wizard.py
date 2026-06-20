@@ -16,20 +16,23 @@ from tableio import Capabilities, ConfigSpec, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
     list_implementations_tableio, list_registered_tableio
 from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
-    WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard
+    WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard, \
+    TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel
 import tableio_cfg_json.wizard as wizard_module
 
 
 class _ScriptedBridge(WizardUiBridge):
     """Wizard UI bridge that returns scripted answers for tests."""
 
-    def __init__(self, answers: list[str | int]) -> None:
+    def __init__(self, answers: Sequence[str | int | BaseException]) -> None:
         """Initialize the scripted bridge.
 
         Args:
-            answers: Answers returned in order by ``ask()``.
+            answers: Answers returned in order by ``ask()``. A scripted
+                     answer that is an exception is raised instead, which
+                     lets tests drive navigation requests.
         """
-        self.answers = list(answers)
+        self.answers: list[str | int | BaseException] = list(answers)
         self.calls: list[
             tuple[str, Optional[str], Optional[tuple[str, ...]]]] = []
         self.messages: list[str] = []
@@ -42,7 +45,10 @@ class _ScriptedBridge(WizardUiBridge):
         self.calls.append((question, re_ask_reason, choice_tuple))
         if not self.answers:
             raise EOFError(f'No answer supplied for {question}.')
-        return self.answers.pop(0)
+        answer = self.answers.pop(0)
+        if isinstance(answer, BaseException):
+            raise answer
+        return answer
 
     def error_file(self) -> StringIO:
         """Return the stream used for validation diagnostics."""
@@ -113,6 +119,13 @@ def _menu_number(choice: str, choices: Sequence[str]) -> str:
     return str(choices.index(choice) + 1)
 
 
+def _format_index(format_name: str, file_access: FileAccess) -> int:
+    """Return the 0-based index of one format for scripted answers."""
+    capabilities = access_capabilities(file_access)
+    match_caps = add_access_capabilities(file_access, capabilities)
+    return list_registered_tableio(capabilities=match_caps).index(format_name)
+
+
 def _member_answer_lines(format_name: str, file_access: FileAccess,
                          implementation: Optional[str] = None,
                          member_answers: Optional[dict[str, list[str | int]]]
@@ -171,7 +184,8 @@ def test_wizard_csv_defaults() -> None:
     assert config.implementation is None
     assert config.csv is None
     assert 'Select TableIO format' in output
-    assert 'csv.delimiter' in output
+    assert 'Configure csv options' in output
+    assert 'delimiter - Value' in output
 
 
 def test_blank_impl() -> None:
@@ -303,8 +317,11 @@ def test_enum_bad_text_retry() -> None:
     assert config.csv is not None
     assert config.csv.dialect == CsvDialect.EXCEL
     reasons = [call[1] for call in ui_bridge.calls
-               if call[0].startswith('Select value for csv.dialect')]
-    assert reasons == [None, 'Please enter one of the listed choices.']
+               if call[0].startswith('dialect')]
+    retry_reason = reasons[1]
+    assert reasons[0] is None
+    assert retry_reason is not None
+    assert 'Please enter one of the listed choices.' in retry_reason
 
 
 def test_text_value_retries() -> None:
@@ -372,3 +389,108 @@ def test_scalar_json_section() -> None:
     with pytest.raises(ValueError, match='csv is not a JSON object'):
         wizard_module._set_json_member(data, 'csv.delimiter', ';')
     assert data == {'csv': 'bad'}
+
+
+@pytest.mark.parametrize('answer, default, expected', [
+    ('', True, True), ('', False, False), (0, False, True), (1, True, False),
+    ('y', False, True), ('no', True, False), ('TRUE', False, True),
+    ('n', True, False)])
+def test_yes_no_fallback(answer: str | int, default: bool,
+                         expected: bool) -> None:
+    """The base yes/no fallback maps bridge answers to booleans."""
+    bridge = _ScriptedBridge([answer])
+    assert bridge.ask_yes_no('OK?', default) is expected
+
+
+def test_yes_no_retry() -> None:
+    """The yes/no fallback re-asks until it understands the answer."""
+    bridge = _ScriptedBridge(['maybe', 'yes'])
+    assert bridge.ask_yes_no('OK?', False) is True
+    assert bridge.calls[1][1] == 'Please answer yes or no.'
+
+
+@pytest.mark.parametrize('token, error', [
+    (':b', WizardBack), (':c', WizardCancelLevel), (':q', WizardAbort)])
+def test_console_nav_tokens(token: str, error: type[BaseException]) -> None:
+    """Console reserved tokens raise the matching navigation request."""
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO(token + '\n'),
+                                   StringIO())
+    with pytest.raises(error):
+        bridge.ask('Question?')
+
+
+def test_descriptor_defaults() -> None:
+    """Table descriptors default to editable free-text non-null cells."""
+    column = TableColumn('Value')
+    cell = TableCell()
+    assert column.read_only is False
+    assert (cell.value, cell.choices, cell.nullable) == (None, None, False)
+
+
+def test_table_keep_and_erase() -> None:
+    """The table fallback keeps a value on enter and erases on the token."""
+    columns = (TableColumn('Parameter', read_only=True), TableColumn('Value'))
+    cells = [[TableCell(value='impl'), TableCell(value='Lib', nullable=True)]]
+    keep = _ScriptedBridge(['']).ask_table(columns, cells, 'Pick:')
+    erase = _ScriptedBridge([':e']).ask_table(columns, cells, 'Pick:')
+    assert keep == [['impl', 'Lib']]
+    assert erase == [['impl', None]]
+
+
+def test_table_partial_check() -> None:
+    """The table fallback re-asks a cell until the partial check passes."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(nullable=True)]]
+
+    def check(table: list[list[Optional[str]]],
+              position: tuple[int, int]) -> tuple[bool, str]:
+        value = table[position[0]][position[1]]
+        return (False, 'no good') if value == 'bad' else (True, '')
+    bridge = _ScriptedBridge(['bad', 'good'])
+    result = bridge.ask_table(columns, cells, 'Enter:', partial_check=check)
+    assert result == [['good']]
+    assert bridge.calls[1][1] == 'no good'
+
+
+def test_cancel_section() -> None:
+    """Cancelling a section table leaves that section unset."""
+    answers: list[str | int | BaseException] = [
+        _format_index('CSV', FileAccess.CREATE), '', WizardCancelLevel()]
+    config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
+    assert config.format_name == 'CSV'
+    assert config.csv is None
+
+
+def test_abort_propagates() -> None:
+    """Abort raised in a section propagates out of the wizard."""
+    answers: list[str | int | BaseException] = [
+        _format_index('CSV', FileAccess.CREATE), '', WizardAbort()]
+    with pytest.raises(WizardAbort):
+        _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
+
+
+def test_back_first_question() -> None:
+    """Back from the first question propagates out for the application."""
+    with pytest.raises(WizardBack):
+        _run_bridge(FileAccess.CREATE, _ScriptedBridge([WizardBack()]))
+
+
+def test_back_prev_step() -> None:
+    """Back from a section's first cell re-asks the previous question."""
+    answers: list[str | int | BaseException] = [
+        _format_index('CSV', FileAccess.CREATE), 'utf-8', WizardBack(),
+        '', '', '', '', '', '', '']
+    config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
+    assert config.character_encoding is None
+    assert config.csv is None
+
+
+def test_cell_back() -> None:
+    """Back inside a table re-asks one cell and keeps the earlier ones."""
+    answers: list[str | int | BaseException] = [
+        _format_index('CSV', FileAccess.CREATE), '', 'unix', 'x',
+        WizardBack(), ';', '', '', '', '']
+    config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
+    assert config.csv is not None
+    assert config.csv.delimiter == ';'
+    assert config.csv.dialect == CsvDialect.UNIX

@@ -64,21 +64,60 @@
     * [nested\_configs](#tableio_cfg_json.config.TioJsonConfig.nested_configs)
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
+* [tableio\_cfg\_json.wizard\_ui\_bridge](#tableio_cfg_json.wizard_ui_bridge)
+  * [\_ERASE\_TOKEN](#tableio_cfg_json.wizard_ui_bridge._ERASE_TOKEN)
+  * [WizardNavigation](#tableio_cfg_json.wizard_ui_bridge.WizardNavigation)
+  * [WizardBack](#tableio_cfg_json.wizard_ui_bridge.WizardBack)
+  * [WizardCancelLevel](#tableio_cfg_json.wizard_ui_bridge.WizardCancelLevel)
+  * [WizardAbort](#tableio_cfg_json.wizard_ui_bridge.WizardAbort)
+  * [TableColumn](#tableio_cfg_json.wizard_ui_bridge.TableColumn)
+  * [TableCell](#tableio_cfg_json.wizard_ui_bridge.TableCell)
+  * [WizardUiBridge](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge)
+    * [ask](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask)
+    * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no)
+    * [ask\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table)
+    * [\_fill\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_table)
+    * [\_fill\_cell](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_cell)
+    * [error\_file](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file)
+    * [show](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.show)
+  * [\_interpret\_yes\_no](#tableio_cfg_json.wizard_ui_bridge._interpret_yes_no)
+  * [\_yes\_no\_from\_index](#tableio_cfg_json.wizard_ui_bridge._yes_no_from_index)
+  * [\_yes\_no\_from\_text](#tableio_cfg_json.wizard_ui_bridge._yes_no_from_text)
+  * [\_cell\_prompt](#tableio_cfg_json.wizard_ui_bridge._cell_prompt)
+  * [\_cell\_checker](#tableio_cfg_json.wizard_ui_bridge._cell_checker)
+  * [\_cell\_value](#tableio_cfg_json.wizard_ui_bridge._cell_value)
+  * [\_erased\_value](#tableio_cfg_json.wizard_ui_bridge._erased_value)
+  * [\_indexed\_value](#tableio_cfg_json.wizard_ui_bridge._indexed_value)
+  * [\_int\_text](#tableio_cfg_json.wizard_ui_bridge._int_text)
+* [tableio\_cfg\_json.wizard\_ui\_bridge\_console](#tableio_cfg_json.wizard_ui_bridge_console)
+  * [WizardUiBridgeConsole](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole)
+    * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.__init__)
+    * [ask](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask)
+    * [error\_file](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.error_file)
+    * [show](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.show)
+  * [\_raise\_for\_navigation](#tableio_cfg_json.wizard_ui_bridge_console._raise_for_navigation)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
-  * [WizardUiBridge](#tableio_cfg_json.wizard.WizardUiBridge)
-    * [ask](#tableio_cfg_json.wizard.WizardUiBridge.ask)
-    * [error\_file](#tableio_cfg_json.wizard.WizardUiBridge.error_file)
-    * [show](#tableio_cfg_json.wizard.WizardUiBridge.show)
-  * [WizardUiBridgeConsole](#tableio_cfg_json.wizard.WizardUiBridgeConsole)
-    * [\_\_init\_\_](#tableio_cfg_json.wizard.WizardUiBridgeConsole.__init__)
-    * [ask](#tableio_cfg_json.wizard.WizardUiBridgeConsole.ask)
-    * [error\_file](#tableio_cfg_json.wizard.WizardUiBridgeConsole.error_file)
-    * [show](#tableio_cfg_json.wizard.WizardUiBridgeConsole.show)
+  * [\_WizardRun](#tableio_cfg_json.wizard._WizardRun)
+  * [\_Step](#tableio_cfg_json.wizard._Step)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
+  * [\_drive](#tableio_cfg_json.wizard._drive)
+  * [\_build\_steps](#tableio_cfg_json.wizard._build_steps)
+  * [\_member\_steps](#tableio_cfg_json.wizard._member_steps)
+  * [\_section\_specs](#tableio_cfg_json.wizard._section_specs)
+  * [\_run\_step](#tableio_cfg_json.wizard._run_step)
+  * [\_run\_format\_step](#tableio_cfg_json.wizard._run_format_step)
+  * [\_run\_impl\_step](#tableio_cfg_json.wizard._run_impl_step)
+  * [\_run\_section\_step](#tableio_cfg_json.wizard._run_section_step)
+  * [\_section\_question](#tableio_cfg_json.wizard._section_question)
+  * [\_section\_cells](#tableio_cfg_json.wizard._section_cells)
+  * [\_spec\_choices](#tableio_cfg_json.wizard._spec_choices)
+  * [\_resolve\_section](#tableio_cfg_json.wizard._resolve_section)
+  * [\_resolve\_member\_value](#tableio_cfg_json.wizard._resolve_member_value)
+  * [\_section\_check](#tableio_cfg_json.wizard._section_check)
+  * [\_commit](#tableio_cfg_json.wizard._commit)
   * [\_ask\_format](#tableio_cfg_json.wizard._ask_format)
   * [\_impl\_names](#tableio_cfg_json.wizard._impl_names)
   * [\_ask\_implementation](#tableio_cfg_json.wizard._ask_implementation)
-  * [\_start\_data](#tableio_cfg_json.wizard._start_data)
   * [\_ask\_member](#tableio_cfg_json.wizard._ask_member)
   * [\_matches](#tableio_cfg_json.wizard._matches)
   * [\_ask\_config\_member](#tableio_cfg_json.wizard._ask_config_member)
@@ -93,7 +132,6 @@
   * [\_choice\_from\_enum](#tableio_cfg_json.wizard._choice_from_enum)
   * [\_enum\_type](#tableio_cfg_json.wizard._enum_type)
   * [\_optional\_type\_name](#tableio_cfg_json.wizard._optional_type_name)
-  * [\_int\_text](#tableio_cfg_json.wizard._int_text)
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
 
@@ -1595,18 +1633,148 @@ config-as-json.
 
   A JSON-backed tableio configuration object.
 
-<a id="tableio_cfg_json.wizard"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge"></a>
 
-# tableio\_cfg\_json.wizard
+# tableio\_cfg\_json.wizard\_ui\_bridge
 
-Interactive helpers for creating TableIO JSON configuration.
+User interface bridge for the TableIO JSON configuration wizard.
 
-The public helper in this module is intentionally scoped to one TableIO
-endpoint. Application code can call it once for each input or output it wants
-to configure, and then place the returned TioJsonConfig objects inside its own
-larger config-as-json configuration class.
+This module defines the abstract bridge between the wizard and a user
+interface, the navigation requests a bridge raises to steer wizard flow,
+and the column and cell descriptors used by table questions. Concrete
+console and graphical bridges derive from WizardUiBridge.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridge"></a>
+Design status: the method bodies below are stubs. The signatures and
+docstrings describe the intended public interface for review before the
+behaviour is implemented. Where a docstring states that the base class
+provides a fallback implementation, that fallback is written in terms of
+ask() during the implementation phase so that older bridges that only
+override ask() keep working until their maintainer overrides the method.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._ERASE_TOKEN"></a>
+
+#### \_ERASE\_TOKEN
+
+empties an editable cell in the ask_table fallback
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardNavigation"></a>
+
+## WizardNavigation Objects
+
+```python
+class WizardNavigation(Exception)
+```
+
+Base class for wizard navigation requests raised by a bridge.
+
+A user interface raises a subclass of this exception from an ask
+method when the user wants to move within the wizard instead of
+answering the current question. The wizard keeps these distinct from
+validation errors, so its retry loops never catch them and they
+reach the navigation driver unchanged.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardBack"></a>
+
+## WizardBack Objects
+
+```python
+class WizardBack(WizardNavigation)
+```
+
+Request to return to the previous wizard question.
+
+A bridge raises this when the user chooses "back". The wizard
+restores the data collected before the previous question and asks
+that question again. Raised at the first question of one wizard call
+it has no earlier question within that call, so the wizard lets it
+propagate out to the application. The application can then step back
+in its own outer navigation, for instance to the previous endpoint.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardCancelLevel"></a>
+
+## WizardCancelLevel Objects
+
+```python
+class WizardCancelLevel(WizardNavigation)
+```
+
+Request to leave the current configuration level.
+
+A bridge raises this when the user cancels the current grouped
+sub-dialog, such as a table of format-specific parameters. The
+wizard discards the values collected for that group and continues at
+the enclosing level. When no group encloses the current question
+inside one wizard call, the exception propagates out of the wizard
+call so the application can treat that whole endpoint as one level of
+its own larger flow.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardAbort"></a>
+
+## WizardAbort Objects
+
+```python
+class WizardAbort(WizardNavigation)
+```
+
+Request to abandon the whole configuration.
+
+A bridge raises this when the user abandons configuration entirely.
+The wizard does not catch it; it propagates out of the wizard call so
+the application can stop the configuration session.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.TableColumn"></a>
+
+## TableColumn Objects
+
+```python
+@dataclass(frozen=True)
+class TableColumn()
+```
+
+Header and editability for one whole column of a table question.
+
+A table question describes its columns once. Read-only columns show
+fixed text the user cannot edit, such as a column of parameter names.
+Per-cell values and value constraints are described by TableCell.
+
+**Attributes**:
+
+- `header` - Column heading shown to the user.
+- `read_only` - True when the whole column shows fixed text the user
+  cannot edit.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.TableCell"></a>
+
+## TableCell Objects
+
+```python
+@dataclass(frozen=True)
+class TableCell()
+```
+
+Initial content and value constraints for one table cell.
+
+A table question holds one TableCell per column in each row, so each
+row of an editable column can offer its own finite value set. This
+suits a table whose rows are different parameters that each accept
+different values, such as the format-specific options of a config.
+
+**Attributes**:
+
+- `value` - The initial text shown in the cell. For a read-only column
+  this is the fixed text. For an editable column it is the
+  pre-filled value, or None for an empty cell.
+- `choices` - The finite set of values this cell accepts, or None for
+  free text. A graphical bridge can render choices as a
+  drop-down.
+- `nullable` - True when the user may leave the cell empty, which the
+  table reports as None. False when an empty cell is not
+  interpreted as None: with choices None an empty cell is
+  an empty string the validation may or may not accept,
+  and with choices given an empty editable cell is not yet
+  a valid final value.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge"></a>
 
 ## WizardUiBridge Objects
 
@@ -1617,11 +1785,18 @@ class WizardUiBridge()
 Bridge between the wizard and the user interface.
 
 This is an abstract base class for a bridge between the wizard and
-the user interface. Provide concrete classes of this bridge to
-allow the wizard to use console text user interface or a graphical
-user interface.
+the user interface. Provide concrete classes of this bridge to allow
+the wizard to use a console text user interface or a graphical user
+interface.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridge.ask"></a>
+A concrete bridge must implement ask() and show(). The base class
+provides fallback implementations of ask_yes_no() and ask_table() in
+terms of ask(), so a bridge keeps working before its maintainer adds
+the better overrides. Any ask method may raise a WizardNavigation
+subclass to request back, cancel-level or abort instead of returning
+an answer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask"></a>
 
 #### ask
 
@@ -1636,25 +1811,202 @@ Ask a question and return the user's answer.
 **Arguments**:
 
 - `question` - The question to ask the user.
-- `re_ask_reason` - The reason for re-asking the question for
+- `re_ask_reason` - The reason for re-asking the question, for
   instance that the user's answer was invalid.
-- `choices` - The choices to offer the user as a sequence of strings.
+- `choices` - The choices to offer the user as a sequence of
+  strings.
   
 
 **Returns**:
 
-  The user's answer. If the user's answer is one of the choices,
-  then the return value can be either the matching string or the
-  index of what the user selected. If integer index is used it is
-  0-based.
-  The bridge is not required to validate the user's answer in
-  any way. It is the responsibility of the caller to validate the
-  user's answer.
-  If the user entered/selected an empty string as answer, then the
-  return value should be an empty string. The caller may interpret
-  this as a request to use the default value.
+  The user's answer. If the user's answer is one of the
+  choices, then the return value can be either the matching
+  string or the index of what the user selected. If integer
+  index is used it is 0-based. The bridge is not required to
+  validate the user's answer in any way. It is the
+  responsibility of the caller to validate the user's answer.
+  If the user entered/selected an empty string as answer, then
+  the return value should be an empty string. The caller may
+  interpret this as a request to use the default value.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridge.error_file"></a>
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no"></a>
+
+#### ask\_yes\_no
+
+```python
+def ask_yes_no(question: str,
+               default: bool,
+               re_ask_reason: Optional[str] = None) -> bool
+```
+
+Ask a yes/no question and return the chosen boolean.
+
+The wizard asks every yes/no question through this method.
+Application programmers are strongly encouraged to override it
+with a real yes/no interface, such as a pair of yes and no
+buttons in a graphical bridge or a y/n prompt in a console
+bridge. The base class provides a fallback in terms of ask() with
+the choices ('yes', 'no') so an application keeps working until
+its maintainer has implemented the override: an empty answer
+selects default, an index or matching text selects the boolean,
+and any other answer is re-asked.
+
+**Arguments**:
+
+- `question` - The yes/no question to ask.
+- `default` - The value to use when the user makes no explicit
+  choice.
+- `re_ask_reason` - The reason for re-asking the question, for
+  instance that the user's answer was invalid.
+  
+
+**Returns**:
+
+  The user's choice as a boolean.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table"></a>
+
+#### ask\_table
+
+```python
+def ask_table(columns: Sequence[TableColumn],
+              cells: list[list[TableCell]],
+              question: str,
+              *,
+              re_ask_reason: Optional[str] = None,
+              partial_check: Optional[PartialCheck] = None,
+              min_rows: Optional[int] = None,
+              max_rows: Optional[int] = None) -> list[list[Optional[str]]]
+```
+
+Ask the user to fill in a table and return its cells.
+
+The bridge shows a table whose columns are described by columns
+and whose rows start from cells. Each row in cells holds one
+TableCell per column. Read-only columns show the fixed text in
+each cell, such as a column of parameter names, while editable
+columns show pre-filled or empty values the user may change.
+
+Application programmers are strongly encouraged to override this
+with a real table widget. The base class provides a fallback in
+terms of ask(), asking once per editable cell and folding the
+read-only cells of the row into the prompt, so an application
+keeps working until its maintainer has implemented the override.
+In that fallback an empty answer keeps the cell's current value
+and a reserved erase token empties the cell, which is how a
+console user replaces a pre-filled default with an empty cell.
+
+How an empty editable cell is reported follows its TableCell: a
+nullable cell reports None, a free-text cell reports an empty
+string, and a cell with choices treats empty as not yet a valid
+value. When a cell reports None, the caller decides whether that
+means omit the value or store an explicit null.
+
+When partial_check is given, the bridge calls it after the user
+changes a cell, passing the whole table as it currently stands
+and the (row, column) position of the changed cell, both 0-based.
+The callback returns (accepted, message); the bridge uses message
+to give early feedback. The callback must tolerate empty or partly
+filled cells, and it gives advisory feedback only: the wizard
+still validates the final table.
+
+**Arguments**:
+
+- `columns` - Description of each column, in left-to-right order.
+- `cells` - Starting rows, each a list of one TableCell per column.
+- `question` - The question or instruction shown above the table.
+- `re_ask_reason` - The reason for re-asking, for instance that a
+  value failed validation.
+- `partial_check` - Optional callback for early per-cell feedback.
+  It receives the current table and the changed
+  (row, column) position and returns an accepted
+  flag and a message.
+- `min_rows` - Minimum number of rows the user must leave in the
+  table, or None when rows are fixed to the rows in
+  cells. A variable number of rows requires both
+  min_rows and max_rows to be non-None.
+- `max_rows` - Maximum number of rows the user may add the table
+  to, or None when rows are fixed to the rows in
+  cells. A variable number of rows requires both
+  min_rows and max_rows to be non-None.
+  
+
+**Returns**:
+
+  The complete table as rows of cells, including the read-only
+  columns, with one cell per column in each row. Each cell is
+  the final string the user left, or None for an empty cell.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_table"></a>
+
+#### \_fill\_table
+
+```python
+def _fill_table(columns: Sequence[TableColumn], cells: list[list[TableCell]],
+                table: list[list[Optional[str]]],
+                partial_check: Optional[PartialCheck]) -> None
+```
+
+Fill the editable cells, stepping back one cell on WizardBack.
+
+WizardBack from the first editable cell has no earlier cell to
+return to, so it propagates and the wizard steps to the previous
+question. Cells already filled stay in the table while the user
+moves between cells.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_cell"></a>
+
+#### \_fill\_cell
+
+```python
+def _fill_cell(
+        columns: Sequence[TableColumn], row: list[TableCell], col: int,
+        current: Optional[str],
+        check: Callable[[Optional[str]], Optional[str]]) -> Optional[str]
+```
+
+Ask one editable cell until its value is accepted.
+
+**Arguments**:
+
+- `columns` - The table columns, used to build the prompt.
+- `row` - The cells of the row being filled.
+- `col` - The index of the cell being filled.
+- `current` - The cell's current value, kept when the user presses
+  enter and shown in the prompt.
+- `check` - Records a candidate in the table and returns an error
+  message, or None when the candidate is accepted.
+  
+
+**Returns**:
+
+  The accepted cell value, or None for an empty nullable cell.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous cell.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file"></a>
 
 #### error\_file
 
@@ -1664,7 +2016,7 @@ def error_file() -> TextIO
 
 Return the stream used for validation diagnostics.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridge.show"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.show"></a>
 
 #### show
 
@@ -1676,14 +2028,120 @@ Show a message to the user.
 
 If implementing a graphical user interface, this method should
 display the message in a dialog or a message box. If implementing
-a console text user interface, this method should print the message
-to the console.
+a console text user interface, this method should print the
+message to the console.
 
 **Arguments**:
 
 - `message` - The message to show the user.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge._interpret_yes_no"></a>
+
+#### \_interpret\_yes\_no
+
+```python
+def _interpret_yes_no(answer: str | int, default: bool) -> Optional[bool]
+```
+
+Map a bridge answer to a yes/no boolean, or None to re-ask.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._yes_no_from_index"></a>
+
+#### \_yes\_no\_from\_index
+
+```python
+def _yes_no_from_index(index: int) -> Optional[bool]
+```
+
+Map a 0-based ('yes', 'no') index to a boolean, or None.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._yes_no_from_text"></a>
+
+#### \_yes\_no\_from\_text
+
+```python
+def _yes_no_from_text(text: str) -> Optional[bool]
+```
+
+Map yes/no free text to a boolean, or None when unrecognised.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._cell_prompt"></a>
+
+#### \_cell\_prompt
+
+```python
+def _cell_prompt(columns: Sequence[TableColumn], row: list[TableCell],
+                 col_index: int, current: Optional[str]) -> str
+```
+
+Return the console prompt for one editable cell.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._cell_checker"></a>
+
+#### \_cell\_checker
+
+```python
+def _cell_checker(
+    table: list[list[Optional[str]]], position: tuple[int, int],
+    partial_check: Optional[PartialCheck]
+) -> Callable[[Optional[str]], Optional[str]]
+```
+
+Return a per-cell check that records a candidate and validates it.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._cell_value"></a>
+
+#### \_cell\_value
+
+```python
+def _cell_value(answer: str | int, cell: TableCell,
+                current: Optional[str]) -> tuple[bool, Optional[str]]
+```
+
+Map a bridge answer to a cell value and whether it is usable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._erased_value"></a>
+
+#### \_erased\_value
+
+```python
+def _erased_value(cell: TableCell) -> tuple[bool, Optional[str]]
+```
+
+Map an erase request to a cell value and whether it is usable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._indexed_value"></a>
+
+#### \_indexed\_value
+
+```python
+def _indexed_value(index: int, cell: TableCell) -> tuple[bool, Optional[str]]
+```
+
+Map a 0-based choice index to a cell value, or mark it unusable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._int_text"></a>
+
+#### \_int\_text
+
+```python
+def _int_text(text: str) -> Optional[int]
+```
+
+Return an integer from text, or None when text is not an integer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console"></a>
+
+# tableio\_cfg\_json.wizard\_ui\_bridge\_console
+
+Console text user interface bridge for the configuration wizard.
+
+This module provides the concrete console bridge used when the wizard
+talks to a user through plain text streams. It recognises reserved
+navigation tokens so a console user can step back, cancel the current
+level or abandon the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole"></a>
 
 ## WizardUiBridgeConsole Objects
 
@@ -1693,7 +2151,7 @@ class WizardUiBridgeConsole(WizardUiBridge)
 
 Bridge between the wizard and the console text user interface.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.__init__"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.__init__"></a>
 
 #### \_\_init\_\_
 
@@ -1710,7 +2168,7 @@ Initialize the bridge.
 - `stdin_file` - Stream to read user answers from.
 - `stderr_file` - Stream to print errors to.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.ask"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask"></a>
 
 #### ask
 
@@ -1743,7 +2201,14 @@ Ask a question and return the user's answer.
   return value should be an empty string. The caller may interpret
   this as a request to use the default value.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.error_file"></a>
+**Raises**:
+
+- `EOFError` - The input stream ended before an answer was read.
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.error_file"></a>
 
 #### error\_file
 
@@ -1753,7 +2218,7 @@ def error_file() -> TextIO
 
 Return the stream used for validation diagnostics.
 
-<a id="tableio_cfg_json.wizard.WizardUiBridgeConsole.show"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.show"></a>
 
 #### show
 
@@ -1768,6 +2233,49 @@ This method prints the message to the console.
 **Arguments**:
 
 - `message` - The message to show the user.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console._raise_for_navigation"></a>
+
+#### \_raise\_for\_navigation
+
+```python
+def _raise_for_navigation(text: str) -> None
+```
+
+Raise a navigation request when text is a reserved token.
+
+<a id="tableio_cfg_json.wizard"></a>
+
+# tableio\_cfg\_json.wizard
+
+Interactive helpers for creating TableIO JSON configuration.
+
+The public helper in this module is intentionally scoped to one TableIO
+endpoint. Application code can call it once for each input or output it wants
+to configure, and then place the returned TioJsonConfig objects inside its own
+larger config-as-json configuration class.
+
+<a id="tableio_cfg_json.wizard._WizardRun"></a>
+
+## \_WizardRun Objects
+
+```python
+@dataclass
+class _WizardRun()
+```
+
+Mutable state shared by the steps of one wizard run.
+
+<a id="tableio_cfg_json.wizard._Step"></a>
+
+## \_Step Objects
+
+```python
+@dataclass(frozen=True)
+class _Step()
+```
+
+One navigable question or grouped table in a wizard run.
 
 <a id="tableio_cfg_json.wizard.tio_json_config_wizard"></a>
 
@@ -1789,6 +2297,11 @@ runtime behavior where TableIO chooses the implementation. It then asks
 for the optional members that can affect the selected backend and validates
 each entered value by constructing a TioJsonConfig.
 
+The user can navigate the questions of this one endpoint through the bridge
+by asking to go back to the previous question or to cancel the current
+level. Navigation that reaches past the first question of this endpoint is
+raised out of this function so the application can navigate its own flow.
+
 The returned object is a validated TioJsonConfig. Compact JSON written from
 that object contains only the durable choices entered by the user; omitted
 optional values stay omitted so TableIO can use backend defaults later.
@@ -1809,10 +2322,177 @@ optional values stay omitted so TableIO can use backend defaults later.
 - `TableIOFactoryNoCapabilityMatch` - No registered backend matches the
   supplied capabilities and file access.
 - `InvalidConfiguration` - The selected values fail final validation.
+- `WizardBack` - The user asked to go back from the first question.
+- `WizardCancelLevel` - The user cancelled this endpoint level.
+- `WizardAbort` - The user abandoned the whole configuration.
 
 **Returns**:
 
   A validated TableIO JSON config for the one endpoint.
+
+<a id="tableio_cfg_json.wizard._drive"></a>
+
+#### \_drive
+
+```python
+def _drive(run: _WizardRun) -> TioJsonConfig
+```
+
+Run wizard steps with back navigation until the config validates.
+
+<a id="tableio_cfg_json.wizard._build_steps"></a>
+
+#### \_build\_steps
+
+```python
+def _build_steps(run: _WizardRun) -> list[_Step]
+```
+
+Return the ordered steps implied by the answers collected so far.
+
+<a id="tableio_cfg_json.wizard._member_steps"></a>
+
+#### \_member\_steps
+
+```python
+def _member_steps(format_name: str,
+                  selected_impls: Sequence[str]) -> list[_Step]
+```
+
+Return scalar and section steps for the relevant config members.
+
+<a id="tableio_cfg_json.wizard._section_specs"></a>
+
+#### \_section\_specs
+
+```python
+def _section_specs(section: str, format_name: str,
+                   selected_impls: Sequence[str]) -> tuple[ConfigSpec, ...]
+```
+
+Return the relevant config specs that belong to one section.
+
+<a id="tableio_cfg_json.wizard._run_step"></a>
+
+#### \_run\_step
+
+```python
+def _run_step(run: _WizardRun, step: _Step) -> None
+```
+
+Dispatch one step to the function that asks its question.
+
+<a id="tableio_cfg_json.wizard._run_format_step"></a>
+
+#### \_run\_format\_step
+
+```python
+def _run_format_step(run: _WizardRun) -> None
+```
+
+Ask for the format and store it in the wizard data.
+
+<a id="tableio_cfg_json.wizard._run_impl_step"></a>
+
+#### \_run\_impl\_step
+
+```python
+def _run_impl_step(run: _WizardRun) -> None
+```
+
+Ask for the implementation and store or clear it in the data.
+
+<a id="tableio_cfg_json.wizard._run_section_step"></a>
+
+#### \_run\_section\_step
+
+```python
+def _run_section_step(run: _WizardRun, section: str,
+                      specs: tuple[ConfigSpec, ...]) -> None
+```
+
+Ask one table of section members and store the entered values.
+
+<a id="tableio_cfg_json.wizard._section_question"></a>
+
+#### \_section\_question
+
+```python
+def _section_question(section: str) -> str
+```
+
+Return the instruction shown above one section table.
+
+<a id="tableio_cfg_json.wizard._section_cells"></a>
+
+#### \_section\_cells
+
+```python
+def _section_cells(run: _WizardRun, section: str,
+                   specs: tuple[ConfigSpec, ...]) -> list[list[TableCell]]
+```
+
+Return the table rows for one section, pre-filled from the data.
+
+<a id="tableio_cfg_json.wizard._spec_choices"></a>
+
+#### \_spec\_choices
+
+```python
+def _spec_choices(spec: ConfigSpec) -> Optional[tuple[str, ...]]
+```
+
+Return the advertised choices of one config member as strings.
+
+<a id="tableio_cfg_json.wizard._resolve_section"></a>
+
+#### \_resolve\_section
+
+```python
+def _resolve_section(data: dict[str, object], section: str,
+                     specs: tuple[ConfigSpec,
+                                  ...], result: list[list[Optional[str]]],
+                     stderr_file: TextIO) -> dict[str, object]
+```
+
+Return data with one section rebuilt from a filled-in table.
+
+<a id="tableio_cfg_json.wizard._resolve_member_value"></a>
+
+#### \_resolve\_member\_value
+
+```python
+def _resolve_member_value(spec: ConfigSpec, raw: str,
+                          stderr_file: TextIO) -> object
+```
+
+Convert one entered table value to the type TableIO expects.
+
+<a id="tableio_cfg_json.wizard._section_check"></a>
+
+#### \_section\_check
+
+```python
+def _section_check(run: _WizardRun, section: str,
+                   specs: tuple[ConfigSpec, ...]) -> PartialCheck
+```
+
+Return a partial-check callback for one section table.
+
+<a id="tableio_cfg_json.wizard._commit"></a>
+
+#### \_commit
+
+```python
+def _commit(data: dict[str, object], new_data: dict[str, object],
+            caps: Capabilities, file_access: FileAccess,
+            stderr_file: TextIO) -> Optional[str]
+```
+
+Validate new_data; on success copy it into data and return None.
+
+Returns an error reason to show the user when validation fails, so the
+caller can re-ask. On success the data is updated in place.
 
 <a id="tableio_cfg_json.wizard._ask_format"></a>
 
@@ -1846,17 +2526,6 @@ def _ask_implementation(impl_names: Sequence[str], ui_bridge: WizardUiBridge,
 ```
 
 Ask for an implementation only when TableIO exposes a choice.
-
-<a id="tableio_cfg_json.wizard._start_data"></a>
-
-#### \_start\_data
-
-```python
-def _start_data(format_name: str,
-                implementation: Optional[str]) -> dict[str, object]
-```
-
-Create the first JSON object used by the wizard.
 
 <a id="tableio_cfg_json.wizard._ask_member"></a>
 
@@ -2016,16 +2685,6 @@ def _optional_type_name(value_type: str) -> Optional[str]
 ```
 
 Return the inner type name from an Optional type description.
-
-<a id="tableio_cfg_json.wizard._int_text"></a>
-
-#### \_int\_text
-
-```python
-def _int_text(text: str) -> Optional[int]
-```
-
-Return an integer from text, or None when text is not an integer.
 
 <a id="tableio_cfg_json.wizard._set_json_member"></a>
 

@@ -45,3 +45,4 @@ dep_lib_doc/*
 *.pdf
 *.xlsx
 dep_lib_doc/*
+.vscode

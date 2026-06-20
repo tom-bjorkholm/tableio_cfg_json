@@ -1,0 +1,455 @@
+#! /usr/local/bin/python3
+"""User interface bridge for the TableIO JSON configuration wizard.
+
+This module defines the abstract bridge between the wizard and a user
+interface, the navigation requests a bridge raises to steer wizard flow,
+and the column and cell descriptors used by table questions. Concrete
+console and graphical bridges derive from WizardUiBridge.
+
+Design status: the method bodies below are stubs. The signatures and
+docstrings describe the intended public interface for review before the
+behaviour is implemented. Where a docstring states that the base class
+provides a fallback implementation, that fallback is written in terms of
+ask() during the implementation phase so that older bridges that only
+override ask() keep working until their maintainer overrides the method.
+"""
+
+# Copyright (c) 2026 Tom Björkholm
+# MIT License
+
+import sys
+from dataclasses import dataclass
+from typing import Callable, Optional, Sequence, TextIO
+
+type PartialCheck = Callable[
+    [list[list[Optional[str]]], tuple[int, int]], tuple[bool, str]]
+"""Callback for early per-cell feedback while a table is filled.
+
+It receives the whole table as it currently stands and the 0-based
+(row, column) position of the changed cell, and returns whether the
+value is accepted together with a message to show the user.
+"""
+
+_ERASE_TOKEN = ':e'  # empties an editable cell in the ask_table fallback
+
+
+class WizardNavigation(Exception):
+    """Base class for wizard navigation requests raised by a bridge.
+
+    A user interface raises a subclass of this exception from an ask
+    method when the user wants to move within the wizard instead of
+    answering the current question. The wizard keeps these distinct from
+    validation errors, so its retry loops never catch them and they
+    reach the navigation driver unchanged.
+    """
+
+
+class WizardBack(WizardNavigation):
+    """Request to return to the previous wizard question.
+
+    A bridge raises this when the user chooses "back". The wizard
+    restores the data collected before the previous question and asks
+    that question again. Raised at the first question of one wizard call
+    it has no earlier question within that call, so the wizard lets it
+    propagate out to the application. The application can then step back
+    in its own outer navigation, for instance to the previous endpoint.
+    """
+
+
+class WizardCancelLevel(WizardNavigation):
+    """Request to leave the current configuration level.
+
+    A bridge raises this when the user cancels the current grouped
+    sub-dialog, such as a table of format-specific parameters. The
+    wizard discards the values collected for that group and continues at
+    the enclosing level. When no group encloses the current question
+    inside one wizard call, the exception propagates out of the wizard
+    call so the application can treat that whole endpoint as one level of
+    its own larger flow.
+    """
+
+
+class WizardAbort(WizardNavigation):
+    """Request to abandon the whole configuration.
+
+    A bridge raises this when the user abandons configuration entirely.
+    The wizard does not catch it; it propagates out of the wizard call so
+    the application can stop the configuration session.
+    """
+
+
+@dataclass(frozen=True)
+class TableColumn:
+    """Header and editability for one whole column of a table question.
+
+    A table question describes its columns once. Read-only columns show
+    fixed text the user cannot edit, such as a column of parameter names.
+    Per-cell values and value constraints are described by TableCell.
+
+    Attributes:
+        header: Column heading shown to the user.
+        read_only: True when the whole column shows fixed text the user
+                   cannot edit.
+    """
+
+    header: str
+    read_only: bool = False
+
+
+@dataclass(frozen=True)
+class TableCell:
+    """Initial content and value constraints for one table cell.
+
+    A table question holds one TableCell per column in each row, so each
+    row of an editable column can offer its own finite value set. This
+    suits a table whose rows are different parameters that each accept
+    different values, such as the format-specific options of a config.
+
+    Attributes:
+        value: The initial text shown in the cell. For a read-only column
+               this is the fixed text. For an editable column it is the
+               pre-filled value, or None for an empty cell.
+        choices: The finite set of values this cell accepts, or None for
+                 free text. A graphical bridge can render choices as a
+                 drop-down.
+        nullable: True when the user may leave the cell empty, which the
+                  table reports as None. False when an empty cell is not
+                  interpreted as None: with choices None an empty cell is
+                  an empty string the validation may or may not accept,
+                  and with choices given an empty editable cell is not yet
+                  a valid final value.
+    """
+
+    value: Optional[str] = None
+    choices: Optional[tuple[str, ...]] = None
+    nullable: bool = False
+
+
+class WizardUiBridge:
+    """Bridge between the wizard and the user interface.
+
+    This is an abstract base class for a bridge between the wizard and
+    the user interface. Provide concrete classes of this bridge to allow
+    the wizard to use a console text user interface or a graphical user
+    interface.
+
+    A concrete bridge must implement ask() and show(). The base class
+    provides fallback implementations of ask_yes_no() and ask_table() in
+    terms of ask(), so a bridge keeps working before its maintainer adds
+    the better overrides. Any ask method may raise a WizardNavigation
+    subclass to request back, cancel-level or abort instead of returning
+    an answer.
+    """
+
+    def ask(self, question: str, re_ask_reason: Optional[str] = None,
+            choices: Optional[Sequence[str]] = None) -> str | int:
+        """Ask a question and return the user's answer.
+
+        Args:
+            question: The question to ask the user.
+            re_ask_reason: The reason for re-asking the question, for
+                           instance that the user's answer was invalid.
+            choices: The choices to offer the user as a sequence of
+                     strings.
+
+        Returns:
+            The user's answer. If the user's answer is one of the
+            choices, then the return value can be either the matching
+            string or the index of what the user selected. If integer
+            index is used it is 0-based. The bridge is not required to
+            validate the user's answer in any way. It is the
+            responsibility of the caller to validate the user's answer.
+            If the user entered/selected an empty string as answer, then
+            the return value should be an empty string. The caller may
+            interpret this as a request to use the default value.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        raise NotImplementedError('ask() not implemented')
+
+    def ask_yes_no(self, question: str, default: bool,
+                   re_ask_reason: Optional[str] = None) -> bool:
+        """Ask a yes/no question and return the chosen boolean.
+
+        The wizard asks every yes/no question through this method.
+        Application programmers are strongly encouraged to override it
+        with a real yes/no interface, such as a pair of yes and no
+        buttons in a graphical bridge or a y/n prompt in a console
+        bridge. The base class provides a fallback in terms of ask() with
+        the choices ('yes', 'no') so an application keeps working until
+        its maintainer has implemented the override: an empty answer
+        selects default, an index or matching text selects the boolean,
+        and any other answer is re-asked.
+
+        Args:
+            question: The yes/no question to ask.
+            default: The value to use when the user makes no explicit
+                     choice.
+            re_ask_reason: The reason for re-asking the question, for
+                           instance that the user's answer was invalid.
+
+        Returns:
+            The user's choice as a boolean.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        reason = re_ask_reason
+        while True:
+            answer = self.ask(question, reason, choices=('yes', 'no'))
+            choice = _interpret_yes_no(answer, default)
+            if choice is not None:
+                return choice
+            reason = 'Please answer yes or no.'
+
+    # pylint: disable-next=too-many-arguments
+    def ask_table(self, columns: Sequence[TableColumn],
+                  cells: list[list[TableCell]], question: str, *,
+                  re_ask_reason: Optional[str] = None,
+                  partial_check: Optional[PartialCheck] = None,
+                  min_rows: Optional[int] = None,
+                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
+        """Ask the user to fill in a table and return its cells.
+
+        The bridge shows a table whose columns are described by columns
+        and whose rows start from cells. Each row in cells holds one
+        TableCell per column. Read-only columns show the fixed text in
+        each cell, such as a column of parameter names, while editable
+        columns show pre-filled or empty values the user may change.
+
+        Application programmers are strongly encouraged to override this
+        with a real table widget. The base class provides a fallback in
+        terms of ask(), asking once per editable cell and folding the
+        read-only cells of the row into the prompt, so an application
+        keeps working until its maintainer has implemented the override.
+        In that fallback an empty answer keeps the cell's current value
+        and a reserved erase token empties the cell, which is how a
+        console user replaces a pre-filled default with an empty cell.
+
+        How an empty editable cell is reported follows its TableCell: a
+        nullable cell reports None, a free-text cell reports an empty
+        string, and a cell with choices treats empty as not yet a valid
+        value. When a cell reports None, the caller decides whether that
+        means omit the value or store an explicit null.
+
+        When partial_check is given, the bridge calls it after the user
+        changes a cell, passing the whole table as it currently stands
+        and the (row, column) position of the changed cell, both 0-based.
+        The callback returns (accepted, message); the bridge uses message
+        to give early feedback. The callback must tolerate empty or partly
+        filled cells, and it gives advisory feedback only: the wizard
+        still validates the final table.
+
+        Args:
+            columns: Description of each column, in left-to-right order.
+            cells: Starting rows, each a list of one TableCell per column.
+            question: The question or instruction shown above the table.
+            re_ask_reason: The reason for re-asking, for instance that a
+                           value failed validation.
+            partial_check: Optional callback for early per-cell feedback.
+                           It receives the current table and the changed
+                           (row, column) position and returns an accepted
+                           flag and a message.
+            min_rows: Minimum number of rows the user must leave in the
+                      table, or None when rows are fixed to the rows in
+                      cells. A variable number of rows requires both
+                      min_rows and max_rows to be non-None.
+            max_rows: Maximum number of rows the user may add the table
+                      to, or None when rows are fixed to the rows in
+                      cells. A variable number of rows requires both
+                      min_rows and max_rows to be non-None.
+
+        Returns:
+            The complete table as rows of cells, including the read-only
+            columns, with one cell per column in each row. Each cell is
+            the final string the user left, or None for an empty cell.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        self.show(question)
+        if re_ask_reason is not None:
+            self.show(re_ask_reason)
+        _ = (min_rows, max_rows)  # the fallback fills the fixed rows in cells
+        table: list[list[Optional[str]]] = [
+            [cell.value for cell in row] for row in cells]
+        self._fill_table(columns, cells, table, partial_check)
+        return table
+
+    def _fill_table(self, columns: Sequence[TableColumn],
+                    cells: list[list[TableCell]],
+                    table: list[list[Optional[str]]],
+                    partial_check: Optional[PartialCheck]) -> None:
+        """Fill the editable cells, stepping back one cell on WizardBack.
+
+        WizardBack from the first editable cell has no earlier cell to
+        return to, so it propagates and the wizard steps to the previous
+        question. Cells already filled stay in the table while the user
+        moves between cells.
+        """
+        spots = [(row, col) for row in range(len(cells))
+                 for col in range(len(columns)) if not columns[col].read_only]
+        position = 0
+        while position < len(spots):
+            row, col = spots[position]
+            check = _cell_checker(table, (row, col), partial_check)
+            try:
+                table[row][col] = self._fill_cell(columns, cells[row], col,
+                                                  table[row][col], check)
+            except WizardBack:
+                if position == 0:
+                    raise
+                position -= 1
+                continue
+            position += 1
+
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+    def _fill_cell(self, columns: Sequence[TableColumn], row: list[TableCell],
+                   col: int, current: Optional[str],
+                   check: Callable[[Optional[str]], Optional[str]]
+                   ) -> Optional[str]:
+        """Ask one editable cell until its value is accepted.
+
+        Args:
+            columns: The table columns, used to build the prompt.
+            row: The cells of the row being filled.
+            col: The index of the cell being filled.
+            current: The cell's current value, kept when the user presses
+                     enter and shown in the prompt.
+            check: Records a candidate in the table and returns an error
+                   message, or None when the candidate is accepted.
+
+        Returns:
+            The accepted cell value, or None for an empty nullable cell.
+        Raises:
+            WizardBack: The user asked to return to the previous cell.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        cell = row[col]
+        prompt = _cell_prompt(columns, row, col, current)
+        reason: Optional[str] = None
+        while True:
+            answer = self.ask(prompt, reason, choices=cell.choices)
+            valid, candidate = _cell_value(answer, cell, current)
+            if not valid:
+                reason = 'Please enter a value.'
+                continue
+            error = check(candidate)
+            if error is None:
+                return candidate
+            reason = error
+
+    def error_file(self) -> TextIO:
+        """Return the stream used for validation diagnostics."""
+        return sys.stderr
+
+    def show(self, message: str) -> None:
+        """Show a message to the user.
+
+        If implementing a graphical user interface, this method should
+        display the message in a dialog or a message box. If implementing
+        a console text user interface, this method should print the
+        message to the console.
+
+        Args:
+            message: The message to show the user.
+        """
+        raise NotImplementedError('show() not implemented')
+
+
+def _interpret_yes_no(answer: str | int, default: bool) -> Optional[bool]:
+    """Map a bridge answer to a yes/no boolean, or None to re-ask."""
+    if answer == '':
+        return default
+    if isinstance(answer, bool):
+        return answer
+    if isinstance(answer, int):
+        return _yes_no_from_index(answer)
+    return _yes_no_from_text(answer)
+
+
+def _yes_no_from_index(index: int) -> Optional[bool]:
+    """Map a 0-based ('yes', 'no') index to a boolean, or None."""
+    if index == 0:
+        return True
+    if index == 1:
+        return False
+    return None
+
+
+def _yes_no_from_text(text: str) -> Optional[bool]:
+    """Map yes/no free text to a boolean, or None when unrecognised."""
+    cleaned = text.strip().lower()
+    if cleaned in ('y', 'yes', 'true'):
+        return True
+    if cleaned in ('n', 'no', 'false'):
+        return False
+    return None
+
+
+def _cell_prompt(columns: Sequence[TableColumn], row: list[TableCell],
+                 col_index: int, current: Optional[str]) -> str:
+    """Return the console prompt for one editable cell."""
+    labels = [str(row[i].value) for i in range(len(columns))
+              if columns[i].read_only and row[i].value is not None]
+    prefix = ' / '.join(labels)
+    lead = f'{prefix} - ' if prefix else ''
+    shown = '' if current is None else current
+    header = columns[col_index].header
+    return f'{lead}{header} [{shown}] (enter=keep, :e=erase)'
+
+
+def _cell_checker(table: list[list[Optional[str]]], position: tuple[int, int],
+                  partial_check: Optional[PartialCheck]
+                  ) -> Callable[[Optional[str]], Optional[str]]:
+    """Return a per-cell check that records a candidate and validates it."""
+    def check(candidate: Optional[str]) -> Optional[str]:
+        table[position[0]][position[1]] = candidate
+        if partial_check is None:
+            return None
+        accepted, message = partial_check(table, position)
+        return None if accepted else message
+    return check
+
+
+def _cell_value(answer: str | int, cell: TableCell,
+                current: Optional[str]) -> tuple[bool, Optional[str]]:
+    """Map a bridge answer to a cell value and whether it is usable."""
+    if answer == '':
+        return (True, current)
+    if isinstance(answer, str) and answer.strip().lower() == _ERASE_TOKEN:
+        return _erased_value(cell)
+    if isinstance(answer, bool):
+        return (False, None)
+    if isinstance(answer, int):
+        return _indexed_value(answer, cell)
+    return (True, answer)
+
+
+def _erased_value(cell: TableCell) -> tuple[bool, Optional[str]]:
+    """Map an erase request to a cell value and whether it is usable."""
+    if cell.nullable:
+        return (True, None)
+    if cell.choices is None:
+        return (True, '')
+    return (False, None)
+
+
+def _indexed_value(index: int, cell: TableCell) -> tuple[bool, Optional[str]]:
+    """Map a 0-based choice index to a cell value, or mark it unusable."""
+    if cell.choices is not None and 0 <= index < len(cell.choices):
+        return (True, cell.choices[index])
+    return (False, None)
+
+
+def _int_text(text: str) -> Optional[int]:
+    """Return an integer from text, or None when text is not an integer."""
+    try:
+        return int(text)
+    except ValueError:
+        return None

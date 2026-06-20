@@ -9,8 +9,11 @@ from tableio_cfg_json.config import TioJsonConfig, TioJsonCsvConfig, \
 from tableio_cfg_json.describe import describe_config, \
     describe_config_example, describe_config_members, \
     describe_config_reference, get_config_member_names, get_general_cfg_info
-from tableio_cfg_json.wizard import WizardUiBridge, WizardUiBridgeConsole, \
-    tio_json_config_wizard
+from tableio_cfg_json.wizard import tio_json_config_wizard
+from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
+    TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
+    WizardNavigation, WizardUiBridge
+from tableio_cfg_json.wizard_ui_bridge_console import WizardUiBridgeConsole
 
 __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
            'TioJsonLatexConfig', 'describe_config',
@@ -18,4 +21,6 @@ __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
            'describe_config_reference', 'get_config_member_names',
            'get_general_cfg_info', 'tio_json_config_default',
            'tio_json_config_wizard', 'WizardUiBridge',
-           'WizardUiBridgeConsole']
+           'WizardUiBridgeConsole', 'WizardNavigation', 'WizardBack',
+           'WizardCancelLevel', 'WizardAbort', 'TableColumn', 'TableCell',
+           'PartialCheck']

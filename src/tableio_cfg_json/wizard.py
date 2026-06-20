@@ -7,10 +7,11 @@ larger config-as-json configuration class.
 """
 
 import json
-import sys
 from copy import deepcopy
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Sequence, TextIO
+from io import StringIO
+from typing import Literal, Optional, Sequence, TextIO
 
 import tableio
 from config_as_json import ConfigBadJson, InvalidConfiguration, \
@@ -19,126 +20,30 @@ from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio, tio_config_specs
 from tableio_cfg_json.config import TioJsonConfig
+from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
+    TableColumn, WizardBack, WizardCancelLevel, WizardUiBridge, _int_text
 
 
-class WizardUiBridge:
-    """Bridge between the wizard and the user interface.
+@dataclass
+class _WizardRun:
+    """Mutable state shared by the steps of one wizard run."""
 
-    This is an abstract base class for a bridge between the wizard and
-    the user interface. Provide concrete classes of this bridge to
-    allow the wizard to use console text user interface or a graphical
-    user interface.
-    """
-
-    def ask(self, question: str, re_ask_reason: Optional[str] = None,
-            choices: Optional[Sequence[str]] = None) -> str | int:
-        """Ask a question and return the user's answer.
-
-        Args:
-            question: The question to ask the user.
-            re_ask_reason: The reason for re-asking the question for
-                           instance that the user's answer was invalid.
-            choices: The choices to offer the user as a sequence of strings.
-
-        Returns:
-            The user's answer. If the user's answer is one of the choices,
-            then the return value can be either the matching string or the
-            index of what the user selected. If integer index is used it is
-            0-based.
-            The bridge is not required to validate the user's answer in
-            any way. It is the responsibility of the caller to validate the
-            user's answer.
-            If the user entered/selected an empty string as answer, then the
-            return value should be an empty string. The caller may interpret
-            this as a request to use the default value.
-        """
-        raise NotImplementedError('ask() not implemented')
-
-    def error_file(self) -> TextIO:
-        """Return the stream used for validation diagnostics."""
-        return sys.stderr
-
-    def show(self, message: str) -> None:
-        """Show a message to the user.
-
-        If implementing a graphical user interface, this method should
-        display the message in a dialog or a message box. If implementing
-        a console text user interface, this method should print the message
-        to the console.
-        Args:
-            message: The message to show the user.
-        """
-        raise NotImplementedError('show() not implemented')
+    bridge: WizardUiBridge
+    caps: Capabilities
+    file_access: FileAccess
+    match_caps: Capabilities
+    stderr: TextIO
+    data: dict[str, object]
 
 
-class WizardUiBridgeConsole(WizardUiBridge):
-    """Bridge between the wizard and the console text user interface."""
+@dataclass(frozen=True)
+class _Step:
+    """One navigable question or grouped table in a wizard run."""
 
-    def __init__(self, stdout_file: TextIO, stdin_file: TextIO,
-                 stderr_file: TextIO) -> None:
-        """Initialize the bridge.
-
-        Args:
-            stdout_file: Stream to print messages to.
-            stdin_file: Stream to read user answers from.
-            stderr_file: Stream to print errors to.
-        """
-        self.stdout_file = stdout_file
-        self.stdin_file = stdin_file
-        self.stderr_file = stderr_file
-
-    def ask(self, question: str, re_ask_reason: Optional[str] = None,
-            choices: Optional[Sequence[str]] = None) -> str | int:
-        """Ask a question and return the user's answer.
-
-        Args:
-            question: The question to ask the user.
-            re_ask_reason: The reason for re-asking the question for
-                           instance that the user's answer was invalid.
-            choices: The choices to offer the user as a sequence of strings.
-
-        Returns:
-            The user's answer. If the user's answer is one of the choices,
-            then the return value can be either the matching string or the
-            index of what the user selected. If integer index is used it is
-            0-based.
-            The bridge is not required to validate the user's answer in
-            any way. It is the responsibility of the caller to validate the
-            user's answer.
-            If the user entered/selected an empty string as answer, then the
-            return value should be an empty string. The caller may interpret
-            this as a request to use the default value.
-        """
-        if re_ask_reason is not None:
-            print(re_ask_reason, file=self.stderr_file)
-        print('', file=self.stdout_file)
-        print(question, file=self.stdout_file)
-        if choices is not None:
-            for index, choice in enumerate(choices, start=1):
-                print(f'{index}: {choice}', file=self.stdout_file)
-        print('> ', end='', file=self.stdout_file)
-        answer = self.stdin_file.readline()
-        if answer == '':
-            raise EOFError(f'No answer supplied for {question}.')
-        text_answer = answer.rstrip('\n')
-        if choices is not None:
-            choice_index = _int_text(text_answer)
-            if choice_index is not None:
-                return choice_index - 1
-        return text_answer
-
-    def error_file(self) -> TextIO:
-        """Return the stream used for validation diagnostics."""
-        return self.stderr_file
-
-    def show(self, message: str) -> None:
-        """Show a message to the user.
-
-        This method prints the message to the console.
-        Args:
-            message: The message to show the user.
-        """
-        print(message, file=self.stdout_file)
+    kind: Literal['format', 'impl', 'scalar', 'section']
+    spec: Optional[ConfigSpec] = None
+    section: Optional[str] = None
+    specs: tuple[ConfigSpec, ...] = field(default_factory=tuple)
 
 
 def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
@@ -153,6 +58,11 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
     runtime behavior where TableIO chooses the implementation. It then asks
     for the optional members that can affect the selected backend and validates
     each entered value by constructing a TioJsonConfig.
+
+    The user can navigate the questions of this one endpoint through the bridge
+    by asking to go back to the previous question or to cancel the current
+    level. Navigation that reaches past the first question of this endpoint is
+    raised out of this function so the application can navigate its own flow.
 
     The returned object is a validated TioJsonConfig. Compact JSON written from
     that object contains only the durable choices entered by the user; omitted
@@ -171,25 +81,235 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
         TableIOFactoryNoCapabilityMatch: No registered backend matches the
             supplied capabilities and file access.
         InvalidConfiguration: The selected values fail final validation.
+        WizardBack: The user asked to go back from the first question.
+        WizardCancelLevel: The user cancelled this endpoint level.
+        WizardAbort: The user abandoned the whole configuration.
     Returns:
         A validated TableIO JSON config for the one endpoint.
     """
     stderr_file = ui_bridge.error_file()
     match_caps = add_access_capabilities(file_access, capabilities,
                                          error_file=stderr_file)
-    format_name = _ask_format(match_caps, ui_bridge, stderr_file)
-    impl_names = _impl_names(format_name, match_caps)
-    implementation = _ask_implementation(impl_names, ui_bridge, stderr_file)
-    data = _start_data(format_name, implementation)
-    _config_from_data(data, capabilities, file_access, stderr_file)
-    selected_impls = impl_names
-    if implementation is not None:
-        selected_impls = (implementation,)
+    run = _WizardRun(bridge=ui_bridge, caps=capabilities,
+                     file_access=file_access, match_caps=match_caps,
+                     stderr=stderr_file, data={})
+    return _drive(run)
+
+
+def _drive(run: _WizardRun) -> TioJsonConfig:
+    """Run wizard steps with back navigation until the config validates."""
+    history: list[dict[str, object]] = []
+    index = 0
+    while True:
+        steps = _build_steps(run)
+        if index >= len(steps):
+            return _config_from_data(run.data, run.caps, run.file_access,
+                                     run.stderr)
+        before = deepcopy(run.data)
+        try:
+            _run_step(run, steps[index])
+        except WizardBack:
+            if index == 0:
+                raise
+            index -= 1
+            run.data = history.pop()
+            continue
+        history.append(before)
+        index += 1
+
+
+def _build_steps(run: _WizardRun) -> list[_Step]:
+    """Return the ordered steps implied by the answers collected so far."""
+    steps = [_Step(kind='format')]
+    format_name = run.data.get('format_name')
+    if not isinstance(format_name, str):
+        return steps
+    impl_names = _impl_names(format_name, run.match_caps)
+    if len(impl_names) >= 2:
+        steps.append(_Step(kind='impl'))
+    implementation = run.data.get('implementation')
+    selected = (implementation,) if isinstance(implementation, str) \
+        else impl_names
+    steps.extend(_member_steps(format_name, selected))
+    return steps
+
+
+def _member_steps(format_name: str,
+                  selected_impls: Sequence[str]) -> list[_Step]:
+    """Return scalar and section steps for the relevant config members."""
+    steps: list[_Step] = []
+    seen_sections: set[str] = set()
     for spec in tio_config_specs().values():
-        if _ask_member(spec, format_name, selected_impls):
-            _ask_config_member(spec, data, capabilities, file_access,
-                               ui_bridge, stderr_file)
-    return _config_from_data(data, capabilities, file_access, stderr_file)
+        if not _ask_member(spec, format_name, selected_impls):
+            continue
+        if '.' not in spec.name:
+            steps.append(_Step(kind='scalar', spec=spec))
+            continue
+        section = spec.name.split('.', maxsplit=1)[0]
+        if section in seen_sections:
+            continue
+        seen_sections.add(section)
+        specs = _section_specs(section, format_name, selected_impls)
+        steps.append(_Step(kind='section', section=section, specs=specs))
+    return steps
+
+
+def _section_specs(section: str, format_name: str,
+                   selected_impls: Sequence[str]) -> tuple[ConfigSpec, ...]:
+    """Return the relevant config specs that belong to one section."""
+    prefix = f'{section}.'
+    return tuple(spec for spec in tio_config_specs().values()
+                 if spec.name.startswith(prefix)
+                 and _ask_member(spec, format_name, selected_impls))
+
+
+def _run_step(run: _WizardRun, step: _Step) -> None:
+    """Dispatch one step to the function that asks its question."""
+    if step.kind == 'format':
+        _run_format_step(run)
+    elif step.kind == 'impl':
+        _run_impl_step(run)
+    elif step.kind == 'scalar':
+        assert step.spec is not None
+        _ask_config_member(step.spec, run.data, run.caps, run.file_access,
+                           run.bridge, run.stderr)
+    else:
+        assert step.section is not None
+        _run_section_step(run, step.section, step.specs)
+
+
+def _run_format_step(run: _WizardRun) -> None:
+    """Ask for the format and store it in the wizard data."""
+    run.data['format_name'] = _ask_format(run.match_caps, run.bridge,
+                                          run.stderr)
+
+
+def _run_impl_step(run: _WizardRun) -> None:
+    """Ask for the implementation and store or clear it in the data."""
+    format_name = run.data['format_name']
+    assert isinstance(format_name, str)
+    impl_names = _impl_names(format_name, run.match_caps)
+    implementation = _ask_implementation(impl_names, run.bridge, run.stderr)
+    if implementation is None:
+        run.data.pop('implementation', None)
+    else:
+        run.data['implementation'] = implementation
+
+
+def _run_section_step(run: _WizardRun, section: str,
+                      specs: tuple[ConfigSpec, ...]) -> None:
+    """Ask one table of section members and store the entered values."""
+    columns = (TableColumn('Parameter', read_only=True), TableColumn('Value'))
+    question = _section_question(section)
+    check = _section_check(run, section, specs)
+    reason: Optional[str] = None
+    while True:
+        cells = _section_cells(run, section, specs)
+        try:
+            result = run.bridge.ask_table(columns, cells, question,
+                                          re_ask_reason=reason,
+                                          partial_check=check)
+        except WizardCancelLevel:
+            return
+        try:
+            new_data = _resolve_section(run.data, section, specs, result,
+                                        run.stderr)
+        except (ConfigBadJson, ConfigError, InvalidConfiguration,
+                ValueError) as error:
+            reason = f'Invalid value: {error}\nPlease try again.'
+            continue
+        reason = _commit(run.data, new_data, run.caps, run.file_access,
+                         run.stderr)
+        if reason is None:
+            return
+
+
+def _section_question(section: str) -> str:
+    """Return the instruction shown above one section table."""
+    return f'Configure {section} options (one row per setting):'
+
+
+def _section_cells(run: _WizardRun, section: str,
+                   specs: tuple[ConfigSpec, ...]) -> list[list[TableCell]]:
+    """Return the table rows for one section, pre-filled from the data."""
+    current = run.data.get(section)
+    values = current if isinstance(current, dict) else {}
+    rows: list[list[TableCell]] = []
+    for spec in specs:
+        child = spec.name.split('.', maxsplit=1)[1]
+        value = values.get(child)
+        value_str = None if value is None else str(value)
+        rows.append([TableCell(value=child),
+                     TableCell(value=value_str, choices=_spec_choices(spec),
+                               nullable=True)])
+    return rows
+
+
+def _spec_choices(spec: ConfigSpec) -> Optional[tuple[str, ...]]:
+    """Return the advertised choices of one config member as strings."""
+    if spec.choices is None:
+        return None
+    return tuple(str(choice) for choice in spec.choices)
+
+
+def _resolve_section(data: dict[str, object], section: str,
+                     specs: tuple[ConfigSpec, ...],
+                     result: list[list[Optional[str]]],
+                     stderr_file: TextIO) -> dict[str, object]:
+    """Return data with one section rebuilt from a filled-in table."""
+    new_data = deepcopy(data)
+    new_data.pop(section, None)
+    for index, spec in enumerate(specs):
+        raw = result[index][1]
+        if raw is None or raw == '':
+            continue
+        value = _resolve_member_value(spec, raw, stderr_file)
+        _set_json_member(new_data, spec.name, value)
+    return new_data
+
+
+def _resolve_member_value(spec: ConfigSpec, raw: str,
+                          stderr_file: TextIO) -> object:
+    """Convert one entered table value to the type TableIO expects."""
+    if spec.choices is not None:
+        choices = tuple(str(choice) for choice in spec.choices)
+        return _choice_from_answer(raw, choices, False, spec.name, stderr_file,
+                                   _enum_type(spec))
+    return _parse_member_value(spec, raw)
+
+
+def _section_check(run: _WizardRun, section: str,
+                   specs: tuple[ConfigSpec, ...]) -> PartialCheck:
+    """Return a partial-check callback for one section table."""
+    def check(table: list[list[Optional[str]]],
+              _position: tuple[int, int]) -> tuple[bool, str]:
+        capture = StringIO()
+        try:
+            trial = _resolve_section(run.data, section, specs, table, capture)
+            _config_from_data(trial, run.caps, run.file_access, capture)
+        except (ConfigBadJson, ConfigError, InvalidConfiguration,
+                ValueError) as error:
+            return (False, f'Invalid value: {error}')
+        return (True, '')
+    return check
+
+
+def _commit(data: dict[str, object], new_data: dict[str, object],
+            caps: Capabilities, file_access: FileAccess,
+            stderr_file: TextIO) -> Optional[str]:
+    """Validate new_data; on success copy it into data and return None.
+
+    Returns an error reason to show the user when validation fails, so the
+    caller can re-ask. On success the data is updated in place.
+    """
+    try:
+        _config_from_data(new_data, caps, file_access, stderr_file)
+    except (ConfigBadJson, ConfigError, InvalidConfiguration,
+            ValueError) as error:
+        return f'Invalid value: {error}\nPlease try again.'
+    data.clear()
+    data.update(new_data)
+    return None
 
 
 def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge,
@@ -222,15 +342,6 @@ def _ask_implementation(impl_names: Sequence[str], ui_bridge: WizardUiBridge,
     return implementation
 
 
-def _start_data(format_name: str,
-                implementation: Optional[str]) -> dict[str, object]:
-    """Create the first JSON object used by the wizard."""
-    data: dict[str, object] = {'format_name': format_name}
-    if implementation is not None:
-        data['implementation'] = implementation
-    return data
-
-
 def _ask_member(spec: ConfigSpec, format_name: str,
                 impl_names: Sequence[str]) -> bool:
     """Return True when the wizard should ask for this config member."""
@@ -260,15 +371,9 @@ def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
             return
         new_data = deepcopy(data)
         _set_json_member(new_data, spec.name, value)
-        try:
-            _config_from_data(new_data, caps, file_access, stderr_file)
-        except (ConfigBadJson, ConfigError, InvalidConfiguration,
-                ValueError) as error:
-            re_ask_reason = f'Invalid value: {error}\nPlease try again.'
-            continue
-        data.clear()
-        data.update(new_data)
-        return
+        re_ask_reason = _commit(data, new_data, caps, file_access, stderr_file)
+        if re_ask_reason is None:
+            return
 
 
 def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
@@ -401,14 +506,6 @@ def _optional_type_name(value_type: str) -> Optional[str]:
     if value_type.startswith(prefix) and value_type.endswith(suffix):
         return value_type[len(prefix):-len(suffix)]
     return None
-
-
-def _int_text(text: str) -> Optional[int]:
-    """Return an integer from text, or None when text is not an integer."""
-    try:
-        return int(text)
-    except ValueError:
-        return None
 
 
 def _set_json_member(data: dict[str, object], member_name: str,
