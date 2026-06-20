@@ -125,12 +125,28 @@
     * [\_count\_ok](#tableio_cfg_json.wizard_ui_bridge_textual._MultiApp._count_ok)
   * [\_default\_index](#tableio_cfg_json.wizard_ui_bridge_textual._default_index)
   * [\_preselected](#tableio_cfg_json.wizard_ui_bridge_textual._preselected)
+  * [\_parse\_cell\_id](#tableio_cfg_json.wizard_ui_bridge_textual._parse_cell_id)
+  * [\_make\_select](#tableio_cfg_json.wizard_ui_bridge_textual._make_select)
+  * [\_TableApp](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp)
+    * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.__init__)
+    * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.compose)
+    * [on\_mount](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.on_mount)
+    * [\_focus\_first\_cell](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._focus_first_cell)
+    * [\_grid\_cells](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._grid_cells)
+    * [\_cell\_widget](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._cell_widget)
+    * [\_on\_input](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._on_input)
+    * [\_on\_select](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._on_select)
+    * [\_recheck](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._recheck)
+    * [action\_submit](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.action_submit)
+    * [\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._clicked)
+    * [\_read\_cell](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._read_cell)
   * [WizardUiBridgeTextual](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.__init__)
     * [ask](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
+    * [ask\_table](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_table)
     * [\_run](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._run)
     * [\_launch](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._launch)
     * [\_collect](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._collect)
@@ -2404,7 +2420,8 @@ This module provides the concrete Textual bridge used when the wizard
 talks to a user through a real terminal. Each ask method runs a short
 lived Textual application for one question and returns its result, which
 keeps the one-question-at-a-time contract of WizardUiBridge while giving
-the user a full-screen interface with selectable lists and check boxes.
+the user a full-screen interface with selectable lists, check boxes and
+editable tables.
 
 Navigation keys exit a screen with no value and record which
 WizardNavigation request to raise, so the bridge re-raises it after the
@@ -2424,11 +2441,12 @@ class _NavApp(App[_T])
 Base screen translating navigation keys into wizard requests.
 
 A subclass lays out one question. ctrl+b records a request to go
-back and ctrl+o a request to cancel the current level; both exit the
-screen with no value so the bridge can raise the matching request.
-The built-in ctrl+q quit also exits with no value, which the bridge
-treats as an abort. These keys avoid the editing shortcuts that the
-text input widget binds, so they work on every screen.
+back and ctrl+o a request to cancel the current level; the mnemonic
+for ctrl+o is "out one level". Both exit the screen with no value so
+the bridge can raise the matching request. The built-in ctrl+q quit
+also exits with no value, which the bridge treats as an abort. These
+keys avoid the editing shortcuts that the text input widget binds,
+so they work on every screen.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._NavApp.__init__"></a>
 
@@ -2661,6 +2679,174 @@ def _preselected(choices: Sequence[str],
 
 Return the indexes of the default values within choices.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._parse_cell_id"></a>
+
+#### \_parse\_cell\_id
+
+```python
+def _parse_cell_id(widget_id: Optional[str]) -> Optional[tuple[int, int]]
+```
+
+Return the (row, column) encoded in an editable cell id.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._make_select"></a>
+
+#### \_make\_select
+
+```python
+def _make_select(cell: TableCell, widget_id: str) -> Select[str]
+```
+
+Return a drop-down for one cell, blank only when nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp"></a>
+
+## \_TableApp Objects
+
+```python
+class _TableApp(_NavApp[list[list[Optional[str]]]])
+```
+
+Editable grid returning every cell the user left.
+
+Read-only columns show fixed text. Editable cells are a text input,
+or a drop-down when the cell offers choices. An empty editable cell
+is reported as None when the cell is nullable and as an empty string
+for a free-text cell, while a drop-down is blank only when the cell
+is nullable.
+
+A variable number of rows is not yet supported: min_rows and
+max_rows are accepted for interface parity but the grid always shows
+the rows in cells, as the temporary base-class fallback does.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(columns: Sequence[TableColumn], cells: list[list[TableCell]],
+             question: str, messages: list[str],
+             partial_check: Optional[PartialCheck]) -> None
+```
+
+Store the columns, starting cells, prompt and check.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Lay out the header, the editable grid, submit and footer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp.on_mount"></a>
+
+#### on\_mount
+
+```python
+def on_mount() -> None
+```
+
+Size the grid, keep the scroll unfocused, focus a cell.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._focus_first_cell"></a>
+
+#### \_focus\_first\_cell
+
+```python
+def _focus_first_cell() -> None
+```
+
+Move focus to the first editable cell, if there is one.
+
+Editability is per column, so the first editable cell is in the
+first row of the first editable column.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._grid_cells"></a>
+
+#### \_grid\_cells
+
+```python
+def _grid_cells() -> Iterator[Widget]
+```
+
+Yield the header labels and then one widget per table cell.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._cell_widget"></a>
+
+#### \_cell\_widget
+
+```python
+def _cell_widget(row: int, col: int, cell: TableCell) -> Widget
+```
+
+Return the widget shown for one cell of the grid.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._on_input"></a>
+
+#### \_on\_input
+
+```python
+@on(Input.Changed)
+def _on_input(event: Input.Changed) -> None
+```
+
+Re-check the table after a text cell changes.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._on_select"></a>
+
+#### \_on\_select
+
+```python
+@on(Select.Changed)
+def _on_select(event: Select.Changed) -> None
+```
+
+Re-check the table after a drop-down cell changes.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._recheck"></a>
+
+#### \_recheck
+
+```python
+def _recheck(position: Optional[tuple[int, int]]) -> None
+```
+
+Update the changed cell and show any partial-check message.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp.action_submit"></a>
+
+#### action\_submit
+
+```python
+def action_submit() -> None
+```
+
+Exit returning every cell, including the read-only columns.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._clicked"></a>
+
+#### \_clicked
+
+```python
+@on(Button.Pressed)
+def _clicked(_event: Button.Pressed) -> None
+```
+
+Treat a click on the submit button like the submit action.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._read_cell"></a>
+
+#### \_read\_cell
+
+```python
+def _read_cell(row: int, col: int) -> Optional[str]
+```
+
+Return the current value of one cell for the result table.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual"></a>
 
 ## WizardUiBridgeTextual Objects
@@ -2744,6 +2930,27 @@ def ask_multi(question: str,
 ```
 
 Ask the user to pick several choices; see ask_multi.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_table"></a>
+
+#### ask\_table
+
+```python
+def ask_table(columns: Sequence[TableColumn],
+              cells: list[list[TableCell]],
+              question: str,
+              *,
+              re_ask_reason: Optional[str] = None,
+              partial_check: Optional[PartialCheck] = None,
+              min_rows: Optional[int] = None,
+              max_rows: Optional[int] = None) -> list[list[Optional[str]]]
+```
+
+Ask the user to fill a table; see WizardUiBridge.ask_table.
+
+A variable number of rows is not yet supported here: min_rows
+and max_rows are accepted for interface parity but the grid
+shows the fixed rows in cells, as the base-class fallback does.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._run"></a>
 

@@ -8,15 +8,15 @@
 
 import asyncio
 from io import StringIO
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 import pytest
 
-from tableio_cfg_json import WizardAbort, WizardBack, WizardCancelLevel, \
-    WizardNavigation, WizardUiBridgeConsole, WizardUiBridgeTextual, \
-    make_text_ui_bridge
+from tableio_cfg_json import TableCell, TableColumn, WizardAbort, \
+    WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeConsole, \
+    WizardUiBridgeTextual, make_text_ui_bridge
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
-    _NavApp, _TextApp
+    _NavApp, _TableApp, _TextApp
 
 
 def drive(app: _NavApp[Any], steps: Sequence[str]) -> _NavApp[Any]:
@@ -250,3 +250,93 @@ def test_factory_textual() -> None:
     """With a terminal the factory returns the Textual bridge."""
     bridge = make_text_ui_bridge(_TtyStream(), _TtyStream(), _TtyStream())
     assert isinstance(bridge, WizardUiBridgeTextual)
+
+
+def test_table_prefilled() -> None:
+    """Submitting unchanged returns the pre-filled cells and headers."""
+    columns = (TableColumn('Parameter', read_only=True),
+               TableColumn('Value'))
+    cells = [[TableCell(value='alpha'), TableCell(value='one')],
+             [TableCell(value='beta'),
+              TableCell(value='y', choices=('x', 'y'), nullable=True)]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None), ['ctrl+s'])
+    assert driven.return_value == [['alpha', 'one'], ['beta', 'y']]
+
+
+def test_table_clear_null() -> None:
+    """A cleared nullable text cell is reported as None."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='one', nullable=True)]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None),
+                   ['end', 'ctrl+u', 'ctrl+s'])
+    assert driven.return_value == [[None]]
+
+
+def test_table_empty_freetext() -> None:
+    """A cleared non-nullable text cell is reported as an empty string."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='one')]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None),
+                   ['end', 'ctrl+u', 'ctrl+s'])
+    assert driven.return_value == [['']]
+
+
+def test_table_select_blank() -> None:
+    """A nullable drop-down left blank is reported as None."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(choices=('x', 'y'), nullable=True)]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None), ['ctrl+s'])
+    assert driven.return_value == [[None]]
+
+
+def test_table_select_pick() -> None:
+    """Choosing a drop-down option returns that choice."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(choices=('x', 'y'), nullable=True)]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None),
+                   ['enter', 'down', 'enter', 'ctrl+s'])
+    assert driven.return_value == [['x']]
+
+
+def test_table_nav_back() -> None:
+    """ctrl+b in the table records a back request and exits."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='one')]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None), ['ctrl+b'])
+    assert driven.return_value is None
+    assert driven.nav is WizardBack
+
+
+def test_table_partial_check() -> None:
+    """The partial check sees each cell change with the changed position."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(nullable=True)]]
+    calls: list[tuple[list[list[Optional[str]]], tuple[int, int]]] = []
+
+    def check(table: list[list[Optional[str]]],
+              position: tuple[int, int]) -> tuple[bool, str]:
+        calls.append(([row[:] for row in table], position))
+        value = table[position[0]][position[1]]
+        return (value != 'bad', '' if value != 'bad' else 'no good')
+    app = _TableApp(columns, cells, 'q', [], check)
+    driven = drive(app, ['b', 'a', 'd', 'end', 'ctrl+u', 'o', 'k', 'ctrl+s'])
+    assert driven.return_value == [['ok']]
+    assert ([['bad']], (0, 0)) in calls
+    assert ([['ok']], (0, 0)) in calls
+
+
+def test_ask_table_canned() -> None:
+    """ask_table() returns the table the screen produced."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='one')]]
+    bridge = _CannedBridge([[['one']]])
+    assert bridge.ask_table(columns, cells, 'q') == [['one']]
+
+
+def test_ask_table_nav() -> None:
+    """ask_table() re-raises a navigation request from the screen."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='one')]]
+    bridge = _CannedBridge([WizardCancelLevel])
+    with pytest.raises(WizardCancelLevel):
+        bridge.ask_table(columns, cells, 'q')

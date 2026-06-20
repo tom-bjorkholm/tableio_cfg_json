@@ -5,7 +5,8 @@ This module provides the concrete Textual bridge used when the wizard
 talks to a user through a real terminal. Each ask method runs a short
 lived Textual application for one question and returns its result, which
 keeps the one-question-at-a-time contract of WizardUiBridge while giving
-the user a full-screen interface with selectable lists and check boxes.
+the user a full-screen interface with selectable lists, check boxes and
+editable tables.
 
 Navigation keys exit a screen with no value and record which
 WizardNavigation request to raise, so the bridge re-raises it after the
@@ -24,11 +25,14 @@ from typing import ClassVar, Iterator, Optional, Sequence, TypeVar
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import BindingType
-from textual.widgets import Button, Footer, Input, OptionList, \
+from textual.containers import Grid, VerticalScroll
+from textual.widget import Widget
+from textual.widgets import Button, Footer, Input, OptionList, Select, \
     SelectionList, Static
 from textual.widgets.selection_list import Selection
-from tableio_cfg_json.wizard_ui_bridge import WizardAbort, WizardBack, \
-    WizardCancelLevel, WizardNavigation, WizardUiBridge, _multi_count_error
+from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
+    TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
+    WizardNavigation, WizardUiBridge, _multi_count_error
 
 _T = TypeVar('_T')
 
@@ -37,16 +41,17 @@ class _NavApp(App[_T]):
     """Base screen translating navigation keys into wizard requests.
 
     A subclass lays out one question. ctrl+b records a request to go
-    back and ctrl+o a request to cancel the current level; both exit the
-    screen with no value so the bridge can raise the matching request.
-    The built-in ctrl+q quit also exits with no value, which the bridge
-    treats as an abort. These keys avoid the editing shortcuts that the
-    text input widget binds, so they work on every screen.
+    back and ctrl+o a request to cancel the current level; the mnemonic
+    for ctrl+o is "out one level". Both exit the screen with no value so
+    the bridge can raise the matching request. The built-in ctrl+q quit
+    also exits with no value, which the bridge treats as an abort. These
+    keys avoid the editing shortcuts that the text input widget binds,
+    so they work on every screen.
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
         ('ctrl+b', 'nav_back', 'Back'),
-        ('ctrl+o', 'nav_cancel', 'Cancel level')]
+        ('ctrl+o', 'nav_cancel', 'Out one level')]
 
     def __init__(self) -> None:
         """Initialize with no pending navigation request."""
@@ -197,6 +202,153 @@ def _preselected(choices: Sequence[str],
             if choice in wanted]
 
 
+def _parse_cell_id(widget_id: Optional[str]) -> Optional[tuple[int, int]]:
+    """Return the (row, column) encoded in an editable cell id."""
+    if widget_id is None or not widget_id.startswith('cell_'):
+        return None
+    _, row, col = widget_id.split('_')
+    return (int(row), int(col))
+
+
+def _make_select(cell: TableCell, widget_id: str) -> Select[str]:
+    """Return a drop-down for one cell, blank only when nullable."""
+    assert cell.choices is not None
+    options = [(choice, choice) for choice in cell.choices]
+    value = cell.value
+    if value is not None and value in cell.choices:
+        return Select(options, value=value, allow_blank=cell.nullable,
+                      id=widget_id)
+    if cell.nullable:
+        return Select(options, allow_blank=True, id=widget_id)
+    return Select(options, value=cell.choices[0], allow_blank=False,
+                  id=widget_id)
+
+
+class _TableApp(_NavApp[list[list[Optional[str]]]]):
+    """Editable grid returning every cell the user left.
+
+    Read-only columns show fixed text. Editable cells are a text input,
+    or a drop-down when the cell offers choices. An empty editable cell
+    is reported as None when the cell is nullable and as an empty string
+    for a free-text cell, while a drop-down is blank only when the cell
+    is nullable.
+
+    A variable number of rows is not yet supported: min_rows and
+    max_rows are accepted for interface parity but the grid always shows
+    the rows in cells, as the temporary base-class fallback does.
+    """
+
+    BINDINGS: ClassVar[list[BindingType]] = [('ctrl+s', 'submit', 'Submit')]
+    CSS = '#grid { height: auto; }'
+
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+    def __init__(self, columns: Sequence[TableColumn],
+                 cells: list[list[TableCell]], question: str,
+                 messages: list[str],
+                 partial_check: Optional[PartialCheck]) -> None:
+        """Store the columns, starting cells, prompt and check."""
+        super().__init__()
+        self._columns = columns
+        self._cells = cells
+        self._question = question
+        self._messages = messages
+        self._partial_check = partial_check
+        self._table: list[list[Optional[str]]] = [
+            [cell.value for cell in row] for row in cells]
+
+    def compose(self) -> ComposeResult:
+        """Lay out the header, the editable grid, submit and footer."""
+        yield from _header_widgets(self._messages, self._question)
+        with VerticalScroll(id='scroll'), Grid(id='grid'):
+            yield from self._grid_cells()
+        yield Button('Submit', id='submit')
+        yield Static('', id='table_status')
+        yield Footer()
+
+    def on_mount(self) -> None:
+        """Size the grid, keep the scroll unfocused, focus a cell."""
+        self.query_one('#scroll').can_focus = False
+        grid = self.query_one('#grid', Grid)
+        grid.styles.grid_size_columns = len(self._columns)
+        self._focus_first_cell()
+
+    def _focus_first_cell(self) -> None:
+        """Move focus to the first editable cell, if there is one.
+
+        Editability is per column, so the first editable cell is in the
+        first row of the first editable column.
+        """
+        editable = [col for col, column in enumerate(self._columns)
+                    if not column.read_only]
+        if editable and self._cells:
+            self.query_one(f'#cell_0_{editable[0]}').focus()
+
+    def _grid_cells(self) -> Iterator[Widget]:
+        """Yield the header labels and then one widget per table cell."""
+        for column in self._columns:
+            yield Static(column.header)
+        for row, cells in enumerate(self._cells):
+            for col, cell in enumerate(cells):
+                yield self._cell_widget(row, col, cell)
+
+    def _cell_widget(self, row: int, col: int, cell: TableCell) -> Widget:
+        """Return the widget shown for one cell of the grid."""
+        if self._columns[col].read_only:
+            return Static(cell.value or '')
+        widget_id = f'cell_{row}_{col}'
+        if cell.choices is None:
+            return Input(value=cell.value or '', id=widget_id)
+        return _make_select(cell, widget_id)
+
+    @on(Input.Changed)
+    def _on_input(self, event: Input.Changed) -> None:
+        """Re-check the table after a text cell changes."""
+        self._recheck(_parse_cell_id(event.input.id))
+
+    @on(Select.Changed)
+    def _on_select(self, event: Select.Changed) -> None:
+        """Re-check the table after a drop-down cell changes."""
+        self._recheck(_parse_cell_id(event.select.id))
+
+    def _recheck(self, position: Optional[tuple[int, int]]) -> None:
+        """Update the changed cell and show any partial-check message."""
+        if position is None:
+            return
+        row, col = position
+        self._table[row][col] = self._read_cell(row, col)
+        if self._partial_check is None:
+            return
+        accepted, message = self._partial_check(self._table, position)
+        self.query_one('#table_status', Static).update(
+            '' if accepted else message)
+
+    def action_submit(self) -> None:
+        """Exit returning every cell, including the read-only columns."""
+        result = [[self._read_cell(row, col)
+                   for col in range(len(self._columns))]
+                  for row in range(len(self._cells))]
+        self.exit(result)
+
+    @on(Button.Pressed)
+    def _clicked(self, _event: Button.Pressed) -> None:
+        """Treat a click on the submit button like the submit action."""
+        self.action_submit()
+
+    def _read_cell(self, row: int, col: int) -> Optional[str]:
+        """Return the current value of one cell for the result table."""
+        cell = self._cells[row][col]
+        if self._columns[col].read_only:
+            return cell.value
+        widget_id = f'#cell_{row}_{col}'
+        if cell.choices is not None:
+            select = self.query_one(widget_id, Select)
+            return None if select.is_blank() else str(select.value)
+        text = self.query_one(widget_id, Input).value
+        if text == '':
+            return None if cell.nullable else ''
+        return text
+
+
 class WizardUiBridgeTextual(WizardUiBridge):
     """Bridge between the wizard and a Textual terminal interface.
 
@@ -254,6 +406,24 @@ class WizardUiBridgeTextual(WizardUiBridge):
                                      _preselected(choices, default),
                                      min_select, max_select, messages))
         return [choices[index] for index in sorted(chosen)]
+
+    # pylint: disable-next=too-many-arguments
+    def ask_table(self, columns: Sequence[TableColumn],
+                  cells: list[list[TableCell]], question: str, *,
+                  re_ask_reason: Optional[str] = None,
+                  partial_check: Optional[PartialCheck] = None,
+                  min_rows: Optional[int] = None,
+                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
+        """Ask the user to fill a table; see WizardUiBridge.ask_table.
+
+        A variable number of rows is not yet supported here: min_rows
+        and max_rows are accepted for interface parity but the grid
+        shows the fixed rows in cells, as the base-class fallback does.
+        """
+        messages = self._collect(re_ask_reason)
+        _ = (min_rows, max_rows)  # variable rows not yet supported
+        return self._run(_TableApp(columns, cells, question, messages,
+                                   partial_check))
 
     def _run(self, app: _NavApp[_T]) -> _T:
         """Run one screen and translate its outcome.

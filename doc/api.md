@@ -47,6 +47,7 @@
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
+    * [ask\_table](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_table)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.show)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_console](#tableio_cfg_json.wizard_ui_bridge_console)
@@ -1232,7 +1233,8 @@ This module provides the concrete Textual bridge used when the wizard
 talks to a user through a real terminal. Each ask method runs a short
 lived Textual application for one question and returns its result, which
 keeps the one-question-at-a-time contract of WizardUiBridge while giving
-the user a full-screen interface with selectable lists and check boxes.
+the user a full-screen interface with selectable lists, check boxes and
+editable tables.
 
 Navigation keys exit a screen with no value and record which
 WizardNavigation request to raise, so the bridge re-raises it after the
@@ -1324,6 +1326,27 @@ def ask_multi(question: str,
 ```
 
 Ask the user to pick several choices; see ask_multi.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_table"></a>
+
+#### ask\_table
+
+```python
+def ask_table(columns: Sequence[TableColumn],
+              cells: list[list[TableCell]],
+              question: str,
+              *,
+              re_ask_reason: Optional[str] = None,
+              partial_check: Optional[PartialCheck] = None,
+              min_rows: Optional[int] = None,
+              max_rows: Optional[int] = None) -> list[list[Optional[str]]]
+```
+
+Ask the user to fill a table; see WizardUiBridge.ask_table.
+
+A variable number of rows is not yet supported here: min_rows
+and max_rows are accepted for interface parity but the grid
+shows the fixed rows in cells, as the base-class fallback does.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.error_file"></a>
 
