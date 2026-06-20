@@ -441,12 +441,22 @@ def test_table_partial_check() -> None:
 
 
 def test_cancel_section() -> None:
-    """Cancelling a section table leaves that section unset."""
+    """Cancelling a section returns to the format question to re-choose."""
     answers: list[str | int | BaseException] = [
-        _format_index('CSV', FileAccess.CREATE), '', WizardCancelLevel()]
-    config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
-    assert config.format_name == 'CSV'
-    assert config.csv is None
+        _format_index('CSV', FileAccess.CREATE), '', WizardCancelLevel(),
+        WizardAbort()]
+    bridge = _ScriptedBridge(answers)
+    with pytest.raises(WizardAbort):
+        _run_bridge(FileAccess.CREATE, bridge)
+    formats = [call for call in bridge.calls
+               if call[0] == 'Select TableIO format:']
+    assert len(formats) == 2
+
+
+def test_cancel_at_format() -> None:
+    """Cancel at the format question propagates out for the application."""
+    with pytest.raises(WizardCancelLevel):
+        _run_bridge(FileAccess.CREATE, _ScriptedBridge([WizardCancelLevel()]))
 
 
 def test_abort_propagates() -> None:

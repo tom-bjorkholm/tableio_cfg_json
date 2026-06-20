@@ -78,10 +78,12 @@ def _collect_answers(ui_bridge: WizardUiBridge) -> Optional[dict[str, object]]:
     further inside an endpoint it raises a WizardNavigation out to here:
 
     - WizardAbort abandons the whole configuration; nothing is written.
-    - WizardBack and WizardCancelLevel step to the previous item. In this
-      flat application every item is at one level, so "go back" and "cancel
-      this level" return to the same place; an application with nested
-      levels could tell them apart.
+    - WizardBack steps to the previous item.
+    - WizardCancelLevel means "leave the current level and change the
+      choice that opened it". This flat application has no configuration
+      level outside its list of items, so there is no such choice to
+      return to; following the bridge contract it re-asks the current item
+      and tells the user there is no outer level.
 
     The snapshot stack lets going back restore the answers as they were
     before the previous item, exactly as the wizard does for its questions.
@@ -105,13 +107,18 @@ def _collect_answers(ui_bridge: WizardUiBridge) -> Optional[dict[str, object]]:
         except WizardAbort:
             ui_bridge.show('Configuration abandoned; no files written.')
             return None
-        except (WizardBack, WizardCancelLevel):
+        except WizardBack:
             if index == 0:
                 ui_bridge.show('Already at the first item; please answer it.')
                 continue
             index -= 1
             results = history.pop()
             ui_bridge.show(f'Going back to: {steps[index][0]}')
+            continue
+        except WizardCancelLevel:
+            results = dict(snapshot)
+            ui_bridge.show('There is no outer level to return to.')
+            ui_bridge.show(f'Restarting {steps[index][0]}.')
             continue
         history.append(snapshot)
         index += 1

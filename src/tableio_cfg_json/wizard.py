@@ -98,7 +98,14 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
 
 
 def _drive(run: _WizardRun) -> TioJsonConfig:
-    """Run wizard steps with back navigation until the config validates."""
+    """Run the endpoint steps until the configuration validates.
+
+    Back steps to the previous question, restoring the data from before
+    it. Cancel-level returns to the first step, the format question that
+    opened the later option questions, and discards the answers given
+    after it. Raised at the format question it propagates out, so the
+    application can handle the level enclosing this endpoint.
+    """
     history: list[dict[str, object]] = []
     index = 0
     while True:
@@ -114,6 +121,13 @@ def _drive(run: _WizardRun) -> TioJsonConfig:
                 raise
             index -= 1
             run.data = history.pop()
+            continue
+        except WizardCancelLevel:
+            if index == 0:
+                raise
+            run.data = deepcopy(history[0])
+            history = []
+            index = 0
             continue
         history.append(before)
         index += 1
@@ -205,12 +219,9 @@ def _run_section_step(run: _WizardRun, section: str,
     reason: Optional[str] = None
     while True:
         cells = _section_cells(run, section, specs)
-        try:
-            result = run.bridge.ask_table(columns, cells, question,
-                                          re_ask_reason=reason,
-                                          partial_check=check)
-        except WizardCancelLevel:
-            return
+        result = run.bridge.ask_table(columns, cells, question,
+                                      re_ask_reason=reason,
+                                      partial_check=check)
         try:
             new_data = _resolve_section(run.data, section, specs, result)
         except (ConfigBadJson, ConfigError, InvalidConfiguration,

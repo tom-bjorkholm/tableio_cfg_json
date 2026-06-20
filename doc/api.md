@@ -840,15 +840,22 @@ in its own outer navigation, for instance to the previous endpoint.
 class WizardCancelLevel(WizardNavigation)
 ```
 
-Request to leave the current configuration level.
+Request to leave the current level and change what opened it.
 
-A bridge raises this when the user cancels the current grouped
-sub-dialog, such as a table of format-specific parameters. The
-wizard discards the values collected for that group and continues at
-the enclosing level. When no group encloses the current question
-inside one wizard call, the exception propagates out of the wizard
-call so the application can treat that whole endpoint as one level of
-its own larger flow.
+A bridge raises this when the user asks to step out of the current
+configuration level, such as a table of format-specific parameters or
+a group of questions that exist only because of an earlier choice.
+Unlike WizardBack, which moves to the previous question at the same
+level, this asks to return to the question one level out whose answer
+opened the current level, so the user can change that answer. The
+answers collected at the current level are discarded.
+
+Each level's driver catches this from the level it opened and re-asks
+the opening question. When the current level has no enclosing level,
+the outermost driver cannot step out; following this contract it
+re-asks the current question and tells the user there is no outer
+level. Nesting may be arbitrarily deep: each driver either handles the
+request for the level it opened or lets it propagate further out.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardAbort"></a>
 
