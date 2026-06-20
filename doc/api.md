@@ -777,12 +777,15 @@ interface, the navigation requests a bridge raises to steer wizard flow,
 and the column and cell descriptors used by table questions. Concrete
 console and graphical bridges derive from WizardUiBridge.
 
-Design status: the method bodies below are stubs. The signatures and
-docstrings describe the intended public interface for review before the
-behaviour is implemented. Where a docstring states that the base class
-provides a fallback implementation, that fallback is written in terms of
-ask() during the implementation phase so that older bridges that only
-override ask() keep working until their maintainer overrides the method.
+An application that drives the wizard is responsible for implementing
+all the public ask methods of its bridge, together with show(). As a
+migration aid the base class provides temporary fallback
+implementations of ask_yes_no(), ask_choice(), ask_multi() and
+ask_table() written in terms of ask(), so a bridge that so far only
+overrides ask() keeps working while the application is adjusted to the
+full API. These fallbacks are a temporary compatibility aid and may be
+withdrawn in a future release once applications implement the methods
+directly.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardNavigation"></a>
 
@@ -916,12 +919,15 @@ the user interface. Provide concrete classes of this bridge to allow
 the wizard to use a console text user interface or a graphical user
 interface.
 
-A concrete bridge must implement ask() and show(). The base class
-provides fallback implementations of ask_yes_no() and ask_table() in
-terms of ask(), so a bridge keeps working before its maintainer adds
-the better overrides. Any ask method may raise a WizardNavigation
-subclass to request back, cancel-level or abort instead of returning
-an answer.
+An application is responsible for implementing every public ask method
+of its bridge, together with show(). At minimum a concrete bridge must
+implement ask() and show(), which have no fallback. As a temporary
+migration aid the base class implements ask_yes_no(), ask_choice(),
+ask_multi() and ask_table() in terms of ask(), so a bridge that only
+overrides ask() keeps working while the application is adjusted to
+implement these methods directly. Any ask method may raise a
+WizardNavigation subclass to request back, cancel-level or abort
+instead of returning an answer.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask"></a>
 
@@ -974,15 +980,15 @@ def ask_yes_no(question: str,
 
 Ask a yes/no question and return the chosen boolean.
 
-The wizard asks every yes/no question through this method.
-Application programmers are strongly encouraged to override it
-with a real yes/no interface, such as a pair of yes and no
-buttons in a graphical bridge or a y/n prompt in a console
-bridge. The base class provides a fallback in terms of ask() with
-the choices ('yes', 'no') so an application keeps working until
-its maintainer has implemented the override: an empty answer
-selects default, an index or matching text selects the boolean,
-and any other answer is re-asked.
+The wizard asks every yes/no question through this method, and the
+application is responsible for implementing it with a real yes/no
+interface, such as a pair of yes and no buttons in a graphical
+bridge or a y/n prompt in a console bridge. As a temporary
+migration aid the base class provides a fallback in terms of ask()
+with the choices ('yes', 'no'), so a bridge that has not yet
+overridden this method keeps working: an empty answer selects
+default, an index or matching text selects the boolean, and any
+other answer is re-asked.
 
 **Arguments**:
 
@@ -1020,9 +1026,12 @@ Ask the user to pick exactly one of choices and return it.
 The return value is always one of choices. An empty answer
 selects default, so default must name one of choices; when
 default is None an empty answer counts as no choice and the
-question is re-asked. A bridge that offers a real single-choice
-control should override this, which the base class implements in
-terms of ask().
+question is re-asked.
+
+The application is responsible for implementing this method with
+a real single-choice control, such as a drop-down or a set of
+radio buttons in a graphical bridge. As a temporary migration aid
+the base class provides a fallback in terms of ask().
 
 **Arguments**:
 
@@ -1063,10 +1072,14 @@ Ask the user to pick several of choices and return them.
 The result holds the chosen values in the order of choices, with
 a count between min_select and max_select; max_select None means
 no upper bound. An empty answer selects default, or selects
-nothing when default is None. A bridge that offers a real
-multi-choice control should override this, which the base class
-implements in terms of ask() and reads as one comma-separated
-answer of menu indexes or names.
+nothing when default is None.
+
+The application is responsible for implementing this method with
+a real multi-selection control, such as a list of check boxes or
+a multi-select list in a graphical bridge. As a temporary
+migration aid the base class provides a fallback in terms of
+ask() that reads one comma-separated answer of menu indexes or
+names.
 
 **Arguments**:
 
@@ -1113,20 +1126,20 @@ TableCell per column. Read-only columns show the fixed text in
 each cell, such as a column of parameter names, while editable
 columns show pre-filled or empty values the user may change.
 
-Application programmers are strongly encouraged to override this
-with a real table widget. The base class provides a fallback in
-terms of ask(), asking once per editable cell and folding the
-read-only cells of the row into the prompt, so an application
-keeps working until its maintainer has implemented the override.
-In that fallback an empty answer keeps the cell's current value
-and a reserved erase token empties the cell, which is how a
-console user replaces a pre-filled default with an empty cell.
+The application is responsible for implementing this method with
+a real table widget. As a temporary migration aid the base class
+provides a fallback in terms of ask(), asking once per editable
+cell and folding the read-only cells of the row into the prompt,
+so a bridge that has not yet overridden this method keeps
+working. In that fallback an empty answer keeps the cell's
+current value and a reserved erase token empties the cell, which
+is how a console user replaces a pre-filled default with an empty
+cell.
 
 How an empty editable cell is reported follows its TableCell: a
 nullable cell reports None, a free-text cell reports an empty
 string, and a cell with choices treats empty as not yet a valid
-value. When a cell reports None, the caller decides whether that
-means omit the value or store an explicit null.
+value.
 
 When partial_check is given, the bridge calls it after the user
 changes a cell, passing the whole table as it currently stands
