@@ -13,8 +13,8 @@ from typing import Optional, Sequence, TextIO
 from tableio import Capabilities, FileAccess, access_capabilities
 from tableio_cfg_json import TioJsonConfig, describe_config_members, \
     describe_config_reference, get_config_member_names, \
-    get_general_cfg_info, WizardUiBridge, WizardUiBridgeConsole, \
-    tio_json_config_wizard
+    get_general_cfg_info, WizardAbort, WizardBack, WizardCancelLevel, \
+    WizardUiBridge, WizardUiBridgeConsole, tio_json_config_wizard
 
 from example.e06_split_cities import CITY_COLUMNS, SplitCitiesConfig
 
@@ -31,6 +31,10 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
                               stderr_file: Optional[TextIO] = None) -> None:
     """Ask questions and write a split-cities JSON config and guide.
 
+    The application collects answers through a small navigation loop. When
+    the user abandons configuration nothing is written, so any previous
+    files are left untouched.
+
     Args:
         config_file: JSON application configuration file to write.
         syntax_file: Plain text guide for later hand-editing.
@@ -42,32 +46,121 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
     out_file = sys.stdout if stdout_file is None else stdout_file
     err_file = sys.stderr if stderr_file is None else stderr_file
     ui_bridge = WizardUiBridgeConsole(out_file, in_file, err_file)
-    # tio_json_config_wizard(), provided by tableio_cfg_json, creates exactly
-    # one TableIO endpoint config. This application composes three endpoint
-    # configs into one larger config-as-json configuration file.
-    input_config = _ask_endpoint(INPUT_TITLE, FileAccess.READ, ui_bridge)
-    # The split rule is deliberately application-owned configuration. TableIO
-    # knows how to read and write tables, but it does not know which city rows
-    # this particular program wants in each output file.
-    split_column = _ask_split_column(in_file, out_file)
-    split_limit = _ask_split_limit(in_file, out_file)
-    less_config = _ask_endpoint(LESS_TITLE, FileAccess.CREATE, ui_bridge)
-    not_less_config = _ask_endpoint(NOT_LESS_TITLE, FileAccess.CREATE,
-                                    ui_bridge)
-    # A config object is first created with defaults. The application then
-    # assigns the specific values it collected, just as a real program often
-    # starts with defaults and overrides the choices made by the user.
-    config = SplitCitiesConfig(stderr_file=err_file)
-    config.input = input_config
-    config.less_than_output = less_config
-    config.not_less_than_output = not_less_config
-    config.split_column = split_column
-    config.split_limit = split_limit
+    results = _collect_answers(ui_bridge)
+    if results is None:
+        return
+    config = _build_config(results, err_file)
     config.write(to_json_filename=config_file, stderr_file=err_file)
     # The text file is for the human who later opens the JSON by hand. It is
     # intentionally broader than the choices just made by the wizard.
     syntax_file.write_text(_syntax_text(config, err_file) + '\n',
                            encoding='utf-8')
+
+
+def _collect_answers(ui_bridge: WizardUiBridge) -> Optional[dict[str, object]]:
+    """Ask every configuration item, honoring back, cancel and abort.
+
+    tio_json_config_wizard() navigates the questions inside one endpoint.
+    This application owns the list of items above the endpoints, so it runs
+    the same kind of loop one level up. When the wizard cannot navigate any
+    further inside an endpoint it raises a WizardNavigation out to here:
+
+    - WizardAbort abandons the whole configuration; nothing is written.
+    - WizardBack and WizardCancelLevel step to the previous item. In this
+      flat application every item is at one level, so "go back" and "cancel
+      this level" return to the same place; an application with nested
+      levels could tell them apart.
+
+    The snapshot stack lets going back restore the answers as they were
+    before the previous item, exactly as the wizard does for its questions.
+
+    Returns:
+        The collected answers keyed by item, or None when the user aborts.
+    """
+    steps = [
+        (INPUT_TITLE, _step_input),
+        ('the split column', _step_split_column),
+        ('the split limit', _step_split_limit),
+        (LESS_TITLE, _step_less),
+        (NOT_LESS_TITLE, _step_not_less)]
+    results: dict[str, object] = {}
+    history: list[dict[str, object]] = []
+    index = 0
+    while index < len(steps):
+        snapshot = dict(results)
+        try:
+            steps[index][1](ui_bridge, results)
+        except WizardAbort:
+            ui_bridge.show('Configuration abandoned; no files written.')
+            return None
+        except (WizardBack, WizardCancelLevel):
+            if index == 0:
+                ui_bridge.show('Already at the first item; please answer it.')
+                continue
+            index -= 1
+            results = history.pop()
+            ui_bridge.show(f'Going back to: {steps[index][0]}')
+            continue
+        history.append(snapshot)
+        index += 1
+    return results
+
+
+def _step_input(ui_bridge: WizardUiBridge, results: dict[str, object]) -> None:
+    """Configure the input endpoint."""
+    results['input'] = _ask_endpoint(INPUT_TITLE, FileAccess.READ, ui_bridge)
+
+
+def _step_split_column(ui_bridge: WizardUiBridge,
+                       results: dict[str, object]) -> None:
+    """Ask the application-owned split column."""
+    # The split rule is deliberately application-owned configuration. TableIO
+    # knows how to read and write tables, but it does not know which city rows
+    # this particular program wants in each output file.
+    results['split_column'] = _ask_split_column(ui_bridge)
+
+
+def _step_split_limit(ui_bridge: WizardUiBridge,
+                      results: dict[str, object]) -> None:
+    """Ask the application-owned split limit."""
+    results['split_limit'] = _ask_split_limit(ui_bridge)
+
+
+def _step_less(ui_bridge: WizardUiBridge, results: dict[str, object]) -> None:
+    """Configure the less-than output endpoint."""
+    results['less'] = _ask_endpoint(LESS_TITLE, FileAccess.CREATE, ui_bridge)
+
+
+def _step_not_less(ui_bridge: WizardUiBridge,
+                   results: dict[str, object]) -> None:
+    """Configure the not-less-than output endpoint."""
+    results['not_less'] = _ask_endpoint(NOT_LESS_TITLE, FileAccess.CREATE,
+                                        ui_bridge)
+
+
+def _build_config(results: dict[str, object],
+                  stderr_file: TextIO) -> SplitCitiesConfig:
+    """Assemble the application config from the collected answers."""
+    # A config object is first created with defaults. The application then
+    # assigns the specific values it collected, just as a real program often
+    # starts with defaults and overrides the choices made by the user.
+    input_config = results['input']
+    less_config = results['less']
+    not_less_config = results['not_less']
+    split_column = results['split_column']
+    split_limit = results['split_limit']
+    assert isinstance(input_config, TioJsonConfig)
+    assert isinstance(less_config, TioJsonConfig)
+    assert isinstance(not_less_config, TioJsonConfig)
+    assert isinstance(split_column, str)
+    assert isinstance(split_limit, str)
+    config = SplitCitiesConfig(stderr_file=stderr_file)
+    config.input = input_config
+    config.less_than_output = less_config
+    config.not_less_than_output = not_less_config
+    config.split_column = split_column
+    config.split_limit = split_limit
+    return config
 
 
 def _ask_endpoint(title: str, file_access: FileAccess,
@@ -82,57 +175,47 @@ def _ask_endpoint(title: str, file_access: FileAccess,
     return tio_json_config_wizard(capabilities, file_access, ui_bridge)
 
 
-def _ask_split_column(stdin_file: TextIO, stdout_file: TextIO) -> str:
-    """Ask which input column should decide the split."""
+def _ask_split_column(ui_bridge: WizardUiBridge) -> str:
+    """Ask which input column should decide the split.
+
+    The question goes through the bridge, so the same back, cancel and abort
+    controls the wizard offers also work between application items here.
+    """
+    # The program only supports these three column names because the teaching
+    # input file is intentionally small and predictable.
+    title = 'Select split column:\nEnter: Country (recommended)'
+    reason = None
     while True:
-        # The program only supports these three column names because the
-        # teaching input file is intentionally small and predictable.
-        print('', file=stdout_file)
-        print('Select split column:', file=stdout_file)
-        print('Enter: Country (recommended)', file=stdout_file)
-        for index, column_name in enumerate(CITY_COLUMNS, start=1):
-            print(f'{index}: {column_name}', file=stdout_file)
-        answer = _read_answer('split column', stdin_file, stdout_file)
-        if answer == '':
-            return 'Country'
-        if answer in CITY_COLUMNS:
-            return answer
-        try:
-            column_index = int(answer)
-        except ValueError:
-            print('Please enter a column name or one of the menu numbers.',
-                  file=stdout_file)
-            continue
-        if 1 <= column_index <= len(CITY_COLUMNS):
-            return CITY_COLUMNS[column_index - 1]
-        print('Please enter a column name or one of the menu numbers.',
-              file=stdout_file)
+        answer = ui_bridge.ask(title, reason, CITY_COLUMNS)
+        column = _resolve_column(answer)
+        if column is not None:
+            return column
+        reason = 'Please enter a column name or one of the menu numbers.'
 
 
-def _ask_split_limit(stdin_file: TextIO, stdout_file: TextIO) -> str:
+def _resolve_column(answer: str | int) -> Optional[str]:
+    """Return the chosen column name, or None for an unusable answer."""
+    if answer == '':
+        return 'Country'
+    if isinstance(answer, int) and 0 <= answer < len(CITY_COLUMNS):
+        return CITY_COLUMNS[answer]
+    if isinstance(answer, str) and answer in CITY_COLUMNS:
+        return answer
+    return None
+
+
+def _ask_split_limit(ui_bridge: WizardUiBridge) -> str:
     """Ask for the string value used as split limit."""
+    title = ('Split values less than this text into the first output.\n'
+             'Enter: M (recommended)')
+    reason = None
     while True:
-        print('', file=stdout_file)
-        print('Split values less than this text into the first output.',
-              file=stdout_file)
-        print('Enter: M (recommended)', file=stdout_file)
-        answer = _read_answer('split limit', stdin_file, stdout_file)
+        answer = ui_bridge.ask(title, reason)
         if answer == '':
             return 'M'
-        if answer:
+        if isinstance(answer, str) and answer:
             return answer
-        print('Please enter a non-empty split limit.', file=stdout_file)
-
-
-def _read_answer(prompt_name: str, stdin_file: TextIO,
-                 stdout_file: TextIO) -> str:
-    """Read one answer and fail clearly if scripted input ends early."""
-    print('> ', end='', file=stdout_file)
-    line = stdin_file.readline()
-    if line != '':
-        return line.rstrip('\n')
-    message = f'No answer supplied for {prompt_name}.'
-    raise EOFError(message)
+        reason = 'Please enter a non-empty split limit.'
 
 
 def _syntax_text(config: SplitCitiesConfig, stderr_file: TextIO) -> str:

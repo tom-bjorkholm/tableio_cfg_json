@@ -98,6 +98,27 @@ def _csv_wizard_answers(file_access: FileAccess) -> list[str]:
     return lines
 
 
+def _split_happy_answers() -> list[str]:
+    """Return blank-default answers for the whole split-cities wizard."""
+    answer_lines = []
+    answer_lines.extend(_csv_wizard_answers(FileAccess.READ))
+    answer_lines.append('')
+    answer_lines.append('M')
+    answer_lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    answer_lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    return answer_lines
+
+
+def _run_split(answer_lines: list[str], config_file: Path,
+               syntax_file: Path) -> None:
+    """Run the split-cities wizard with scripted answers."""
+    stdin_file = StringIO('\n'.join(answer_lines) + '\n')
+    create_files = e05_split_cities_wizard.create_split_config_files
+    create_files(config_file=config_file, syntax_file=syntax_file,
+                 stdin_file=stdin_file, stdout_file=StringIO(),
+                 stderr_file=StringIO())
+
+
 def _create_split_config(config_file: Path, syntax_file: Path) -> None:
     """Create the split-cities config through the teaching wizard.
 
@@ -105,19 +126,7 @@ def _create_split_config(config_file: Path, syntax_file: Path) -> None:
         config_file: JSON configuration file to write.
         syntax_file: Plain text syntax guide to write.
     """
-    answer_lines = []
-    answer_lines.extend(_csv_wizard_answers(FileAccess.READ))
-    answer_lines.append('')
-    answer_lines.append('M')
-    answer_lines.extend(_csv_wizard_answers(FileAccess.CREATE))
-    answer_lines.extend(_csv_wizard_answers(FileAccess.CREATE))
-    stdin_file = StringIO('\n'.join(answer_lines) + '\n')
-    stdout_file = StringIO()
-    stderr_file = StringIO()
-    create_files = e05_split_cities_wizard.create_split_config_files
-    create_files(config_file=config_file, syntax_file=syntax_file,
-                 stdin_file=stdin_file, stdout_file=stdout_file,
-                 stderr_file=stderr_file)
+    _run_split(_split_happy_answers(), config_file, syntax_file)
 
 
 def _write_city_input(input_file: Path, header: str) -> None:
@@ -356,6 +365,33 @@ def test_split_sample_data() -> None:
     assert len(not_less_rows) == 12
     assert all(row['Country'] < 'M' for row in less_rows)
     assert all(row['Country'] >= 'M' for row in not_less_rows)
+
+
+def test_split_abort(tmp_path: Path) -> None:
+    """Aborting the wizard at the first question writes no files."""
+    config_file = tmp_path / 'split-cities.json'
+    syntax_file = tmp_path / 'split-cities.txt'
+    _run_split([':q'], config_file, syntax_file)
+    assert not config_file.exists()
+    assert not syntax_file.exists()
+
+
+def test_split_back(tmp_path: Path) -> None:
+    """Going back from a later endpoint re-asks an earlier item."""
+    config_file = tmp_path / 'split-cities.json'
+    syntax_file = tmp_path / 'split-cities.txt'
+    answer_lines = []
+    answer_lines.extend(_csv_wizard_answers(FileAccess.READ))
+    answer_lines.append('')      # split column -> Country
+    answer_lines.append('M')     # split limit, first answer
+    answer_lines.append(':b')    # less-output format: step back one item
+    answer_lines.append('L')     # split limit, re-answered
+    answer_lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    answer_lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    _run_split(answer_lines, config_file, syntax_file)
+    config_data = _read_json(config_file)
+    assert config_data['split_limit'] == 'L'
+    assert config_data['split_column'] == 'Country'
 
 
 def test_split_missing_column(tmp_path: Path) -> None:
