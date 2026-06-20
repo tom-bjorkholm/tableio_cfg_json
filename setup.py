@@ -16,4 +16,5 @@ setup(
     'wheel >= 0.46.3',
     'tableio >= 1.0',
     'config-as-json >= 1.2',
+    'textual >= 8.2.7',
   ])

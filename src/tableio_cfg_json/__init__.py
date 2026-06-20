@@ -14,6 +14,12 @@ from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
     TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
     WizardNavigation, WizardUiBridge
 from tableio_cfg_json.wizard_ui_bridge_console import WizardUiBridgeConsole
+from tableio_cfg_json.wizard_ui_factory import make_text_ui_bridge
+try:
+    from tableio_cfg_json.wizard_ui_bridge_textual import \
+        WizardUiBridgeTextual
+except ImportError:
+    pass
 
 __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
            'TioJsonLatexConfig', 'describe_config',
@@ -23,4 +29,4 @@ __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
            'tio_json_config_wizard', 'WizardUiBridge',
            'WizardUiBridgeConsole', 'WizardNavigation', 'WizardBack',
            'WizardCancelLevel', 'WizardAbort', 'TableColumn', 'TableCell',
-           'PartialCheck']
+           'PartialCheck', 'make_text_ui_bridge', 'WizardUiBridgeTextual']

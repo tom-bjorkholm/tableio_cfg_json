@@ -40,6 +40,15 @@
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.show)
+* [tableio\_cfg\_json.wizard\_ui\_bridge\_textual](#tableio_cfg_json.wizard_ui_bridge_textual)
+  * [WizardUiBridgeTextual](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual)
+    * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.__init__)
+    * [ask](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask)
+    * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no)
+    * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice)
+    * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
+    * [error\_file](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.error_file)
+    * [show](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.show)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_console](#tableio_cfg_json.wizard_ui_bridge_console)
   * [WizardUiBridgeConsole](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.__init__)
@@ -50,6 +59,8 @@
     * [show](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.show)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
+* [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
+  * [make\_text\_ui\_bridge](#tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge)
 
 <a id="tableio_cfg_json.describe"></a>
 
@@ -1211,6 +1222,132 @@ message to the console.
 
 - `message` - The message to show the user.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual"></a>
+
+# tableio\_cfg\_json.wizard\_ui\_bridge\_textual
+
+Textual full-screen user interface bridge for the wizard.
+
+This module provides the concrete Textual bridge used when the wizard
+talks to a user through a real terminal. Each ask method runs a short
+lived Textual application for one question and returns its result, which
+keeps the one-question-at-a-time contract of WizardUiBridge while giving
+the user a full-screen interface with selectable lists and check boxes.
+
+Navigation keys exit a screen with no value and record which
+WizardNavigation request to raise, so the bridge re-raises it after the
+screen closes. Messages passed to show() and diagnostics written to
+error_file() are buffered and rendered in the header of the next
+screen, so nothing is written straight to the terminal where it would
+corrupt the Textual display.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual"></a>
+
+## WizardUiBridgeTextual Objects
+
+```python
+class WizardUiBridgeTextual(WizardUiBridge)
+```
+
+Bridge between the wizard and a Textual terminal interface.
+
+Each ask method runs a short-lived Textual application for one
+question and returns its result. Validation diagnostics written to
+error_file() and messages passed to show() are buffered and rendered
+in the header of the next question's screen, so nothing reaches the
+terminal directly where it would corrupt the Textual display.
+
+This bridge draws on the controlling terminal itself, so it takes no
+streams. Use make_text_ui_bridge() to obtain this bridge when a
+terminal is available and a console bridge otherwise.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__() -> None
+```
+
+Start with an empty diagnostics buffer and message list.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask"></a>
+
+#### ask
+
+```python
+def ask(question: str,
+        re_ask_reason: Optional[str] = None,
+        choices: Optional[Sequence[str]] = None) -> str | int
+```
+
+Ask one question; see WizardUiBridge.ask.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no"></a>
+
+#### ask\_yes\_no
+
+```python
+def ask_yes_no(question: str,
+               default: bool,
+               re_ask_reason: Optional[str] = None) -> bool
+```
+
+Ask a yes/no question; see WizardUiBridge.ask_yes_no.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice"></a>
+
+#### ask\_choice
+
+```python
+def ask_choice(question: str,
+               *,
+               choices: Sequence[str],
+               default: Optional[str] = None,
+               re_ask_reason: Optional[str] = None) -> str
+```
+
+Ask the user to pick one choice; see ask_choice.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi"></a>
+
+#### ask\_multi
+
+```python
+def ask_multi(question: str,
+              *,
+              choices: Sequence[str],
+              default: Optional[Sequence[str]] = None,
+              min_select: int = 0,
+              max_select: Optional[int] = None,
+              re_ask_reason: Optional[str] = None) -> list[str]
+```
+
+Ask the user to pick several choices; see ask_multi.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.error_file"></a>
+
+#### error\_file
+
+```python
+def error_file() -> StringIO
+```
+
+Return the in-memory stream shown on the next screen.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.show"></a>
+
+#### show
+
+```python
+def show(message: str) -> None
+```
+
+Buffer a message for the next question's screen.
+
+A message shown when no further question follows is not
+displayed, because only a Textual screen renders it.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_console"></a>
 
 # tableio\_cfg\_json.wizard\_ui\_bridge\_console
@@ -1408,4 +1545,46 @@ optional values stay omitted so TableIO can use backend defaults later.
 **Returns**:
 
   A validated TableIO JSON config for the one endpoint.
+
+<a id="tableio_cfg_json.wizard_ui_factory"></a>
+
+# tableio\_cfg\_json.wizard\_ui\_factory
+
+Factory selecting a text-mode user interface bridge.
+
+The wizard talks to the user through a WizardUiBridge. This factory
+returns a Textual full-screen bridge when Textual is installed and the
+streams are a real terminal, and falls back to the console bridge
+otherwise, such as when output is redirected, when running under tests,
+or where Textual is not available. The fallback keeps the library
+importable and usable even if Textual has been uninstalled.
+
+This factory chooses between text-mode bridges only. An application
+with a graphical user interface should provide and use its own
+graphical bridge instead.
+
+<a id="tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge"></a>
+
+#### make\_text\_ui\_bridge
+
+```python
+def make_text_ui_bridge(stdout_file: TextIO, stdin_file: TextIO,
+                        stderr_file: TextIO) -> WizardUiBridge
+```
+
+Return a Textual bridge for a terminal, else a console bridge.
+
+**Arguments**:
+
+- `stdout_file` - Stream the console bridge prints to, also checked
+  for being a terminal.
+- `stdin_file` - Stream the console bridge reads from, also checked
+  for being a terminal.
+- `stderr_file` - Stream the console bridge prints errors to.
+  
+
+**Returns**:
+
+  A Textual bridge when Textual is installed and both streams are
+  a terminal, otherwise a console bridge.
 
