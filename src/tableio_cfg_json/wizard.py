@@ -9,19 +9,20 @@ larger config-as-json configuration class.
 import json
 from copy import deepcopy
 from dataclasses import dataclass, field
-from enum import Enum
 from io import StringIO
 from typing import Literal, Optional, Sequence, TextIO
 
-import tableio
-from config_as_json import ConfigBadJson, InvalidConfiguration, \
-    string_best_match, string_to_enum_best_match
+from config_as_json import ConfigBadJson, InvalidConfiguration
 from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio, tio_config_specs
 from tableio_cfg_json.config import TioJsonConfig
 from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
-    TableColumn, WizardBack, WizardCancelLevel, WizardUiBridge, _int_text
+    TableColumn, WizardBack, WizardCancelLevel, WizardUiBridge, \
+    _CHOICE_ERROR, _match_token
+
+_AUTO_IMPL = 'let TableIO choose (recommended)'
+_AUTO_MEMBER = 'use the default'
 
 
 @dataclass
@@ -180,8 +181,7 @@ def _run_step(run: _WizardRun, step: _Step) -> None:
 
 def _run_format_step(run: _WizardRun) -> None:
     """Ask for the format and store it in the wizard data."""
-    run.data['format_name'] = _ask_format(run.match_caps, run.bridge,
-                                          run.stderr)
+    run.data['format_name'] = _ask_format(run.match_caps, run.bridge)
 
 
 def _run_impl_step(run: _WizardRun) -> None:
@@ -189,7 +189,7 @@ def _run_impl_step(run: _WizardRun) -> None:
     format_name = run.data['format_name']
     assert isinstance(format_name, str)
     impl_names = _impl_names(format_name, run.match_caps)
-    implementation = _ask_implementation(impl_names, run.bridge, run.stderr)
+    implementation = _ask_implementation(impl_names, run.bridge)
     if implementation is None:
         run.data.pop('implementation', None)
     else:
@@ -212,8 +212,7 @@ def _run_section_step(run: _WizardRun, section: str,
         except WizardCancelLevel:
             return
         try:
-            new_data = _resolve_section(run.data, section, specs, result,
-                                        run.stderr)
+            new_data = _resolve_section(run.data, section, specs, result)
         except (ConfigBadJson, ConfigError, InvalidConfiguration,
                 ValueError) as error:
             reason = f'Invalid value: {error}\nPlease try again.'
@@ -254,8 +253,7 @@ def _spec_choices(spec: ConfigSpec) -> Optional[tuple[str, ...]]:
 
 def _resolve_section(data: dict[str, object], section: str,
                      specs: tuple[ConfigSpec, ...],
-                     result: list[list[Optional[str]]],
-                     stderr_file: TextIO) -> dict[str, object]:
+                     result: list[list[Optional[str]]]) -> dict[str, object]:
     """Return data with one section rebuilt from a filled-in table."""
     new_data = deepcopy(data)
     new_data.pop(section, None)
@@ -263,18 +261,19 @@ def _resolve_section(data: dict[str, object], section: str,
         raw = result[index][1]
         if raw is None or raw == '':
             continue
-        value = _resolve_member_value(spec, raw, stderr_file)
+        value = _resolve_member_value(spec, raw)
         _set_json_member(new_data, spec.name, value)
     return new_data
 
 
-def _resolve_member_value(spec: ConfigSpec, raw: str,
-                          stderr_file: TextIO) -> object:
+def _resolve_member_value(spec: ConfigSpec, raw: str) -> object:
     """Convert one entered table value to the type TableIO expects."""
     if spec.choices is not None:
         choices = tuple(str(choice) for choice in spec.choices)
-        return _choice_from_answer(raw, choices, False, spec.name, stderr_file,
-                                   _enum_type(spec))
+        resolved = _match_token(raw, choices, False)
+        if resolved is None:
+            raise ValueError(_CHOICE_ERROR)
+        return resolved
     return _parse_member_value(spec, raw)
 
 
@@ -285,7 +284,7 @@ def _section_check(run: _WizardRun, section: str,
               _position: tuple[int, int]) -> tuple[bool, str]:
         capture = StringIO()
         try:
-            trial = _resolve_section(run.data, section, specs, table, capture)
+            trial = _resolve_section(run.data, section, specs, table)
             _config_from_data(trial, run.caps, run.file_access, capture)
         except (ConfigBadJson, ConfigError, InvalidConfiguration,
                 ValueError) as error:
@@ -312,12 +311,11 @@ def _commit(data: dict[str, object], new_data: dict[str, object],
     return None
 
 
-def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge,
-                stderr_file: TextIO) -> str:
+def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge) -> str:
     """Ask the user to select one format that matches the endpoint."""
     format_names = list_registered_tableio(capabilities=capabilities)
-    return _ask_choice('Select TableIO format:', 'format_name', format_names,
-                       False, '', ui_bridge, stderr_file)
+    return ui_bridge.ask_choice('Select TableIO format:',
+                                choices=tuple(format_names))
 
 
 def _impl_names(format_name: str, capabilities: Capabilities
@@ -328,18 +326,15 @@ def _impl_names(format_name: str, capabilities: Capabilities
     return tuple(impl_names)
 
 
-def _ask_implementation(impl_names: Sequence[str], ui_bridge: WizardUiBridge,
-                        stderr_file: TextIO) -> Optional[str]:
+def _ask_implementation(impl_names: Sequence[str],
+                        ui_bridge: WizardUiBridge) -> Optional[str]:
     """Ask for an implementation only when TableIO exposes a choice."""
     if len(impl_names) < 2:
         return None
-    blank_text = 'let TableIO choose (recommended)'
-    implementation = _ask_choice('Select implementation:', 'implementation',
-                                 impl_names, True, blank_text, ui_bridge,
-                                 stderr_file)
-    if implementation == '':
-        return None
-    return implementation
+    choices = (_AUTO_IMPL,) + tuple(impl_names)
+    chosen = ui_bridge.ask_choice('Select implementation:', choices=choices,
+                                  default=_AUTO_IMPL)
+    return None if chosen == _AUTO_IMPL else chosen
 
 
 def _ask_member(spec: ConfigSpec, format_name: str,
@@ -366,7 +361,7 @@ def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
     """Ask for one optional member and keep retrying until it validates."""
     re_ask_reason = None
     while True:
-        value = _ask_member_value(spec, ui_bridge, stderr_file, re_ask_reason)
+        value = _ask_member_value(spec, ui_bridge, re_ask_reason)
         if value is None:
             return
         new_data = deepcopy(data)
@@ -377,18 +372,15 @@ def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
 
 
 def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                      stderr_file: TextIO,
                       re_ask_reason: Optional[str]) -> Optional[object]:
     """Ask for one optional value and convert simple scalar types."""
     if spec.choices is not None:
-        choices = tuple(str(choice) for choice in spec.choices)
-        enum_type = _enum_type(spec)
-        choice = _ask_choice(f'Select value for {spec.name}:', spec.name,
-                             choices, True, 'use the default', ui_bridge,
-                             stderr_file, enum_type, re_ask_reason)
-        if choice == '':
-            return None
-        return choice
+        real = tuple(str(choice) for choice in spec.choices)
+        choices = (_AUTO_MEMBER,) + real
+        chosen = ui_bridge.ask_choice(f'Select value for {spec.name}:',
+                                      choices=choices, default=_AUTO_MEMBER,
+                                      re_ask_reason=re_ask_reason)
+        return None if chosen == _AUTO_MEMBER else chosen
     return _ask_text_member_value(spec, ui_bridge, re_ask_reason)
 
 
@@ -423,89 +415,6 @@ def _member_question(spec: ConfigSpec) -> str:
         f'{spec.description}\n'
         f'Type: {spec.value_type}\n'
         'Press Enter to use the default.')
-
-
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def _ask_choice(title: str, member_name: str, choices: Sequence[str],
-                allow_blank: bool, blank_text: str, ui_bridge: WizardUiBridge,
-                stderr_file: TextIO, enum_type: Optional[type[Enum]] = None,
-                first_re_ask: Optional[str] = None) -> str:
-    """Ask for one answer from a list of choices."""
-    question = _choice_question(title, allow_blank, blank_text)
-    re_ask_reason = first_re_ask
-    while True:
-        answer = ui_bridge.ask(question, re_ask_reason, choices)
-        try:
-            return _choice_from_answer(answer, choices, allow_blank,
-                                       member_name, stderr_file, enum_type)
-        except (InvalidConfiguration, ValueError) as error:
-            re_ask_reason = str(error)
-
-
-def _choice_question(title: str, allow_blank: bool, blank_text: str) -> str:
-    """Return the question text for one list choice."""
-    if allow_blank:
-        return f'{title}\nEnter: {blank_text}'
-    return title
-
-
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def _choice_from_answer(answer: str | int, choices: Sequence[str],
-                        allow_blank: bool, member_name: str,
-                        stderr_file: TextIO,
-                        enum_type: Optional[type[Enum]]) -> str:
-    """Return a validated choice selected by an answer."""
-    if answer == '' and allow_blank:
-        return ''
-    if isinstance(answer, int) and not isinstance(answer, bool):
-        return _choice_from_index(answer, choices)
-    if not isinstance(answer, str):
-        raise ValueError('Please enter one of the listed choices.')
-    index = _int_text(answer)
-    if index is not None:
-        return _choice_from_index(index, choices)
-    if enum_type is not None:
-        return _choice_from_enum(answer, choices, enum_type)
-    return string_best_match(answer, choices, member_name, stderr_file)
-
-
-def _choice_from_index(index: int, choices: Sequence[str]) -> str:
-    """Return the choice at a 0-based index."""
-    if 0 <= index < len(choices):
-        return choices[index]
-    raise ValueError('Please enter one of the listed choices.')
-
-
-def _choice_from_enum(answer: str, choices: Sequence[str],
-                      enum_type: type[Enum]) -> str:
-    """Return the enum choice whose name best matches the answer."""
-    try:
-        enum_value = string_to_enum_best_match(answer, enum_type)
-    except (AssertionError, KeyError) as error:
-        raise ValueError('Please enter one of the listed choices.') from error
-    if enum_value.name in choices:
-        return enum_value.name
-    raise ValueError('Please enter one of the listed choices.')
-
-
-def _enum_type(spec: ConfigSpec) -> Optional[type[Enum]]:
-    """Return the enum type used by a config member choice list."""
-    type_name = _optional_type_name(spec.value_type)
-    if type_name is None:
-        return None
-    enum_type: object = getattr(tableio, type_name, None)
-    if isinstance(enum_type, type) and issubclass(enum_type, Enum):
-        return enum_type
-    return None
-
-
-def _optional_type_name(value_type: str) -> Optional[str]:
-    """Return the inner type name from an Optional type description."""
-    prefix = 'Optional['
-    suffix = ']'
-    if value_type.startswith(prefix) and value_type.endswith(suffix):
-        return value_type[len(prefix):-len(suffix)]
-    return None
 
 
 def _set_json_member(data: dict[str, object], member_name: str,

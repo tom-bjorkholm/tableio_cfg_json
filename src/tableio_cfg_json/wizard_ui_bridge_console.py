@@ -13,7 +13,7 @@ level or abandon the whole configuration.
 from typing import Optional, Sequence, TextIO
 
 from tableio_cfg_json.wizard_ui_bridge import WizardAbort, WizardBack, \
-    WizardCancelLevel, WizardUiBridge, _int_text
+    WizardCancelLevel, WizardUiBridge, _ask_many, _ask_one, _int_text
 
 _BACK = ':b'
 _CANCEL = ':c'
@@ -64,25 +64,56 @@ class WizardUiBridgeConsole(WizardUiBridge):
             WizardCancelLevel: The user cancelled the current level.
             WizardAbort: The user abandoned the whole configuration.
         """
+        self._emit_question(question, re_ask_reason, _menu_lines(choices))
+        text = self._read_answer(question)
+        if choices is None:
+            return text
+        return _to_index(text)
+
+    def ask_choice(self, question: str, *, choices: Sequence[str],
+                   default: Optional[str] = None,
+                   re_ask_reason: Optional[str] = None) -> str:
+        """Ask one choice on the console; see WizardUiBridge.ask_choice."""
+        marked = None if default is None else (default,)
+
+        def reader(reason: Optional[str]) -> str | int:
+            self._emit_question(question, reason, _menu_lines(choices, marked))
+            return _to_index(self._read_answer(question))
+        return _ask_one(reader, choices, default, re_ask_reason)
+
+    # pylint: disable-next=too-many-arguments
+    def ask_multi(self, question: str, *, choices: Sequence[str],
+                  default: Optional[Sequence[str]] = None, min_select: int = 0,
+                  max_select: Optional[int] = None,
+                  re_ask_reason: Optional[str] = None) -> list[str]:
+        """Ask several choices on the console; see WizardUiBridge.ask_multi."""
+        def reader(reason: Optional[str]) -> str | int:
+            self._emit_question(_multi_question(question), reason,
+                                _menu_lines(choices, default))
+            return self._read_answer(question)
+        return _ask_many(reader, choices, default, min_select, max_select,
+                         re_ask_reason, one_based=True)
+
+    def _emit_question(self, question: str, re_ask_reason: Optional[str],
+                       lines: Sequence[str]) -> None:
+        """Print one question, any re-ask reason, choices and the prompt."""
         if re_ask_reason is not None:
             print(re_ask_reason, file=self.stderr_file)
         print('', file=self.stdout_file)
         print(question, file=self.stdout_file)
-        if choices is not None:
-            for index, choice in enumerate(choices, start=1):
-                print(f'{index}: {choice}', file=self.stdout_file)
+        for line in lines:
+            print(line, file=self.stdout_file)
         print(_NAV_HINT, file=self.stdout_file)
         print('> ', end='', file=self.stdout_file)
+
+    def _read_answer(self, question: str) -> str:
+        """Read one navigation-checked answer line from the input stream."""
         answer = self.stdin_file.readline()
         if answer == '':
             raise EOFError(f'No answer supplied for {question}.')
-        text_answer = answer.rstrip('\n')
-        _raise_for_navigation(text_answer)
-        if choices is not None:
-            choice_index = _int_text(text_answer)
-            if choice_index is not None:
-                return choice_index - 1
-        return text_answer
+        text = answer.rstrip('\n')
+        _raise_for_navigation(text)
+        return text
 
     def error_file(self) -> TextIO:
         """Return the stream used for validation diagnostics."""
@@ -107,3 +138,27 @@ def _raise_for_navigation(text: str) -> None:
         raise WizardCancelLevel()
     if token == _ABORT:
         raise WizardAbort()
+
+
+def _to_index(text: str) -> str | int:
+    """Map a numeric menu answer to a 0-based index, else keep the text."""
+    index = _int_text(text)
+    return text if index is None else index - 1
+
+
+def _menu_lines(choices: Optional[Sequence[str]],
+                marked: Optional[Sequence[str]] = None) -> list[str]:
+    """Return the numbered menu lines, marking any choice in marked."""
+    if choices is None:
+        return []
+    flagged = set() if marked is None else set(marked)
+    lines: list[str] = []
+    for index, choice in enumerate(choices, start=1):
+        suffix = ' (default)' if choice in flagged else ''
+        lines.append(f'{index}: {choice}{suffix}')
+    return lines
+
+
+def _multi_question(question: str) -> str:
+    """Return the multi-choice question with an entry hint appended."""
+    return f'{question}\nEnter comma-separated numbers or names.'

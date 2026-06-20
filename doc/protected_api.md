@@ -75,6 +75,8 @@
   * [WizardUiBridge](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge)
     * [ask](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no)
+    * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice)
+    * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi)
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table)
     * [\_fill\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_table)
     * [\_fill\_cell](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_cell)
@@ -89,13 +91,30 @@
   * [\_erased\_value](#tableio_cfg_json.wizard_ui_bridge._erased_value)
   * [\_indexed\_value](#tableio_cfg_json.wizard_ui_bridge._indexed_value)
   * [\_int\_text](#tableio_cfg_json.wizard_ui_bridge._int_text)
+  * [\_ask\_one](#tableio_cfg_json.wizard_ui_bridge._ask_one)
+  * [\_ask\_many](#tableio_cfg_json.wizard_ui_bridge._ask_many)
+  * [\_resolve\_choice](#tableio_cfg_json.wizard_ui_bridge._resolve_choice)
+  * [\_resolve\_multi](#tableio_cfg_json.wizard_ui_bridge._resolve_multi)
+  * [\_multi\_labels](#tableio_cfg_json.wizard_ui_bridge._multi_labels)
+  * [\_tokens\_to\_labels](#tableio_cfg_json.wizard_ui_bridge._tokens_to_labels)
+  * [\_match\_token](#tableio_cfg_json.wizard_ui_bridge._match_token)
+  * [\_best\_match](#tableio_cfg_json.wizard_ui_bridge._best_match)
+  * [\_choice\_at\_index](#tableio_cfg_json.wizard_ui_bridge._choice_at_index)
+  * [\_multi\_count\_error](#tableio_cfg_json.wizard_ui_bridge._multi_count_error)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_console](#tableio_cfg_json.wizard_ui_bridge_console)
   * [WizardUiBridgeConsole](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.__init__)
     * [ask](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask)
+    * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_choice)
+    * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_multi)
+    * [\_emit\_question](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole._emit_question)
+    * [\_read\_answer](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole._read_answer)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.show)
   * [\_raise\_for\_navigation](#tableio_cfg_json.wizard_ui_bridge_console._raise_for_navigation)
+  * [\_to\_index](#tableio_cfg_json.wizard_ui_bridge_console._to_index)
+  * [\_menu\_lines](#tableio_cfg_json.wizard_ui_bridge_console._menu_lines)
+  * [\_multi\_question](#tableio_cfg_json.wizard_ui_bridge_console._multi_question)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
   * [\_WizardRun](#tableio_cfg_json.wizard._WizardRun)
   * [\_Step](#tableio_cfg_json.wizard._Step)
@@ -125,13 +144,6 @@
   * [\_ask\_text\_member\_value](#tableio_cfg_json.wizard._ask_text_member_value)
   * [\_parse\_member\_value](#tableio_cfg_json.wizard._parse_member_value)
   * [\_member\_question](#tableio_cfg_json.wizard._member_question)
-  * [\_ask\_choice](#tableio_cfg_json.wizard._ask_choice)
-  * [\_choice\_question](#tableio_cfg_json.wizard._choice_question)
-  * [\_choice\_from\_answer](#tableio_cfg_json.wizard._choice_from_answer)
-  * [\_choice\_from\_index](#tableio_cfg_json.wizard._choice_from_index)
-  * [\_choice\_from\_enum](#tableio_cfg_json.wizard._choice_from_enum)
-  * [\_enum\_type](#tableio_cfg_json.wizard._enum_type)
-  * [\_optional\_type\_name](#tableio_cfg_json.wizard._optional_type_name)
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
 
@@ -1876,6 +1888,93 @@ and any other answer is re-asked.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
 
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice"></a>
+
+#### ask\_choice
+
+```python
+def ask_choice(question: str,
+               *,
+               choices: Sequence[str],
+               default: Optional[str] = None,
+               re_ask_reason: Optional[str] = None) -> str
+```
+
+Ask the user to pick exactly one of choices and return it.
+
+The return value is always one of choices. An empty answer
+selects default, so default must name one of choices; when
+default is None an empty answer counts as no choice and the
+question is re-asked. A bridge that offers a real single-choice
+control should override this, which the base class implements in
+terms of ask().
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `choices` - The choices to offer, in display order.
+- `default` - The choice selected by an empty answer, or None to
+  require an explicit choice.
+- `re_ask_reason` - The reason for re-asking, shown before the
+  first question when not None.
+  
+
+**Returns**:
+
+  The chosen value, one of choices.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi"></a>
+
+#### ask\_multi
+
+```python
+def ask_multi(question: str,
+              *,
+              choices: Sequence[str],
+              default: Optional[Sequence[str]] = None,
+              min_select: int = 0,
+              max_select: Optional[int] = None,
+              re_ask_reason: Optional[str] = None) -> list[str]
+```
+
+Ask the user to pick several of choices and return them.
+
+The result holds the chosen values in the order of choices, with
+a count between min_select and max_select; max_select None means
+no upper bound. An empty answer selects default, or selects
+nothing when default is None. A bridge that offers a real
+multi-choice control should override this, which the base class
+implements in terms of ask() and reads as one comma-separated
+answer of menu indexes or names.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `choices` - The choices to offer, in display order.
+- `default` - The values pre-selected by an empty answer, or None.
+- `min_select` - The smallest acceptable number of choices.
+- `max_select` - The largest acceptable number of choices, or None
+  for no upper bound.
+- `re_ask_reason` - The reason for re-asking, shown before the
+  first question when not None.
+  
+
+**Returns**:
+
+  The chosen values, each one of choices, in choices order.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table"></a>
 
 #### ask\_table
@@ -2130,6 +2229,119 @@ def _int_text(text: str) -> Optional[int]
 
 Return an integer from text, or None when text is not an integer.
 
+<a id="tableio_cfg_json.wizard_ui_bridge._ask_one"></a>
+
+#### \_ask\_one
+
+```python
+def _ask_one(reader: Callable[[Optional[str]],
+                              str | int], choices: Sequence[str],
+             default: Optional[str], re_ask_reason: Optional[str]) -> str
+```
+
+Re-ask through reader until one valid choice is selected.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._ask_many"></a>
+
+#### \_ask\_many
+
+```python
+def _ask_many(reader: Callable[[Optional[str]], str | int],
+              choices: Sequence[str], default: Optional[Sequence[str]],
+              min_select: int, max_select: Optional[int],
+              re_ask_reason: Optional[str], one_based: bool) -> list[str]
+```
+
+Re-ask through reader until a valid set of choices is selected.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._resolve_choice"></a>
+
+#### \_resolve\_choice
+
+```python
+def _resolve_choice(answer: str | int, choices: Sequence[str],
+                    default: Optional[str]) -> Optional[str]
+```
+
+Map a single-choice answer to a choice, or None to re-ask.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._resolve_multi"></a>
+
+#### \_resolve\_multi
+
+```python
+def _resolve_multi(answer: str | int, choices: Sequence[str],
+                   default: Optional[Sequence[str]], min_select: int,
+                   max_select: Optional[int],
+                   one_based: bool) -> tuple[Optional[list[str]], str]
+```
+
+Map a multi-choice answer to choices and an error to re-ask.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._multi_labels"></a>
+
+#### \_multi\_labels
+
+```python
+def _multi_labels(answer: str | int, choices: Sequence[str],
+                  default: Optional[Sequence[str]],
+                  one_based: bool) -> Optional[list[str]]
+```
+
+Map a multi-choice answer to chosen labels, or None to re-ask.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._tokens_to_labels"></a>
+
+#### \_tokens\_to\_labels
+
+```python
+def _tokens_to_labels(text: str, choices: Sequence[str],
+                      one_based: bool) -> Optional[list[str]]
+```
+
+Map a comma-separated answer to labels, or None to re-ask.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._match_token"></a>
+
+#### \_match\_token
+
+```python
+def _match_token(token: str, choices: Sequence[str],
+                 one_based: bool) -> Optional[str]
+```
+
+Map one menu index or name to a choice, or None when no match.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._best_match"></a>
+
+#### \_best\_match
+
+```python
+def _best_match(token: str, choices: Sequence[str]) -> Optional[str]
+```
+
+Return the unique best name match for token, or None.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._choice_at_index"></a>
+
+#### \_choice\_at\_index
+
+```python
+def _choice_at_index(index: int, choices: Sequence[str]) -> Optional[str]
+```
+
+Return the choice at a 0-based index, or None when out of range.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._multi_count_error"></a>
+
+#### \_multi\_count\_error
+
+```python
+def _multi_count_error(min_select: int, max_select: Optional[int]) -> str
+```
+
+Return the message shown when the selected count is not allowed.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_console"></a>
 
 # tableio\_cfg\_json.wizard\_ui\_bridge\_console
@@ -2208,6 +2420,57 @@ Ask a question and return the user's answer.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_choice"></a>
+
+#### ask\_choice
+
+```python
+def ask_choice(question: str,
+               *,
+               choices: Sequence[str],
+               default: Optional[str] = None,
+               re_ask_reason: Optional[str] = None) -> str
+```
+
+Ask one choice on the console; see WizardUiBridge.ask_choice.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_multi"></a>
+
+#### ask\_multi
+
+```python
+def ask_multi(question: str,
+              *,
+              choices: Sequence[str],
+              default: Optional[Sequence[str]] = None,
+              min_select: int = 0,
+              max_select: Optional[int] = None,
+              re_ask_reason: Optional[str] = None) -> list[str]
+```
+
+Ask several choices on the console; see WizardUiBridge.ask_multi.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole._emit_question"></a>
+
+#### \_emit\_question
+
+```python
+def _emit_question(question: str, re_ask_reason: Optional[str],
+                   lines: Sequence[str]) -> None
+```
+
+Print one question, any re-ask reason, choices and the prompt.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole._read_answer"></a>
+
+#### \_read\_answer
+
+```python
+def _read_answer(question: str) -> str
+```
+
+Read one navigation-checked answer line from the input stream.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.error_file"></a>
 
 #### error\_file
@@ -2243,6 +2506,37 @@ def _raise_for_navigation(text: str) -> None
 ```
 
 Raise a navigation request when text is a reserved token.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console._to_index"></a>
+
+#### \_to\_index
+
+```python
+def _to_index(text: str) -> str | int
+```
+
+Map a numeric menu answer to a 0-based index, else keep the text.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console._menu_lines"></a>
+
+#### \_menu\_lines
+
+```python
+def _menu_lines(choices: Optional[Sequence[str]],
+                marked: Optional[Sequence[str]] = None) -> list[str]
+```
+
+Return the numbered menu lines, marking any choice in marked.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console._multi_question"></a>
+
+#### \_multi\_question
+
+```python
+def _multi_question(question: str) -> str
+```
+
+Return the multi-choice question with an entry hint appended.
 
 <a id="tableio_cfg_json.wizard"></a>
 
@@ -2450,9 +2744,8 @@ Return the advertised choices of one config member as strings.
 
 ```python
 def _resolve_section(data: dict[str, object], section: str,
-                     specs: tuple[ConfigSpec,
-                                  ...], result: list[list[Optional[str]]],
-                     stderr_file: TextIO) -> dict[str, object]
+                     specs: tuple[ConfigSpec, ...],
+                     result: list[list[Optional[str]]]) -> dict[str, object]
 ```
 
 Return data with one section rebuilt from a filled-in table.
@@ -2462,8 +2755,7 @@ Return data with one section rebuilt from a filled-in table.
 #### \_resolve\_member\_value
 
 ```python
-def _resolve_member_value(spec: ConfigSpec, raw: str,
-                          stderr_file: TextIO) -> object
+def _resolve_member_value(spec: ConfigSpec, raw: str) -> object
 ```
 
 Convert one entered table value to the type TableIO expects.
@@ -2499,8 +2791,7 @@ caller can re-ask. On success the data is updated in place.
 #### \_ask\_format
 
 ```python
-def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge,
-                stderr_file: TextIO) -> str
+def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge) -> str
 ```
 
 Ask the user to select one format that matches the endpoint.
@@ -2521,8 +2812,8 @@ Return matching implementations for the selected format.
 #### \_ask\_implementation
 
 ```python
-def _ask_implementation(impl_names: Sequence[str], ui_bridge: WizardUiBridge,
-                        stderr_file: TextIO) -> Optional[str]
+def _ask_implementation(impl_names: Sequence[str],
+                        ui_bridge: WizardUiBridge) -> Optional[str]
 ```
 
 Ask for an implementation only when TableIO exposes a choice.
@@ -2567,7 +2858,6 @@ Ask for one optional member and keep retrying until it validates.
 
 ```python
 def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                      stderr_file: TextIO,
                       re_ask_reason: Optional[str]) -> Optional[object]
 ```
 
@@ -2603,88 +2893,6 @@ def _member_question(spec: ConfigSpec) -> str
 ```
 
 Return the explanatory question for one free-text member.
-
-<a id="tableio_cfg_json.wizard._ask_choice"></a>
-
-#### \_ask\_choice
-
-```python
-def _ask_choice(title: str,
-                member_name: str,
-                choices: Sequence[str],
-                allow_blank: bool,
-                blank_text: str,
-                ui_bridge: WizardUiBridge,
-                stderr_file: TextIO,
-                enum_type: Optional[type[Enum]] = None,
-                first_re_ask: Optional[str] = None) -> str
-```
-
-Ask for one answer from a list of choices.
-
-<a id="tableio_cfg_json.wizard._choice_question"></a>
-
-#### \_choice\_question
-
-```python
-def _choice_question(title: str, allow_blank: bool, blank_text: str) -> str
-```
-
-Return the question text for one list choice.
-
-<a id="tableio_cfg_json.wizard._choice_from_answer"></a>
-
-#### \_choice\_from\_answer
-
-```python
-def _choice_from_answer(answer: str | int, choices: Sequence[str],
-                        allow_blank: bool, member_name: str,
-                        stderr_file: TextIO,
-                        enum_type: Optional[type[Enum]]) -> str
-```
-
-Return a validated choice selected by an answer.
-
-<a id="tableio_cfg_json.wizard._choice_from_index"></a>
-
-#### \_choice\_from\_index
-
-```python
-def _choice_from_index(index: int, choices: Sequence[str]) -> str
-```
-
-Return the choice at a 0-based index.
-
-<a id="tableio_cfg_json.wizard._choice_from_enum"></a>
-
-#### \_choice\_from\_enum
-
-```python
-def _choice_from_enum(answer: str, choices: Sequence[str],
-                      enum_type: type[Enum]) -> str
-```
-
-Return the enum choice whose name best matches the answer.
-
-<a id="tableio_cfg_json.wizard._enum_type"></a>
-
-#### \_enum\_type
-
-```python
-def _enum_type(spec: ConfigSpec) -> Optional[type[Enum]]
-```
-
-Return the enum type used by a config member choice list.
-
-<a id="tableio_cfg_json.wizard._optional_type_name"></a>
-
-#### \_optional\_type\_name
-
-```python
-def _optional_type_name(value_type: str) -> Optional[str]
-```
-
-Return the inner type name from an Optional type description.
 
 <a id="tableio_cfg_json.wizard._set_json_member"></a>
 

@@ -12,7 +12,7 @@ from typing import Optional, Sequence
 
 import pytest
 
-from tableio import Capabilities, ConfigSpec, CsvDialect, FileAccess, \
+from tableio import Capabilities, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
     list_implementations_tableio, list_registered_tableio
 from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
@@ -93,9 +93,10 @@ def _wizard_lines(format_name: str, file_access: FileAccess,
     lines = [_menu_number(format_name, format_names)]
     implementation = None
     if len(impl_names) > 1:
+        impl_menu = (wizard_module._AUTO_IMPL,) + tuple(impl_names)
         lines.append('' if impl_answer is None else impl_answer)
         if impl_answer is not None and impl_answer != '':
-            implementation = impl_names[int(impl_answer) - 1]
+            implementation = impl_menu[int(impl_answer) - 1]
     for member_name in _optional_names(format_name, file_access,
                                        implementation):
         lines.extend(answer_map.get(member_name, ['']))
@@ -203,7 +204,8 @@ def test_lock_impl() -> None:
     match_caps = add_access_capabilities(FileAccess.READ, capabilities)
     impl_names = list_implementations_tableio(format_name='Excel',
                                               capabilities=match_caps)
-    impl_answer = _menu_number('OpenPyXL', impl_names)
+    impl_menu = (wizard_module._AUTO_IMPL,) + tuple(impl_names)
+    impl_answer = _menu_number('OpenPyXL', impl_menu)
     lines = _wizard_lines('Excel', FileAccess.READ, impl_answer=impl_answer)
     config, _, _ = _run_wizard(FileAccess.READ, lines)
     assert config.format_name == 'Excel'
@@ -351,8 +353,7 @@ def test_bad_bridge_choice() -> None:
     config = _run_bridge(FileAccess.CREATE, ui_bridge)
     assert config.format_name == 'CSV'
     re_ask_reason = ui_bridge.calls[1][1]
-    assert re_ask_reason is not None
-    assert 'format_name' in re_ask_reason
+    assert re_ask_reason == 'Please enter one of the listed choices.'
 
 
 def test_early_eof() -> None:
@@ -368,19 +369,6 @@ def test_early_eof() -> None:
 def test_unrestricted_match() -> None:
     """Wizard metadata without restrictions matches requested choices."""
     assert wizard_module._matches(None, ('CSV',)) is True
-
-
-def test_enum_choice_outside() -> None:
-    """Enum answers that resolve outside offered choices are rejected."""
-    with pytest.raises(ValueError, match='listed choices'):
-        wizard_module._choice_from_enum('unix', ('EXCEL',), CsvDialect)
-
-
-def test_plain_type_no_enum() -> None:
-    """Only Optional enum type descriptions produce enum matching."""
-    spec = ConfigSpec(name='x', description='x', value_type='str',
-                      choices=('x',))
-    assert wizard_module._enum_type(spec) is None
 
 
 def test_scalar_json_section() -> None:
@@ -494,3 +482,118 @@ def test_cell_back() -> None:
     assert config.csv is not None
     assert config.csv.delimiter == ';'
     assert config.csv.dialect == CsvDialect.UNIX
+
+
+def test_ask_choice_index() -> None:
+    """The choice fallback maps a 0-based bridge index to a choice."""
+    bridge = _ScriptedBridge([1])
+    assert bridge.ask_choice('Pick:', choices=('a', 'b', 'c')) == 'b'
+
+
+def test_ask_choice_default() -> None:
+    """An empty answer selects the default choice."""
+    bridge = _ScriptedBridge([''])
+    assert bridge.ask_choice('Pick:', choices=('a', 'b'), default='a') == 'a'
+
+
+def test_ask_choice_required() -> None:
+    """With no default an empty answer is rejected and re-asked."""
+    bridge = _ScriptedBridge(['', 0])
+    assert bridge.ask_choice('Pick:', choices=('a', 'b')) == 'a'
+    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
+
+
+def test_ask_choice_prefix() -> None:
+    """The choice fallback accepts a unique name prefix."""
+    bridge = _ScriptedBridge(['ban'])
+    assert bridge.ask_choice('Pick:', choices=('apple', 'banana')) == 'banana'
+
+
+def test_ask_choice_nav() -> None:
+    """A navigation request raised in the choice fallback propagates."""
+    bridge = _ScriptedBridge([WizardBack()])
+    with pytest.raises(WizardBack):
+        bridge.ask_choice('Pick:', choices=('a', 'b'))
+
+
+def test_console_choice_num() -> None:
+    """The console choice menu maps a 1-based number to a choice."""
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO('2\n'), StringIO())
+    assert bridge.ask_choice('Pick:', choices=('a', 'b', 'c')) == 'b'
+
+
+def test_console_choice_def() -> None:
+    """The console choice menu marks and selects the default."""
+    out = StringIO()
+    bridge = WizardUiBridgeConsole(out, StringIO('\n'), StringIO())
+    assert bridge.ask_choice('Pick:', choices=('a', 'b'), default='b') == 'b'
+    assert 'b (default)' in out.getvalue()
+
+
+def test_ask_multi_basic() -> None:
+    """The multi fallback returns chosen items in choices order."""
+    bridge = _ScriptedBridge(['0,2'])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
+
+
+def test_ask_multi_names() -> None:
+    """The multi fallback accepts names and orders them by choices."""
+    bridge = _ScriptedBridge(['b , a'])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'b']
+
+
+def test_ask_multi_dedupe() -> None:
+    """The multi fallback drops duplicate selections."""
+    bridge = _ScriptedBridge(['2,0,0'])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
+
+
+def test_ask_multi_default() -> None:
+    """An empty multi answer selects the default set."""
+    bridge = _ScriptedBridge([''])
+    result = bridge.ask_multi('Pick:', choices=('a', 'b'), default=('b',))
+    assert result == ['b']
+
+
+def test_ask_multi_empty() -> None:
+    """An empty multi answer with no default selects nothing."""
+    bridge = _ScriptedBridge([''])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == []
+
+
+def test_ask_multi_min() -> None:
+    """Too few selections are rejected and re-asked."""
+    bridge = _ScriptedBridge(['0', '0,1'])
+    result = bridge.ask_multi('Pick:', choices=('a', 'b'), min_select=2)
+    assert result == ['a', 'b']
+    assert bridge.calls[1][1] == 'Please select at least 2.'
+
+
+def test_ask_multi_exact() -> None:
+    """An exact-count requirement reports the exact message."""
+    bridge = _ScriptedBridge(['0', '0,1'])
+    result = bridge.ask_multi('Pick:', choices=('a', 'b'), min_select=2,
+                              max_select=2)
+    assert result == ['a', 'b']
+    assert bridge.calls[1][1] == 'Please select exactly 2.'
+
+
+def test_ask_multi_max() -> None:
+    """Too many selections are rejected and re-asked."""
+    bridge = _ScriptedBridge(['0,1', '1'])
+    result = bridge.ask_multi('Pick:', choices=('a', 'b'), max_select=1)
+    assert result == ['b']
+    assert bridge.calls[1][1] == 'Please select between 0 and 1.'
+
+
+def test_ask_multi_bad_token() -> None:
+    """An unmatched token is rejected and the answer is re-asked."""
+    bridge = _ScriptedBridge(['x', '0'])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a']
+    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
+
+
+def test_console_multi() -> None:
+    """The console multi menu maps 1-based numbers to choices."""
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO('1,3\n'), StringIO())
+    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']

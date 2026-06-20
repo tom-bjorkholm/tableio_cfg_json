@@ -35,6 +35,8 @@
   * [WizardUiBridge](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge)
     * [ask](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no)
+    * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice)
+    * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi)
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.show)
@@ -42,6 +44,8 @@
   * [WizardUiBridgeConsole](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.__init__)
     * [ask](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask)
+    * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_choice)
+    * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_multi)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.show)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
@@ -999,6 +1003,93 @@ and any other answer is re-asked.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
 
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice"></a>
+
+#### ask\_choice
+
+```python
+def ask_choice(question: str,
+               *,
+               choices: Sequence[str],
+               default: Optional[str] = None,
+               re_ask_reason: Optional[str] = None) -> str
+```
+
+Ask the user to pick exactly one of choices and return it.
+
+The return value is always one of choices. An empty answer
+selects default, so default must name one of choices; when
+default is None an empty answer counts as no choice and the
+question is re-asked. A bridge that offers a real single-choice
+control should override this, which the base class implements in
+terms of ask().
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `choices` - The choices to offer, in display order.
+- `default` - The choice selected by an empty answer, or None to
+  require an explicit choice.
+- `re_ask_reason` - The reason for re-asking, shown before the
+  first question when not None.
+  
+
+**Returns**:
+
+  The chosen value, one of choices.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi"></a>
+
+#### ask\_multi
+
+```python
+def ask_multi(question: str,
+              *,
+              choices: Sequence[str],
+              default: Optional[Sequence[str]] = None,
+              min_select: int = 0,
+              max_select: Optional[int] = None,
+              re_ask_reason: Optional[str] = None) -> list[str]
+```
+
+Ask the user to pick several of choices and return them.
+
+The result holds the chosen values in the order of choices, with
+a count between min_select and max_select; max_select None means
+no upper bound. An empty answer selects default, or selects
+nothing when default is None. A bridge that offers a real
+multi-choice control should override this, which the base class
+implements in terms of ask() and reads as one comma-separated
+answer of menu indexes or names.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `choices` - The choices to offer, in display order.
+- `default` - The values pre-selected by an empty answer, or None.
+- `min_select` - The smallest acceptable number of choices.
+- `max_select` - The largest acceptable number of choices, or None
+  for no upper bound.
+- `re_ask_reason` - The reason for re-asking, shown before the
+  first question when not None.
+  
+
+**Returns**:
+
+  The chosen values, each one of choices, in choices order.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table"></a>
 
 #### ask\_table
@@ -1184,6 +1275,36 @@ Ask a question and return the user's answer.
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_choice"></a>
+
+#### ask\_choice
+
+```python
+def ask_choice(question: str,
+               *,
+               choices: Sequence[str],
+               default: Optional[str] = None,
+               re_ask_reason: Optional[str] = None) -> str
+```
+
+Ask one choice on the console; see WizardUiBridge.ask_choice.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_multi"></a>
+
+#### ask\_multi
+
+```python
+def ask_multi(question: str,
+              *,
+              choices: Sequence[str],
+              default: Optional[Sequence[str]] = None,
+              min_select: int = 0,
+              max_select: Optional[int] = None,
+              re_ask_reason: Optional[str] = None) -> list[str]
+```
+
+Ask several choices on the console; see WizardUiBridge.ask_multi.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.error_file"></a>
 

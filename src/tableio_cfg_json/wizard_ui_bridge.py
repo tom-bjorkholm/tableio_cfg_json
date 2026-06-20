@@ -19,7 +19,9 @@ override ask() keep working until their maintainer overrides the method.
 
 import sys
 from dataclasses import dataclass
+from io import StringIO
 from typing import Callable, Optional, Sequence, TextIO
+from config_as_json import InvalidConfiguration, string_best_match
 
 type PartialCheck = Callable[
     [list[list[Optional[str]]], tuple[int, int]], tuple[bool, str]]
@@ -31,6 +33,7 @@ value is accepted together with a message to show the user.
 """
 
 _ERASE_TOKEN = ':e'  # empties an editable cell in the ask_table fallback
+_CHOICE_ERROR = 'Please enter one of the listed choices.'
 
 
 class WizardNavigation(Exception):
@@ -205,6 +208,78 @@ class WizardUiBridge:
                 return choice
             reason = 'Please answer yes or no.'
 
+    def ask_choice(self, question: str, *, choices: Sequence[str],
+                   default: Optional[str] = None,
+                   re_ask_reason: Optional[str] = None) -> str:
+        """Ask the user to pick exactly one of choices and return it.
+
+        The return value is always one of choices. An empty answer
+        selects default, so default must name one of choices; when
+        default is None an empty answer counts as no choice and the
+        question is re-asked.
+        
+        Application programmers are strongly encouraged to override this
+        with a real table widget. The base class provides a fallback in
+        terms of ask().
+
+        Args:
+            question: The question to ask the user.
+            choices: The choices to offer, in display order.
+            default: The choice selected by an empty answer, or None to
+                     require an explicit choice.
+            re_ask_reason: The reason for re-asking, shown before the
+                           first question when not None.
+
+        Returns:
+            The chosen value, one of choices.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        def reader(reason: Optional[str]) -> str | int:
+            return self.ask(question, reason, choices)
+        return _ask_one(reader, choices, default, re_ask_reason)
+
+    # pylint: disable-next=too-many-arguments
+    def ask_multi(self, question: str, *, choices: Sequence[str],
+                  default: Optional[Sequence[str]] = None, min_select: int = 0,
+                  max_select: Optional[int] = None,
+                  re_ask_reason: Optional[str] = None) -> list[str]:
+        """Ask the user to pick several of choices and return them.
+
+        The result holds the chosen values in the order of choices, with
+        a count between min_select and max_select; max_select None means
+        no upper bound. An empty answer selects default, or selects
+        nothing when default is None.
+        
+        Application programmers are strongly encouraged to override this
+        with a real table widget. The base class provides a fallback in
+        terms of ask() and reads as one comma-separated answer of menu
+        indexes or names.
+
+        Args:
+            question: The question to ask the user.
+            choices: The choices to offer, in display order.
+            default: The values pre-selected by an empty answer, or None.
+            min_select: The smallest acceptable number of choices.
+            max_select: The largest acceptable number of choices, or None
+                        for no upper bound.
+            re_ask_reason: The reason for re-asking, shown before the
+                           first question when not None.
+
+        Returns:
+            The chosen values, each one of choices, in choices order.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        def reader(reason: Optional[str]) -> str | int:
+            return self.ask(question, reason, choices)
+        return _ask_many(reader, choices, default, min_select, max_select,
+                         re_ask_reason, one_based=False)
+
     # pylint: disable-next=too-many-arguments
     def ask_table(self, columns: Sequence[TableColumn],
                   cells: list[list[TableCell]], question: str, *,
@@ -232,8 +307,7 @@ class WizardUiBridge:
         How an empty editable cell is reported follows its TableCell: a
         nullable cell reports None, a free-text cell reports an empty
         string, and a cell with choices treats empty as not yet a valid
-        value. When a cell reports None, the caller decides whether that
-        means omit the value or store an explicit null.
+        value. When a cell reports None.
 
         When partial_check is given, the bridge calls it after the user
         changes a cell, passing the whole table as it currently stands
@@ -453,3 +527,121 @@ def _int_text(text: str) -> Optional[int]:
         return int(text)
     except ValueError:
         return None
+
+
+def _ask_one(reader: Callable[[Optional[str]], str | int],
+             choices: Sequence[str], default: Optional[str],
+             re_ask_reason: Optional[str]) -> str:
+    """Re-ask through reader until one valid choice is selected."""
+    reason = re_ask_reason
+    while True:
+        chosen = _resolve_choice(reader(reason), choices, default)
+        if chosen is not None:
+            return chosen
+        reason = _CHOICE_ERROR
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _ask_many(reader: Callable[[Optional[str]], str | int],
+              choices: Sequence[str], default: Optional[Sequence[str]],
+              min_select: int, max_select: Optional[int],
+              re_ask_reason: Optional[str], one_based: bool) -> list[str]:
+    """Re-ask through reader until a valid set of choices is selected."""
+    reason = re_ask_reason
+    while True:
+        chosen, error = _resolve_multi(reader(reason), choices, default,
+                                       min_select, max_select, one_based)
+        if chosen is not None:
+            return chosen
+        reason = error
+
+
+def _resolve_choice(answer: str | int, choices: Sequence[str],
+                    default: Optional[str]) -> Optional[str]:
+    """Map a single-choice answer to a choice, or None to re-ask."""
+    if answer == '':
+        return default
+    if isinstance(answer, bool):
+        return None
+    if isinstance(answer, int):
+        return _choice_at_index(answer, choices)
+    return _match_token(answer, choices, False)
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _resolve_multi(answer: str | int, choices: Sequence[str],
+                   default: Optional[Sequence[str]], min_select: int,
+                   max_select: Optional[int],
+                   one_based: bool) -> tuple[Optional[list[str]], str]:
+    """Map a multi-choice answer to choices and an error to re-ask."""
+    labels = _multi_labels(answer, choices, default, one_based)
+    if labels is None:
+        return (None, _CHOICE_ERROR)
+    chosen = [choice for choice in choices if choice in set(labels)]
+    too_few = len(chosen) < min_select
+    too_many = max_select is not None and len(chosen) > max_select
+    if too_few or too_many:
+        return (None, _multi_count_error(min_select, max_select))
+    return (chosen, '')
+
+
+def _multi_labels(answer: str | int, choices: Sequence[str],
+                  default: Optional[Sequence[str]],
+                  one_based: bool) -> Optional[list[str]]:
+    """Map a multi-choice answer to chosen labels, or None to re-ask."""
+    if answer == '':
+        return [] if default is None else list(default)
+    if isinstance(answer, bool):
+        return None
+    if isinstance(answer, int):
+        one = _choice_at_index(answer, choices)
+        return None if one is None else [one]
+    return _tokens_to_labels(answer, choices, one_based)
+
+
+def _tokens_to_labels(text: str, choices: Sequence[str],
+                      one_based: bool) -> Optional[list[str]]:
+    """Map a comma-separated answer to labels, or None to re-ask."""
+    labels: list[str] = []
+    for raw in text.split(','):
+        token = raw.strip()
+        if token == '':
+            continue
+        one = _match_token(token, choices, one_based)
+        if one is None:
+            return None
+        labels.append(one)
+    return labels
+
+
+def _match_token(token: str, choices: Sequence[str],
+                 one_based: bool) -> Optional[str]:
+    """Map one menu index or name to a choice, or None when no match."""
+    index = _int_text(token)
+    if index is not None:
+        return _choice_at_index(index - 1 if one_based else index, choices)
+    return _best_match(token, choices)
+
+
+def _best_match(token: str, choices: Sequence[str]) -> Optional[str]:
+    """Return the unique best name match for token, or None."""
+    try:
+        return string_best_match(token, choices, 'choice', StringIO())
+    except InvalidConfiguration:
+        return None
+
+
+def _choice_at_index(index: int, choices: Sequence[str]) -> Optional[str]:
+    """Return the choice at a 0-based index, or None when out of range."""
+    if 0 <= index < len(choices):
+        return choices[index]
+    return None
+
+
+def _multi_count_error(min_select: int, max_select: Optional[int]) -> str:
+    """Return the message shown when the selected count is not allowed."""
+    if max_select is None:
+        return f'Please select at least {min_select}.'
+    if min_select == max_select:
+        return f'Please select exactly {min_select}.'
+    return f'Please select between {min_select} and {max_select}.'
