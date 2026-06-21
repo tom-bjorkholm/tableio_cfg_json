@@ -7,19 +7,24 @@ and the column and cell descriptors used by table questions. Concrete
 console and graphical bridges derive from WizardUiBridge.
 
 An application that drives the wizard is responsible for implementing
-all the public ask methods of its bridge, together with show(). To give
-application bridge authors time to migrate to the full API, the base
-class provides temporary fallback implementations of ask_yes_no(),
-ask_choice(), ask_multi() and ask_table() written in terms of ask(), so
-a bridge that has not yet overridden one of them keeps working. These
-fallbacks are a temporary compatibility aid and will be withdrawn in a
-future release once bridges implement the methods directly.
+the typed ask methods of its bridge, together with show(). The typed
+methods are ask_text() for free text, ask_choice() for one choice,
+ask_multi() for several choices, ask_yes_no() for a boolean and
+ask_table() for a table. The low-level ask() is deprecated: it warns
+when called and when a bridge overrides it. To give application bridge
+authors time to migrate, the base class keeps temporary fallback
+implementations of the typed methods written in terms of ask(), so a
+bridge that still overrides ask() keeps working while it is adjusted to
+implement the typed methods directly. These fallbacks are a temporary
+compatibility aid that warns on use and will be withdrawn once bridges
+implement the typed methods directly.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
 import sys
+import warnings
 from dataclasses import dataclass
 from io import StringIO
 from typing import Callable, Optional, Sequence, TextIO
@@ -32,6 +37,16 @@ type PartialCheck = Callable[
 It receives the whole table as it currently stands and the 0-based
 (row, column) position of the changed cell, and returns whether the
 value is accepted together with a message to show the user.
+"""
+
+type AskReader = Callable[
+    [str, Optional[str], Optional[Sequence[str]]], str | int]
+"""An ask-like reader used by the temporary table fallback machinery.
+
+It takes a prompt, an optional re-ask reason and optional choices and
+returns the raw user answer as text or a 0-based choice index, exactly
+like the deprecated WizardUiBridge.ask(). The shared table helpers take
+one so the console bridge and the deprecated base fallback share code.
 """
 
 _ERASE_TOKEN = ':e'  # empties an editable cell in the ask_table fallback
@@ -145,21 +160,39 @@ class WizardUiBridge:
     the wizard to use a console text user interface or a graphical user
     interface.
 
-    An application is responsible for implementing every public ask method
-    of its bridge, together with show(). At minimum a concrete bridge must
-    implement ask() and show(), which have no fallback. As a temporary
-    migration aid the base class implements ask_yes_no(), ask_choice(),
-    ask_multi() and ask_table() in terms of ask(), so a bridge that has
-    not yet overridden one of them keeps working while it is adjusted to
-    implement these methods directly. These fallbacks are temporary and
-    will be withdrawn once bridges implement them directly. Any ask
+    A concrete bridge implements the typed ask methods, ask_text(),
+    ask_choice(), ask_multi(), ask_yes_no() and ask_table(), together
+    with show(). The low-level ask() is deprecated: it warns when called
+    and when a bridge overrides it. As a temporary migration aid the base
+    class implements the typed methods in terms of the deprecated ask(),
+    so a bridge that still overrides ask() keeps working while it is
+    adjusted; each fallback warns that the typed method should be
+    overridden instead. These fallbacks are temporary and will be
+    withdrawn once bridges implement the typed methods directly. Any ask
     method may raise a WizardNavigation subclass to request back,
     cancel-level or abort instead of returning an answer.
     """
 
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        """Warn when a subclass overrides the deprecated ask()."""
+        super().__init_subclass__(**kwargs)
+        if 'ask' in cls.__dict__:
+            warnings.warn(
+                'Overriding WizardUiBridge.ask() is deprecated; override '
+                'ask_text(), ask_choice(), ask_multi(), ask_yes_no() and '
+                'ask_table() in the bridge instead.',
+                DeprecationWarning, stacklevel=2)
+
     def ask(self, question: str, re_ask_reason: Optional[str] = None,
             choices: Optional[Sequence[str]] = None) -> str | int:
         """Ask a question and return the user's answer.
+
+        Deprecated. Call ask_text() for free text or ask_choice() for a
+        single choice instead. This base implementation is temporary
+        plumbing: it warns and then dispatches to ask_text() when no
+        choices are given and to ask_choice() otherwise, so existing
+        callers keep working against a bridge that implements the typed
+        methods.
 
         Args:
             question: The question to ask the user.
@@ -169,21 +202,52 @@ class WizardUiBridge:
                      strings.
 
         Returns:
-            The user's answer. If the user's answer is one of the
-            choices, then the return value can be either the matching
-            string or the index of what the user selected. If integer
-            index is used it is 0-based. The bridge is not required to
-            validate the user's answer in any way. It is the
-            responsibility of the caller to validate the user's answer.
-            If the user entered/selected an empty string as answer, then
-            the return value should be an empty string. The caller may
-            interpret this as a request to use the default value.
+            The user's answer: the entered text when no choices are
+            given, otherwise the chosen one of choices.
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
             WizardAbort: The user abandoned the whole configuration.
         """
-        raise NotImplementedError('ask() not implemented')
+        warnings.warn(
+            'WizardUiBridge.ask() is deprecated; call ask_text() for free '
+            'text or ask_choice() for a single choice instead.',
+            DeprecationWarning, stacklevel=2)
+        if choices is None:
+            text = self.ask_text(question, re_ask_reason)
+            return '' if text is None else text
+        return self.ask_choice(question, choices=choices,
+                               re_ask_reason=re_ask_reason)
+
+    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
+                 nullable: bool = False) -> Optional[str]:
+        """Ask a free-text question and return the entered text.
+
+        The application is responsible for implementing this method with
+        a real text-entry control. As a temporary migration aid the base
+        class provides a fallback in terms of the deprecated ask(), so a
+        bridge that still overrides ask() keeps working.
+
+        Args:
+            question: The question to ask the user.
+            re_ask_reason: The reason for re-asking the question, for
+                           instance that the user's answer was invalid.
+            nullable: When True an empty answer is reported as None, so
+                      the caller can treat it as a request to use the
+                      default. When False an empty answer is the empty
+                      string.
+
+        Returns:
+            The entered text, or None for an empty answer when nullable.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        self._guard_fallback('ask_text')
+        answer = self.ask(question, re_ask_reason)
+        text = answer if isinstance(answer, str) else str(answer)
+        return None if (nullable and text == '') else text
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:
@@ -193,11 +257,10 @@ class WizardUiBridge:
         application is responsible for implementing it with a real yes/no
         interface, such as a pair of yes and no buttons in a graphical
         bridge or a y/n prompt in a console bridge. As a temporary
-        migration aid the base class provides a fallback in terms of ask()
-        with the choices ('yes', 'no'), so a bridge that has not yet
-        overridden this method keeps working: an empty answer selects
-        default, an index or matching text selects the boolean, and any
-        other answer is re-asked.
+        migration aid the base class provides a fallback in terms of the
+        deprecated ask() with the choices ('yes', 'no'): an empty answer
+        selects default, an index or matching text selects the boolean,
+        and any other answer is re-asked.
 
         Args:
             question: The yes/no question to ask.
@@ -213,13 +276,10 @@ class WizardUiBridge:
             WizardCancelLevel: The user cancelled the current level.
             WizardAbort: The user abandoned the whole configuration.
         """
-        reason = re_ask_reason
-        while True:
-            answer = self.ask(question, reason, choices=('yes', 'no'))
-            choice = _interpret_yes_no(answer, default)
-            if choice is not None:
-                return choice
-            reason = 'Please answer yes or no.'
+        self._guard_fallback('ask_yes_no')
+        def reader(reason: Optional[str]) -> str | int:
+            return self.ask(question, reason, choices=('yes', 'no'))
+        return _ask_yes_no(reader, default, re_ask_reason)
 
     def ask_choice(self, question: str, *, choices: Sequence[str],
                    default: Optional[str] = None,
@@ -234,7 +294,8 @@ class WizardUiBridge:
         The application is responsible for implementing this method with
         a real single-choice control, such as a drop-down or a set of
         radio buttons in a graphical bridge. As a temporary migration aid
-        the base class provides a fallback in terms of ask().
+        the base class provides a fallback in terms of the deprecated
+        ask().
 
         Args:
             question: The question to ask the user.
@@ -251,6 +312,7 @@ class WizardUiBridge:
             WizardCancelLevel: The user cancelled the current level.
             WizardAbort: The user abandoned the whole configuration.
         """
+        self._guard_fallback('ask_choice')
         def reader(reason: Optional[str]) -> str | int:
             return self.ask(question, reason, choices)
         return _ask_one(reader, choices, default, re_ask_reason)
@@ -270,9 +332,9 @@ class WizardUiBridge:
         The application is responsible for implementing this method with
         a real multi-selection control, such as a list of check boxes or
         a multi-select list in a graphical bridge. As a temporary
-        migration aid the base class provides a fallback in terms of
-        ask() that reads one comma-separated answer of menu indexes or
-        names.
+        migration aid the base class provides a fallback in terms of the
+        deprecated ask() that reads one comma-separated answer of menu
+        indexes or names.
 
         Args:
             question: The question to ask the user.
@@ -291,6 +353,7 @@ class WizardUiBridge:
             WizardCancelLevel: The user cancelled the current level.
             WizardAbort: The user abandoned the whole configuration.
         """
+        self._guard_fallback('ask_multi')
         def reader(reason: Optional[str]) -> str | int:
             return self.ask(question, reason, choices)
         return _ask_many(reader, choices, default, min_select, max_select,
@@ -313,15 +376,14 @@ class WizardUiBridge:
 
         The application is responsible for implementing this method with
         a real table widget. As a temporary migration aid the base class
-        provides a fallback in terms of ask(), asking once per editable
-        cell and folding the read-only cells of the row into the prompt,
-        so a bridge that has not yet overridden this method keeps
-        working. The fallback only fills the rows given in cells, so it
-        ignores min_rows and max_rows and cannot add or remove rows. In
-        that fallback an empty answer keeps the cell's
-        current value and a reserved erase token empties the cell, which
-        is how a console user replaces a pre-filled default with an empty
-        cell.
+        provides a fallback in terms of the deprecated ask(), asking once
+        per editable cell and folding the read-only cells of the row into
+        the prompt, so a bridge that still overrides ask() keeps working.
+        The fallback only fills the rows given in cells, so it ignores
+        min_rows and max_rows and cannot add or remove rows. In that
+        fallback an empty answer keeps the cell's current value and a
+        reserved erase token empties the cell, which is how a console
+        user replaces a pre-filled default with an empty cell.
 
         How an empty editable cell is reported follows its TableCell: a
         nullable cell reports None, a free-text cell reports an empty
@@ -364,78 +426,27 @@ class WizardUiBridge:
             WizardCancelLevel: The user cancelled the current level.
             WizardAbort: The user abandoned the whole configuration.
         """
-        self.show(question)
-        if re_ask_reason is not None:
-            self.show(re_ask_reason)
+        self._guard_fallback('ask_table')
         _ = (min_rows, max_rows)  # the fallback fills the fixed rows in cells
-        table: list[list[Optional[str]]] = [
-            [cell.value for cell in row] for row in cells]
-        self._fill_table(columns, cells, table, partial_check)
-        return table
+        return _run_table(self.ask, self.show, columns, cells, question,
+                          re_ask_reason, partial_check)
 
-    def _fill_table(self, columns: Sequence[TableColumn],
-                    cells: list[list[TableCell]],
-                    table: list[list[Optional[str]]],
-                    partial_check: Optional[PartialCheck]) -> None:
-        """Fill the editable cells, stepping back one cell on WizardBack.
+    def _guard_fallback(self, method_name: str) -> None:
+        """Guard a deprecated fallback and warn that it is temporary.
 
-        WizardBack from the first editable cell has no earlier cell to
-        return to, so it propagates and the wizard steps to the previous
-        question. Cells already filled stay in the table while the user
-        moves between cells.
+        The base typed-method fallbacks work only while a bridge still
+        overrides the deprecated ask(). A bridge that overrides neither
+        ask() nor method_name has no implementation for it, so this
+        raises NotImplementedError; otherwise it warns that method_name
+        should be overridden instead of relying on the fallback.
         """
-        spots = [(row, col) for row in range(len(cells))
-                 for col in range(len(columns)) if not columns[col].read_only]
-        position = 0
-        while position < len(spots):
-            row, col = spots[position]
-            check = _cell_checker(table, (row, col), partial_check)
-            try:
-                table[row][col] = self._fill_cell(columns, cells[row], col,
-                                                  table[row][col], check)
-            except WizardBack:
-                if position == 0:
-                    raise
-                position -= 1
-                continue
-            position += 1
-
-    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-    def _fill_cell(self, columns: Sequence[TableColumn], row: list[TableCell],
-                   col: int, current: Optional[str],
-                   check: Callable[[Optional[str]], Optional[str]]
-                   ) -> Optional[str]:
-        """Ask one editable cell until its value is accepted.
-
-        Args:
-            columns: The table columns, used to build the prompt.
-            row: The cells of the row being filled.
-            col: The index of the cell being filled.
-            current: The cell's current value, kept when the user presses
-                     enter and shown in the prompt.
-            check: Records a candidate in the table and returns an error
-                   message, or None when the candidate is accepted.
-
-        Returns:
-            The accepted cell value, or None for an empty nullable cell.
-        Raises:
-            WizardBack: The user asked to return to the previous cell.
-            WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
-        """
-        cell = row[col]
-        prompt = _cell_prompt(columns, row, col, current)
-        reason: Optional[str] = None
-        while True:
-            answer = self.ask(prompt, reason, choices=cell.choices)
-            valid, candidate = _cell_value(answer, cell, current)
-            if not valid:
-                reason = 'Please enter a value.'
-                continue
-            error = check(candidate)
-            if error is None:
-                return candidate
-            reason = error
+        if type(self).ask is WizardUiBridge.ask:
+            raise NotImplementedError(f'{method_name}() not implemented')
+        warnings.warn(
+            f'WizardUiBridge.{method_name}() relies on temporary backward '
+            f'compatibility code; override {method_name}() in the bridge '
+            'instead of the deprecated ask().',
+            DeprecationWarning, stacklevel=3)
 
     def error_file(self) -> TextIO:
         """Return the stream used for validation diagnostics."""
@@ -483,6 +494,104 @@ def _yes_no_from_text(text: str) -> Optional[bool]:
     if cleaned in ('n', 'no', 'false'):
         return False
     return None
+
+
+def _ask_yes_no(reader: Callable[[Optional[str]], str | int], default: bool,
+                re_ask_reason: Optional[str]) -> bool:
+    """Re-ask through reader until a yes/no answer is understood."""
+    reason = re_ask_reason
+    while True:
+        choice = _interpret_yes_no(reader(reason), default)
+        if choice is not None:
+            return choice
+        reason = 'Please answer yes or no.'
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _run_table(ask: AskReader, show: Callable[[str], None],
+               columns: Sequence[TableColumn], cells: list[list[TableCell]],
+               question: str, re_ask_reason: Optional[str],
+               partial_check: Optional[PartialCheck]
+               ) -> list[list[Optional[str]]]:
+    """Show one table question and fill its editable cells via ask.
+
+    The read-only cells stay fixed and only the editable cells are asked,
+    one at a time, through the ask reader. This is the shared core of the
+    console table interface and the deprecated base-class table fallback.
+    """
+    show(question)
+    if re_ask_reason is not None:
+        show(re_ask_reason)
+    table: list[list[Optional[str]]] = [
+        [cell.value for cell in row] for row in cells]
+    _fill_table(ask, columns, cells, table, partial_check)
+    return table
+
+
+def _fill_table(ask: AskReader, columns: Sequence[TableColumn],
+                cells: list[list[TableCell]], table: list[list[Optional[str]]],
+                partial_check: Optional[PartialCheck]) -> None:
+    """Fill the editable cells, stepping back one cell on WizardBack.
+
+    WizardBack from the first editable cell has no earlier cell to
+    return to, so it propagates and the wizard steps to the previous
+    question. Cells already filled stay in the table while the user
+    moves between cells.
+    """
+    spots = [(row, col) for row in range(len(cells))
+             for col in range(len(columns)) if not columns[col].read_only]
+    position = 0
+    while position < len(spots):
+        row, col = spots[position]
+        check = _cell_checker(table, (row, col), partial_check)
+        try:
+            table[row][col] = _fill_cell(ask, columns, cells[row], col,
+                                         table[row][col], check)
+        except WizardBack:
+            if position == 0:
+                raise
+            position -= 1
+            continue
+        position += 1
+
+
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _fill_cell(ask: AskReader, columns: Sequence[TableColumn],
+               row: list[TableCell], col: int, current: Optional[str],
+               check: Callable[[Optional[str]], Optional[str]]
+               ) -> Optional[str]:
+    """Ask one editable cell until its value is accepted.
+
+    Args:
+        ask: The ask reader used to read the cell value.
+        columns: The table columns, used to build the prompt.
+        row: The cells of the row being filled.
+        col: The index of the cell being filled.
+        current: The cell's current value, kept when the user presses
+                 enter and shown in the prompt.
+        check: Records a candidate in the table and returns an error
+               message, or None when the candidate is accepted.
+
+    Returns:
+        The accepted cell value, or None for an empty nullable cell.
+    Raises:
+        WizardBack: The user asked to return to the previous cell.
+        WizardCancelLevel: The user cancelled the current level.
+        WizardAbort: The user abandoned the whole configuration.
+    """
+    cell = row[col]
+    prompt = _cell_prompt(columns, row, col, current)
+    reason: Optional[str] = None
+    while True:
+        answer = ask(prompt, reason, cell.choices)
+        valid, candidate = _cell_value(answer, cell, current)
+        if not valid:
+            reason = 'Please enter a value.'
+            continue
+        error = check(candidate)
+        if error is None:
+            return candidate
+        reason = error
 
 
 def _cell_prompt(columns: Sequence[TableColumn], row: list[TableCell],

@@ -200,41 +200,24 @@ def _ask_split_column(ui_bridge: WizardUiBridge) -> str:
     The question goes through the bridge, so the same back, cancel and abort
     controls the wizard offers also work between application items here.
     """
+    # ask_choice() offers the finite set of column names and returns exactly
+    # one of them. It accepts a menu number, a column name or a unique name
+    # prefix and re-asks an unusable answer itself, so the application does
+    # not interpret the raw answer. An empty answer selects the default.
     # The program only supports these three column names because the teaching
     # input file is intentionally small and predictable.
     title = 'Select split column:\nEnter: Country (recommended)'
-    reason = None
-    while True:
-        answer = ui_bridge.ask(title, reason, CITY_COLUMNS)
-        column = _resolve_column(answer)
-        if column is not None:
-            return column
-        reason = 'Please enter a column name or one of the menu numbers.'
-
-
-def _resolve_column(answer: str | int) -> Optional[str]:
-    """Return the chosen column name, or None for an unusable answer."""
-    if answer == '':
-        return 'Country'
-    if isinstance(answer, int) and 0 <= answer < len(CITY_COLUMNS):
-        return CITY_COLUMNS[answer]
-    if isinstance(answer, str) and answer in CITY_COLUMNS:
-        return answer
-    return None
+    return ui_bridge.ask_choice(title, choices=CITY_COLUMNS, default='Country')
 
 
 def _ask_split_limit(ui_bridge: WizardUiBridge) -> str:
     """Ask for the string value used as split limit."""
+    # ask_text() returns the entered text, or None for an empty answer when
+    # nullable is True. An empty answer selects the default limit 'M'.
     title = ('Split values less than this text into the first output.\n'
              'Enter: M (recommended)')
-    reason = None
-    while True:
-        answer = ui_bridge.ask(title, reason)
-        if answer == '':
-            return 'M'
-        if isinstance(answer, str) and answer:
-            return answer
-        reason = 'Please enter a non-empty split limit.'
+    answer = ui_bridge.ask_text(title, nullable=True)
+    return 'M' if answer is None else answer
 
 
 def _syntax_text(config: SplitCitiesConfig, stderr_file: TextIO) -> str:

@@ -400,11 +400,8 @@ def _ask_text_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
     """Ask for one free-text optional value."""
     question = _member_question(spec)
     while True:
-        answer = ui_bridge.ask(question, re_ask_reason)
-        if not isinstance(answer, str):
-            re_ask_reason = 'Please enter a text value.'
-            continue
-        if answer == '':
+        answer = ui_bridge.ask_text(question, re_ask_reason, nullable=True)
+        if answer is None:
             return None
         try:
             return _parse_member_value(spec, answer)

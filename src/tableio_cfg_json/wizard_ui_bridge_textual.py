@@ -456,13 +456,12 @@ class WizardUiBridgeTextual(WizardUiBridge):
         self._error_buffer = StringIO()
         self._pending: list[str] = []
 
-    def ask(self, question: str, re_ask_reason: Optional[str] = None,
-            choices: Optional[Sequence[str]] = None) -> str | int:
-        """Ask one question; see WizardUiBridge.ask."""
+    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
+                 nullable: bool = False) -> Optional[str]:
+        """Ask for free text; see WizardUiBridge.ask_text."""
         messages = self._collect(re_ask_reason)
-        if choices is None:
-            return self._run(_TextApp(question, messages))
-        return self._run(_ChoiceApp(question, list(choices), None, messages))
+        text = self._run(_TextApp(question, messages))
+        return None if (nullable and text == '') else text
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:

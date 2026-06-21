@@ -144,15 +144,17 @@ def test_multi_button() -> None:
 
 
 def test_ask_text() -> None:
-    """ask() without choices returns the typed string."""
+    """ask_text() returns the typed string."""
     bridge = _CannedBridge(['typed'])
-    assert bridge.ask('q') == 'typed'
+    assert bridge.ask_text('q') == 'typed'
 
 
-def test_ask_index() -> None:
-    """ask() with choices returns the selected 0-based index."""
-    bridge = _CannedBridge([1])
-    assert bridge.ask('q', choices=['a', 'b', 'c']) == 1
+def test_dep_ask_dispatch() -> None:
+    """The deprecated ask() dispatches to the typed Textual methods."""
+    with pytest.warns(DeprecationWarning, match='deprecated'):
+        assert _CannedBridge(['typed']).ask('q') == 'typed'
+    with pytest.warns(DeprecationWarning, match='deprecated'):
+        assert _CannedBridge([1]).ask('q', choices=['a', 'b', 'c']) == 'b'
 
 
 def test_ask_choice_value() -> None:
@@ -193,21 +195,21 @@ def test_nav_reraised(nav: type[WizardNavigation]) -> None:
     """A recorded navigation request is re-raised by the bridge."""
     bridge = _CannedBridge([nav])
     with pytest.raises(nav):
-        bridge.ask('q')
+        bridge.ask_text('q')
 
 
 def test_quit_abort() -> None:
     """A screen that closes with no value is treated as an abort."""
     bridge = _CannedBridge([None])
     with pytest.raises(WizardAbort):
-        bridge.ask('q')
+        bridge.ask_text('q')
 
 
 def test_show_buffered() -> None:
     """A shown message appears on the next screen's header."""
     bridge = _CannedBridge(['x'])
     bridge.show('hello')
-    bridge.ask('q')
+    bridge.ask_text('q')
     app = bridge.launched[0]
     assert isinstance(app, _TextApp)
     assert 'hello' in app._messages
@@ -217,7 +219,7 @@ def test_error_drained() -> None:
     """Diagnostics written to error_file() appear on the next screen."""
     bridge = _CannedBridge(['x'])
     bridge.error_file().write('diag line\n')
-    bridge.ask('q')
+    bridge.ask_text('q')
     app = bridge.launched[0]
     assert isinstance(app, _TextApp)
     assert 'diag line' in app._messages
@@ -226,7 +228,7 @@ def test_error_drained() -> None:
 def test_reask_reason() -> None:
     """A re-ask reason is shown together with the question."""
     bridge = _CannedBridge(['x'])
-    bridge.ask('q', re_ask_reason='bad value')
+    bridge.ask_text('q', 'bad value')
     app = bridge.launched[0]
     assert isinstance(app, _TextApp)
     assert 'bad value' in app._messages
@@ -236,8 +238,8 @@ def test_drained_once() -> None:
     """Buffered messages are shown once and not on later screens."""
     bridge = _CannedBridge(['x', 'y'])
     bridge.show('once')
-    bridge.ask('q1')
-    bridge.ask('q2')
+    bridge.ask_text('q1')
+    bridge.ask_text('q2')
     first = bridge.launched[0]
     second = bridge.launched[1]
     assert isinstance(first, _TextApp) and isinstance(second, _TextApp)

@@ -12,8 +12,9 @@ level or abandon the whole configuration.
 
 from typing import Optional, Sequence, TextIO
 
-from tableio_cfg_json.wizard_ui_bridge import WizardAbort, WizardBack, \
-    WizardCancelLevel, WizardUiBridge, _ask_many, _ask_one, _int_text
+from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
+    TableColumn, WizardAbort, WizardBack, WizardCancelLevel, WizardUiBridge, \
+    _ask_many, _ask_one, _ask_yes_no, _int_text, _run_table
 
 _BACK = ':b'
 _CANCEL = ':c'
@@ -37,38 +38,43 @@ class WizardUiBridgeConsole(WizardUiBridge):
         self.stdin_file = stdin_file
         self.stderr_file = stderr_file
 
-    def ask(self, question: str, re_ask_reason: Optional[str] = None,
-            choices: Optional[Sequence[str]] = None) -> str | int:
-        """Ask a question and return the user's answer.
+    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
+                 nullable: bool = False) -> Optional[str]:
+        """Ask for free text on the console; see WizardUiBridge.ask_text."""
+        self._emit_question(question, re_ask_reason, [])
+        text = self._read_answer(question)
+        return None if (nullable and text == '') else text
 
-        Args:
-            question: The question to ask the user.
-            re_ask_reason: The reason for re-asking the question for
-                           instance that the user's answer was invalid.
-            choices: The choices to offer the user as a sequence of strings.
+    def ask_yes_no(self, question: str, default: bool,
+                   re_ask_reason: Optional[str] = None) -> bool:
+        """Ask a yes/no question on the console; see ask_yes_no."""
+        def reader(reason: Optional[str]) -> str | int:
+            self._emit_question(question, reason, _menu_lines(('yes', 'no')))
+            return _to_index(self._read_answer(question))
+        return _ask_yes_no(reader, default, re_ask_reason)
 
-        Returns:
-            The user's answer. If the user's answer is one of the choices,
-            then the return value can be either the matching string or the
-            index of what the user selected. If integer index is used it is
-            0-based.
-            The bridge is not required to validate the user's answer in
-            any way. It is the responsibility of the caller to validate the
-            user's answer.
-            If the user entered/selected an empty string as answer, then the
-            return value should be an empty string. The caller may interpret
-            this as a request to use the default value.
-        Raises:
-            EOFError: The input stream ended before an answer was read.
-            WizardBack: The user asked to return to the previous question.
-            WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+    # pylint: disable-next=too-many-arguments
+    def ask_table(self, columns: Sequence[TableColumn],
+                  cells: list[list[TableCell]], question: str, *,
+                  re_ask_reason: Optional[str] = None,
+                  partial_check: Optional[PartialCheck] = None,
+                  min_rows: Optional[int] = None,
+                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
+        """Ask the user to fill a table on the console; see ask_table."""
+        _ = (min_rows, max_rows)  # the console fills the fixed rows in cells
+        return _run_table(self._ask_raw, self.show, columns, cells, question,
+                          re_ask_reason, partial_check)
+
+    def _ask_raw(self, question: str, re_ask_reason: Optional[str] = None,
+                 choices: Optional[Sequence[str]] = None) -> str | int:
+        """Emit one question and read a navigation-checked raw answer.
+
+        Returns the entered text, or a 0-based index into choices when
+        choices are offered, like the deprecated WizardUiBridge.ask().
         """
         self._emit_question(question, re_ask_reason, _menu_lines(choices))
         text = self._read_answer(question)
-        if choices is None:
-            return text
-        return _to_index(text)
+        return text if choices is None else _to_index(text)
 
     def ask_choice(self, question: str, *, choices: Sequence[str],
                    default: Optional[str] = None,

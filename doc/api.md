@@ -34,6 +34,7 @@
   * [TableCell](#tableio_cfg_json.wizard_ui_bridge.TableCell)
   * [WizardUiBridge](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge)
     * [ask](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask)
+    * [ask\_text](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_text)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi)
@@ -43,7 +44,7 @@
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_textual](#tableio_cfg_json.wizard_ui_bridge_textual)
   * [WizardUiBridgeTextual](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.__init__)
-    * [ask](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask)
+    * [ask\_text](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_text)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
@@ -53,7 +54,9 @@
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_console](#tableio_cfg_json.wizard_ui_bridge_console)
   * [WizardUiBridgeConsole](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.__init__)
-    * [ask](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask)
+    * [ask\_text](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_text)
+    * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_yes_no)
+    * [ask\_table](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_table)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_multi)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.error_file)
@@ -790,13 +793,17 @@ and the column and cell descriptors used by table questions. Concrete
 console and graphical bridges derive from WizardUiBridge.
 
 An application that drives the wizard is responsible for implementing
-all the public ask methods of its bridge, together with show(). To give
-application bridge authors time to migrate to the full API, the base
-class provides temporary fallback implementations of ask_yes_no(),
-ask_choice(), ask_multi() and ask_table() written in terms of ask(), so
-a bridge that has not yet overridden one of them keeps working. These
-fallbacks are a temporary compatibility aid and will be withdrawn in a
-future release once bridges implement the methods directly.
+the typed ask methods of its bridge, together with show(). The typed
+methods are ask_text() for free text, ask_choice() for one choice,
+ask_multi() for several choices, ask_yes_no() for a boolean and
+ask_table() for a table. The low-level ask() is deprecated: it warns
+when called and when a bridge overrides it. To give application bridge
+authors time to migrate, the base class keeps temporary fallback
+implementations of the typed methods written in terms of ask(), so a
+bridge that still overrides ask() keeps working while it is adjusted to
+implement the typed methods directly. These fallbacks are a temporary
+compatibility aid that warns on use and will be withdrawn once bridges
+implement the typed methods directly.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardNavigation"></a>
 
@@ -937,14 +944,15 @@ the user interface. Provide concrete classes of this bridge to allow
 the wizard to use a console text user interface or a graphical user
 interface.
 
-An application is responsible for implementing every public ask method
-of its bridge, together with show(). At minimum a concrete bridge must
-implement ask() and show(), which have no fallback. As a temporary
-migration aid the base class implements ask_yes_no(), ask_choice(),
-ask_multi() and ask_table() in terms of ask(), so a bridge that has
-not yet overridden one of them keeps working while it is adjusted to
-implement these methods directly. These fallbacks are temporary and
-will be withdrawn once bridges implement them directly. Any ask
+A concrete bridge implements the typed ask methods, ask_text(),
+ask_choice(), ask_multi(), ask_yes_no() and ask_table(), together
+with show(). The low-level ask() is deprecated: it warns when called
+and when a bridge overrides it. As a temporary migration aid the base
+class implements the typed methods in terms of the deprecated ask(),
+so a bridge that still overrides ask() keeps working while it is
+adjusted; each fallback warns that the typed method should be
+overridden instead. These fallbacks are temporary and will be
+withdrawn once bridges implement the typed methods directly. Any ask
 method may raise a WizardNavigation subclass to request back,
 cancel-level or abort instead of returning an answer.
 
@@ -960,6 +968,13 @@ def ask(question: str,
 
 Ask a question and return the user's answer.
 
+Deprecated. Call ask_text() for free text or ask_choice() for a
+single choice instead. This base implementation is temporary
+plumbing: it warns and then dispatches to ask_text() when no
+choices are given and to ask_choice() otherwise, so existing
+callers keep working against a bridge that implements the typed
+methods.
+
 **Arguments**:
 
 - `question` - The question to ask the user.
@@ -971,15 +986,46 @@ Ask a question and return the user's answer.
 
 **Returns**:
 
-  The user's answer. If the user's answer is one of the
-  choices, then the return value can be either the matching
-  string or the index of what the user selected. If integer
-  index is used it is 0-based. The bridge is not required to
-  validate the user's answer in any way. It is the
-  responsibility of the caller to validate the user's answer.
-  If the user entered/selected an empty string as answer, then
-  the return value should be an empty string. The caller may
-  interpret this as a request to use the default value.
+  The user's answer: the entered text when no choices are
+  given, otherwise the chosen one of choices.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_text"></a>
+
+#### ask\_text
+
+```python
+def ask_text(question: str,
+             re_ask_reason: Optional[str] = None,
+             nullable: bool = False) -> Optional[str]
+```
+
+Ask a free-text question and return the entered text.
+
+The application is responsible for implementing this method with
+a real text-entry control. As a temporary migration aid the base
+class provides a fallback in terms of the deprecated ask(), so a
+bridge that still overrides ask() keeps working.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `re_ask_reason` - The reason for re-asking the question, for
+  instance that the user's answer was invalid.
+- `nullable` - When True an empty answer is reported as None, so
+  the caller can treat it as a request to use the
+  default. When False an empty answer is the empty
+  string.
+  
+
+**Returns**:
+
+  The entered text, or None for an empty answer when nullable.
 
 **Raises**:
 
@@ -1003,11 +1049,10 @@ Yes/no questions are asked through this method, and the
 application is responsible for implementing it with a real yes/no
 interface, such as a pair of yes and no buttons in a graphical
 bridge or a y/n prompt in a console bridge. As a temporary
-migration aid the base class provides a fallback in terms of ask()
-with the choices ('yes', 'no'), so a bridge that has not yet
-overridden this method keeps working: an empty answer selects
-default, an index or matching text selects the boolean, and any
-other answer is re-asked.
+migration aid the base class provides a fallback in terms of the
+deprecated ask() with the choices ('yes', 'no'): an empty answer
+selects default, an index or matching text selects the boolean,
+and any other answer is re-asked.
 
 **Arguments**:
 
@@ -1050,7 +1095,8 @@ question is re-asked.
 The application is responsible for implementing this method with
 a real single-choice control, such as a drop-down or a set of
 radio buttons in a graphical bridge. As a temporary migration aid
-the base class provides a fallback in terms of ask().
+the base class provides a fallback in terms of the deprecated
+ask().
 
 **Arguments**:
 
@@ -1096,9 +1142,9 @@ nothing when default is None.
 The application is responsible for implementing this method with
 a real multi-selection control, such as a list of check boxes or
 a multi-select list in a graphical bridge. As a temporary
-migration aid the base class provides a fallback in terms of
-ask() that reads one comma-separated answer of menu indexes or
-names.
+migration aid the base class provides a fallback in terms of the
+deprecated ask() that reads one comma-separated answer of menu
+indexes or names.
 
 **Arguments**:
 
@@ -1147,15 +1193,14 @@ columns show pre-filled or empty values the user may change.
 
 The application is responsible for implementing this method with
 a real table widget. As a temporary migration aid the base class
-provides a fallback in terms of ask(), asking once per editable
-cell and folding the read-only cells of the row into the prompt,
-so a bridge that has not yet overridden this method keeps
-working. The fallback only fills the rows given in cells, so it
-ignores min_rows and max_rows and cannot add or remove rows. In
-that fallback an empty answer keeps the cell's
-current value and a reserved erase token empties the cell, which
-is how a console user replaces a pre-filled default with an empty
-cell.
+provides a fallback in terms of the deprecated ask(), asking once
+per editable cell and folding the read-only cells of the row into
+the prompt, so a bridge that still overrides ask() keeps working.
+The fallback only fills the rows given in cells, so it ignores
+min_rows and max_rows and cannot add or remove rows. In that
+fallback an empty answer keeps the cell's current value and a
+reserved erase token empties the cell, which is how a console
+user replaces a pre-filled default with an empty cell.
 
 How an empty editable cell is reported follows its TableCell: a
 nullable cell reports None, a free-text cell reports an empty
@@ -1282,17 +1327,17 @@ def __init__() -> None
 
 Start with an empty diagnostics buffer and message list.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_text"></a>
 
-#### ask
+#### ask\_text
 
 ```python
-def ask(question: str,
-        re_ask_reason: Optional[str] = None,
-        choices: Optional[Sequence[str]] = None) -> str | int
+def ask_text(question: str,
+             re_ask_reason: Optional[str] = None,
+             nullable: bool = False) -> Optional[str]
 ```
 
-Ask one question; see WizardUiBridge.ask.
+Ask for free text; see WizardUiBridge.ask_text.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no"></a>
 
@@ -1414,45 +1459,46 @@ Initialize the bridge.
 - `stdin_file` - Stream to read user answers from.
 - `stderr_file` - Stream to print errors to.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_text"></a>
 
-#### ask
+#### ask\_text
 
 ```python
-def ask(question: str,
-        re_ask_reason: Optional[str] = None,
-        choices: Optional[Sequence[str]] = None) -> str | int
+def ask_text(question: str,
+             re_ask_reason: Optional[str] = None,
+             nullable: bool = False) -> Optional[str]
 ```
 
-Ask a question and return the user's answer.
+Ask for free text on the console; see WizardUiBridge.ask_text.
 
-**Arguments**:
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_yes_no"></a>
 
-- `question` - The question to ask the user.
-- `re_ask_reason` - The reason for re-asking the question for
-  instance that the user's answer was invalid.
-- `choices` - The choices to offer the user as a sequence of strings.
-  
+#### ask\_yes\_no
 
-**Returns**:
+```python
+def ask_yes_no(question: str,
+               default: bool,
+               re_ask_reason: Optional[str] = None) -> bool
+```
 
-  The user's answer. If the user's answer is one of the choices,
-  then the return value can be either the matching string or the
-  index of what the user selected. If integer index is used it is
-  0-based.
-  The bridge is not required to validate the user's answer in
-  any way. It is the responsibility of the caller to validate the
-  user's answer.
-  If the user entered/selected an empty string as answer, then the
-  return value should be an empty string. The caller may interpret
-  this as a request to use the default value.
+Ask a yes/no question on the console; see ask_yes_no.
 
-**Raises**:
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_table"></a>
 
-- `EOFError` - The input stream ended before an answer was read.
-- `WizardBack` - The user asked to return to the previous question.
-- `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+#### ask\_table
+
+```python
+def ask_table(columns: Sequence[TableColumn],
+              cells: list[list[TableCell]],
+              question: str,
+              *,
+              re_ask_reason: Optional[str] = None,
+              partial_check: Optional[PartialCheck] = None,
+              min_rows: Optional[int] = None,
+              max_rows: Optional[int] = None) -> list[list[Optional[str]]]
+```
+
+Ask the user to fill a table on the console; see ask_table.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_choice"></a>
 

@@ -7,8 +7,9 @@
 # pylint: disable=protected-access
 
 import sys
+import warnings
 from io import StringIO
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 import pytest
 
@@ -19,19 +20,25 @@ from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
     WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard, \
     TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
     PartialCheck
+from tableio_cfg_json.wizard_ui_bridge import _ask_many, _ask_one, \
+    _ask_yes_no, _run_table
 import tableio_cfg_json.wizard as wizard_module
 
 
 class _ScriptedBridge(WizardUiBridge):
-    """Wizard UI bridge that returns scripted answers for tests."""
+    """Wizard UI bridge that returns scripted answers for tests.
+
+    The bridge implements the typed ask methods directly, like a real
+    bridge, by feeding scripted raw answers into the shared answer
+    interpreters. A scripted answer that is an exception is raised
+    instead, which lets tests drive navigation requests.
+    """
 
     def __init__(self, answers: Sequence[str | int | BaseException]) -> None:
         """Initialize the scripted bridge.
 
         Args:
-            answers: Answers returned in order by ``ask()``. A scripted
-                     answer that is an exception is raised instead, which
-                     lets tests drive navigation requests.
+            answers: Raw answers returned in order to the ask methods.
         """
         self.answers: list[str | int | BaseException] = list(answers)
         self.calls: list[
@@ -39,17 +46,74 @@ class _ScriptedBridge(WizardUiBridge):
         self.messages: list[str] = []
         self.stderr_file = StringIO()
 
-    def ask(self, question: str, re_ask_reason: Optional[str] = None,
-            choices: Optional[Sequence[str]] = None) -> str | int:
-        """Return the next scripted answer."""
-        choice_tuple = None if choices is None else tuple(choices)
-        self.calls.append((question, re_ask_reason, choice_tuple))
+    def _next(self) -> str | int:
+        """Return the next scripted answer, raising scripted exceptions."""
         if not self.answers:
-            raise EOFError(f'No answer supplied for {question}.')
+            raise EOFError('No scripted answer left.')
         answer = self.answers.pop(0)
         if isinstance(answer, BaseException):
             raise answer
         return answer
+
+    def _reader(self, question: str, choices: Optional[Sequence[str]]
+                ) -> Callable[[Optional[str]], str | int]:
+        """Return a reader that records each call and pops an answer."""
+        choice_tuple = None if choices is None else tuple(choices)
+
+        def read(reason: Optional[str]) -> str | int:
+            self.calls.append((question, reason, choice_tuple))
+            return self._next()
+        return read
+
+    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
+                 nullable: bool = False) -> Optional[str]:
+        """Return the next scripted answer as text."""
+        self.calls.append((question, re_ask_reason, None))
+        answer = self._next()
+        text = answer if isinstance(answer, str) else str(answer)
+        return None if (nullable and text == '') else text
+
+    def ask_choice(self, question: str, *, choices: Sequence[str],
+                   default: Optional[str] = None,
+                   re_ask_reason: Optional[str] = None) -> str:
+        """Pick one scripted choice; see WizardUiBridge.ask_choice."""
+        return _ask_one(self._reader(question, choices), choices, default,
+                        re_ask_reason)
+
+    # pylint: disable-next=too-many-arguments
+    def ask_multi(self, question: str, *, choices: Sequence[str],
+                  default: Optional[Sequence[str]] = None, min_select: int = 0,
+                  max_select: Optional[int] = None,
+                  re_ask_reason: Optional[str] = None) -> list[str]:
+        """Pick several scripted choices; see WizardUiBridge.ask_multi."""
+        return _ask_many(self._reader(question, choices), choices, default,
+                         min_select, max_select, re_ask_reason,
+                         one_based=False)
+
+    def ask_yes_no(self, question: str, default: bool,
+                   re_ask_reason: Optional[str] = None) -> bool:
+        """Answer a scripted yes/no question; see ask_yes_no."""
+        return _ask_yes_no(self._reader(question, ('yes', 'no')), default,
+                           re_ask_reason)
+
+    # pylint: disable-next=too-many-arguments
+    def ask_table(self, columns: Sequence[TableColumn],
+                  cells: list[list[TableCell]], question: str, *,
+                  re_ask_reason: Optional[str] = None,
+                  partial_check: Optional[PartialCheck] = None,
+                  min_rows: Optional[int] = None,
+                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
+        """Fill a table from scripted answers; see ask_table."""
+        _ = (min_rows, max_rows)
+        return _run_table(self._cell_reader, self.show, columns, cells,
+                          question, re_ask_reason, partial_check)
+
+    def _cell_reader(self, prompt: str, re_ask_reason: Optional[str] = None,
+                     choices: Optional[Sequence[str]] = None) -> str | int:
+        """Record one table-cell prompt and return the next answer."""
+        choice_tuple = None if choices is None else tuple(choices)
+        self.calls.append((prompt, re_ask_reason, choice_tuple))
+        return self._next()
 
     def error_file(self) -> StringIO:
         """Return the stream used for validation diagnostics."""
@@ -151,20 +215,20 @@ def test_base_bridge_defaults() -> None:
     """The base UI bridge exposes default stream and abstract methods."""
     ui_bridge = WizardUiBridge()
     assert ui_bridge.error_file() is sys.stderr
-    with pytest.raises(NotImplementedError, match='ask'):
-        ui_bridge.ask('Question?')
+    with pytest.raises(NotImplementedError, match='ask_text'):
+        ui_bridge.ask_text('Question?')
     with pytest.raises(NotImplementedError, match='show'):
         ui_bridge.show('Message.')
 
 
 def test_console_menu() -> None:
-    """Console menu numbers become 0-based indexes."""
+    """Console choice menus number choices and return the chosen one."""
     stdin_file = StringIO('2\n')
     stdout_file = StringIO()
     stderr_file = StringIO()
     ui_bridge = WizardUiBridgeConsole(stdout_file, stdin_file, stderr_file)
-    answer = ui_bridge.ask('Pick one:', choices=('first', 'second'))
-    assert answer == 1
+    answer = ui_bridge.ask_choice('Pick one:', choices=('first', 'second'))
+    assert answer == 'second'
     assert '1: first' in stdout_file.getvalue()
     assert '2: second' in stdout_file.getvalue()
     assert stderr_file.getvalue() == ''
@@ -328,10 +392,10 @@ def test_enum_bad_text_retry() -> None:
 
 
 def test_text_value_retries() -> None:
-    """Free-text members reject non-text and malformed integer values."""
+    """Free-text members reject malformed values and ask again."""
     member_answers: dict[str, list[str | int]] = {
-        'line_length': [17, '72'],
-        'table_max_line_length': ['not-an-int', '30']}
+        'line_length': ['not-an-int', '72'],
+        'table_max_line_length': ['oops', '30']}
     answers: list[str | int] = ['rest']
     answers.extend(_member_answer_lines('reST', FileAccess.CREATE,
                                         member_answers=member_answers))
@@ -342,7 +406,6 @@ def test_text_value_retries() -> None:
     assert config.table_max_line_length == 30
     reasons = [call[1] for call in ui_bridge.calls
                if call[1] is not None]
-    assert 'Please enter a text value.' in reasons
     assert any('Invalid value:' in reason for reason in reasons)
 
 
@@ -386,13 +449,13 @@ def test_scalar_json_section() -> None:
     ('n', True, False)])
 def test_yes_no_fallback(answer: str | int, default: bool,
                          expected: bool) -> None:
-    """The base yes/no fallback maps bridge answers to booleans."""
+    """ask_yes_no maps scripted bridge answers to booleans."""
     bridge = _ScriptedBridge([answer])
     assert bridge.ask_yes_no('OK?', default) is expected
 
 
 def test_yes_no_retry() -> None:
-    """The yes/no fallback re-asks until it understands the answer."""
+    """ask_yes_no re-asks until it understands the answer."""
     bridge = _ScriptedBridge(['maybe', 'yes'])
     assert bridge.ask_yes_no('OK?', False) is True
     assert bridge.calls[1][1] == 'Please answer yes or no.'
@@ -405,7 +468,7 @@ def test_console_nav_tokens(token: str, error: type[BaseException]) -> None:
     bridge = WizardUiBridgeConsole(StringIO(), StringIO(token + '\n'),
                                    StringIO())
     with pytest.raises(error):
-        bridge.ask('Question?')
+        bridge.ask_text('Question?')
 
 
 def test_descriptor_defaults() -> None:
@@ -417,7 +480,7 @@ def test_descriptor_defaults() -> None:
 
 
 def test_table_keep_and_erase() -> None:
-    """The table fallback keeps a value on enter and erases on the token."""
+    """ask_table keeps a value on enter and erases on the token."""
     columns = (TableColumn('Parameter', read_only=True), TableColumn('Value'))
     cells = [[TableCell(value='impl'), TableCell(value='Lib', nullable=True)]]
     keep = _ScriptedBridge(['']).ask_table(columns, cells, 'Pick:')
@@ -427,7 +490,7 @@ def test_table_keep_and_erase() -> None:
 
 
 def test_table_partial_check() -> None:
-    """The table fallback re-asks a cell until the partial check passes."""
+    """ask_table re-asks a cell until the partial check passes."""
     columns = (TableColumn('Value'),)
     cells = [[TableCell(nullable=True)]]
 
@@ -496,7 +559,7 @@ def test_cell_back() -> None:
 
 
 def test_ask_choice_index() -> None:
-    """The choice fallback maps a 0-based bridge index to a choice."""
+    """ask_choice maps a 0-based answer index to a choice."""
     bridge = _ScriptedBridge([1])
     assert bridge.ask_choice('Pick:', choices=('a', 'b', 'c')) == 'b'
 
@@ -515,13 +578,13 @@ def test_ask_choice_required() -> None:
 
 
 def test_ask_choice_prefix() -> None:
-    """The choice fallback accepts a unique name prefix."""
+    """ask_choice accepts a unique name prefix."""
     bridge = _ScriptedBridge(['ban'])
     assert bridge.ask_choice('Pick:', choices=('apple', 'banana')) == 'banana'
 
 
 def test_ask_choice_nav() -> None:
-    """A navigation request raised in the choice fallback propagates."""
+    """A navigation request raised inside ask_choice propagates."""
     bridge = _ScriptedBridge([WizardBack()])
     with pytest.raises(WizardBack):
         bridge.ask_choice('Pick:', choices=('a', 'b'))
@@ -542,19 +605,19 @@ def test_console_choice_def() -> None:
 
 
 def test_ask_multi_basic() -> None:
-    """The multi fallback returns chosen items in choices order."""
+    """ask_multi returns chosen items in choices order."""
     bridge = _ScriptedBridge(['0,2'])
     assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
 
 
 def test_ask_multi_names() -> None:
-    """The multi fallback accepts names and orders them by choices."""
+    """ask_multi accepts names and orders them by choices."""
     bridge = _ScriptedBridge(['b , a'])
     assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'b']
 
 
 def test_ask_multi_dedupe() -> None:
-    """The multi fallback drops duplicate selections."""
+    """ask_multi drops duplicate selections."""
     bridge = _ScriptedBridge(['2,0,0'])
     assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
 
@@ -611,7 +674,7 @@ def test_console_multi() -> None:
 
 
 def test_ask_table_reask() -> None:
-    """The table fallback shows a re-ask reason above the table."""
+    """ask_table shows a re-ask reason above the table."""
     columns = (TableColumn('Value'),)
     cells = [[TableCell(value='x')]]
     bridge = _ScriptedBridge([''])
@@ -697,11 +760,11 @@ def test_multi_empty_token() -> None:
 class _TableBridge(WizardUiBridge):
     """Bridge returning scripted, unvalidated tables for one section.
 
-    The format question is answered with a fixed menu index and every
-    scalar member is skipped with an empty answer. Each ask_table call
-    returns a table built from the supplied rows and the values in one
-    scripted override dict, keyed by parameter name, so a test can submit
-    tables the per-cell partial check would otherwise have blocked.
+    The format question is answered with a fixed choice and every scalar
+    member is skipped with an empty answer. Each ask_table call returns a
+    table built from the supplied rows and the values in one scripted
+    override dict, keyed by parameter name, so a test can submit tables
+    the per-cell partial check would otherwise have blocked.
     """
 
     def __init__(self, format_index: int,
@@ -714,13 +777,19 @@ class _TableBridge(WizardUiBridge):
         self.shown: list[str] = []
         self.format_asked = False
 
-    def ask(self, question: str, re_ask_reason: Optional[str] = None,
-            choices: Optional[Sequence[str]] = None) -> str | int:
-        """Answer the format menu once, then skip every other question."""
-        if not self.format_asked and choices is not None:
+    def ask_choice(self, question: str, *, choices: Sequence[str],
+                   default: Optional[str] = None,
+                   re_ask_reason: Optional[str] = None) -> str:
+        """Answer the format menu once with the scripted choice."""
+        if not self.format_asked:
             self.format_asked = True
-            return self.format_index
-        return ''
+            return choices[self.format_index]
+        return choices[0] if default is None else default
+
+    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
+                 nullable: bool = False) -> Optional[str]:
+        """Skip every scalar member with an empty answer."""
+        return None if nullable else ''
 
     # pylint: disable-next=too-many-arguments
     def ask_table(self, columns: Sequence[TableColumn],
@@ -781,3 +850,80 @@ def test_ask_impl_single() -> None:
     """A single implementation needs no question and returns None."""
     bridge = _ScriptedBridge([])
     assert wizard_module._ask_implementation(('only',), bridge) is None
+
+
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore', DeprecationWarning)
+
+    class _OldStyleBridge(WizardUiBridge):
+        """Old-style bridge that overrides only the deprecated ask().
+
+        It exercises the temporary backward-compatibility code: the base
+        class still backs the typed ask methods with this bridge's ask()
+        while warning that the typed methods should be overridden. Its
+        definition is wrapped so the override warning is not raised at
+        import time; test_deprecated_ask_override_warns asserts it.
+        """
+
+        def __init__(self, answers: Sequence[str | int]) -> None:
+            """Store scripted raw answers returned in order by ask()."""
+            self.answers: list[str | int] = list(answers)
+            self.shown: list[str] = []
+
+        def ask(self, question: str, re_ask_reason: Optional[str] = None,
+                choices: Optional[Sequence[str]] = None) -> str | int:
+            """Return the next scripted raw answer."""
+            _ = (question, re_ask_reason, choices)
+            return self.answers.pop(0)
+
+        def show(self, message: str) -> None:
+            """Record the shown message."""
+            self.shown.append(message)
+
+
+def test_dep_override_warns() -> None:
+    """Defining a bridge that overrides ask() warns it is deprecated."""
+    def stand_in(*_args: object) -> str:
+        """Stand-in ask() used only to trigger the override warning."""
+        return ''
+    with pytest.warns(DeprecationWarning, match='Overriding'):
+        type('_Overrider', (WizardUiBridge,), {'ask': stand_in})
+
+
+def test_dep_ask_call_warns() -> None:
+    """Calling the deprecated ask() warns and dispatches by arguments."""
+    text_bridge = _ScriptedBridge(['typed'])
+    with pytest.warns(DeprecationWarning, match='deprecated'):
+        assert text_bridge.ask('q') == 'typed'
+    choice_bridge = _ScriptedBridge([1])
+    with pytest.warns(DeprecationWarning, match='deprecated'):
+        assert choice_bridge.ask('q', choices=('a', 'b')) == 'b'
+
+
+def test_dep_fallback_warns() -> None:
+    """The base typed-method fallbacks warn while backing an old bridge."""
+    bridge = _OldStyleBridge(['hi', 0, 0, True])
+    with pytest.warns(DeprecationWarning, match='ask_text'):
+        assert bridge.ask_text('q') == 'hi'
+    with pytest.warns(DeprecationWarning, match='ask_choice'):
+        assert bridge.ask_choice('q', choices=('a', 'b')) == 'a'
+    with pytest.warns(DeprecationWarning, match='ask_multi'):
+        assert bridge.ask_multi('q', choices=('a', 'b')) == ['a']
+    with pytest.warns(DeprecationWarning, match='ask_yes_no'):
+        assert bridge.ask_yes_no('q', default=False) is True
+
+
+def test_dep_table_warns() -> None:
+    """The base ask_table fallback warns and fills cells via ask()."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='x')]]
+    bridge = _OldStyleBridge([''])
+    with pytest.warns(DeprecationWarning, match='ask_table'):
+        assert bridge.ask_table(columns, cells, 'Pick:') == [['x']]
+
+
+def test_typed_no_impl() -> None:
+    """A bridge implementing neither ask() nor a typed method raises."""
+    bridge = WizardUiBridge()
+    with pytest.raises(NotImplementedError, match='ask_choice'):
+        bridge.ask_choice('q', choices=('a', 'b'))
