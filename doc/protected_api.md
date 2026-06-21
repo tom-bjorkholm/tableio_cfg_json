@@ -76,6 +76,7 @@
     * [\_\_init\_subclass\_\_](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.__init_subclass__)
     * [ask](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask)
     * [ask\_text](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_text)
+    * [ask\_int](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_int)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi)
@@ -96,6 +97,8 @@
   * [\_erased\_value](#tableio_cfg_json.wizard_ui_bridge._erased_value)
   * [\_indexed\_value](#tableio_cfg_json.wizard_ui_bridge._indexed_value)
   * [\_int\_text](#tableio_cfg_json.wizard_ui_bridge._int_text)
+  * [\_out\_of\_range](#tableio_cfg_json.wizard_ui_bridge._out_of_range)
+  * [\_range\_error](#tableio_cfg_json.wizard_ui_bridge._range_error)
   * [\_ask\_one](#tableio_cfg_json.wizard_ui_bridge._ask_one)
   * [\_ask\_many](#tableio_cfg_json.wizard_ui_bridge._ask_many)
   * [\_resolve\_choice](#tableio_cfg_json.wizard_ui_bridge._resolve_choice)
@@ -1985,6 +1988,55 @@ bridge that still overrides ask() keeps working.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
 
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_int"></a>
+
+#### ask\_int
+
+```python
+def ask_int(question: str,
+            re_ask_reason: Optional[str] = None,
+            *,
+            nullable: bool = False,
+            min_value: Optional[int] = None,
+            max_value: Optional[int] = None) -> Optional[int]
+```
+
+Ask a question for an integer and return the entered integer.
+
+The method asks the user for an integer value (optionally
+within a range) and returns it. The range is inclusive.
+If the answer is invalid, the method re-asks the question
+internally, until a valid answer is entered.
+
+This method is implemented by the base class using ask_text(),
+but a derived bridge can override it to implement something
+that is more efficient or more user-friendly.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `re_ask_reason` - The reason for re-asking the question, for
+  instance that the user's answer was invalid.
+- `nullable` - When True an empty answer is reported as None, so
+  the caller can treat it as a request to use the
+  default. When False an empty answer will be re-asked
+  until a valid answer is entered.
+- `min_value` - The minimum allowed value, or None for no lower bound.
+  The min value is inclusive.
+- `max_value` - The maximum allowed value, or None for no upper bound.
+  The max value is inclusive.
+  
+
+**Returns**:
+
+  The entered integer, or None for an empty answer when nullable.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no"></a>
 
 #### ask\_yes\_no
@@ -2420,6 +2472,27 @@ def _int_text(text: str) -> Optional[int]
 ```
 
 Return an integer from text, or None when text is not an integer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._out_of_range"></a>
+
+#### \_out\_of\_range
+
+```python
+def _out_of_range(value: int, min_value: Optional[int],
+                  max_value: Optional[int]) -> bool
+```
+
+Return whether value lies outside the inclusive bounds.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._range_error"></a>
+
+#### \_range\_error
+
+```python
+def _range_error(min_value: Optional[int], max_value: Optional[int]) -> str
+```
+
+Return the message shown when an integer is out of range.
 
 <a id="tableio_cfg_json.wizard_ui_bridge._ask_one"></a>
 

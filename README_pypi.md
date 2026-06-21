@@ -185,7 +185,7 @@ MIT
 
 ## Test summary
 
-- Test result: 503 passed in 25s
+- Test result: 522 passed in 25s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

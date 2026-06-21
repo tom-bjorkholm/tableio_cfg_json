@@ -21,7 +21,7 @@ from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
     TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
     PartialCheck
 from tableio_cfg_json.wizard_ui_bridge import _ask_many, _ask_one, \
-    _ask_yes_no, _run_table
+    _ask_yes_no, _run_table, _INT_ERROR, WizardNavigation
 import tableio_cfg_json.wizard as wizard_module
 
 
@@ -927,3 +927,70 @@ def test_typed_no_impl() -> None:
     bridge = WizardUiBridge()
     with pytest.raises(NotImplementedError, match='ask_choice'):
         bridge.ask_choice('q', choices=('a', 'b'))
+
+
+@pytest.mark.parametrize('answer, expected', [
+    ('42', 42), (' 7 ', 7), ('-3', -3), ('+5', 5), ('1_000', 1000)])
+def test_ask_int_value(answer: str, expected: int) -> None:
+    """ask_int parses a single integer answer like Python int()."""
+    bridge = _ScriptedBridge([answer])
+    assert bridge.ask_int('How many?') == expected
+
+
+def test_ask_int_null() -> None:
+    """A nullable empty answer is reported as None."""
+    bridge = _ScriptedBridge([''])
+    assert bridge.ask_int('How many?', nullable=True) is None
+
+
+@pytest.mark.parametrize('first', ['', 'abc'])
+def test_ask_int_bad(first: str) -> None:
+    """An empty or non-integer answer is re-asked as not an integer."""
+    bridge = _ScriptedBridge([first, '9'])
+    assert bridge.ask_int('How many?') == 9
+    assert bridge.calls[1][1] == _INT_ERROR
+
+
+@pytest.mark.parametrize(
+    'answers, min_value, max_value, expected, reason', [
+        (['0', '5'], 1, 10, 5, 'between 1 and 10'),
+        (['11', '4'], 1, 10, 4, 'between 1 and 10'),
+        (['0', '3'], 1, None, 3, 'at least 1'),
+        (['11', '7'], None, 10, 7, 'at most 10'),
+        (['1'], 1, 10, 1, None),
+        (['10'], 1, 10, 10, None)])
+def test_ask_int_range(answers: list[str], min_value: Optional[int],
+                       max_value: Optional[int], expected: int,
+                       reason: Optional[str]) -> None:
+    """Values outside the inclusive bounds are re-asked with a reason."""
+    bridge = _ScriptedBridge(answers)
+    result = bridge.ask_int('How many?', min_value=min_value,
+                            max_value=max_value)
+    assert result == expected
+    if reason is None:
+        assert bridge.calls[0][1] is None
+    else:
+        assert reason in (bridge.calls[1][1] or '')
+
+
+def test_ask_int_reason() -> None:
+    """A given re_ask_reason is shown on the first prompt."""
+    bridge = _ScriptedBridge(['5'])
+    assert bridge.ask_int('How many?', 'Was rejected.') == 5
+    assert bridge.calls[0][1] == 'Was rejected.'
+
+
+@pytest.mark.parametrize('error', [
+    WizardBack(), WizardCancelLevel(), WizardAbort()])
+def test_ask_int_nav(error: WizardNavigation) -> None:
+    """Navigation requests propagate out of ask_int."""
+    bridge = _ScriptedBridge([error])
+    with pytest.raises(type(error)):
+        bridge.ask_int('How many?')
+
+
+def test_ask_int_minmax() -> None:
+    """ask_int rejects a min_value above max_value."""
+    bridge = _ScriptedBridge([])
+    with pytest.raises(AssertionError):
+        bridge.ask_int('How many?', min_value=5, max_value=3)

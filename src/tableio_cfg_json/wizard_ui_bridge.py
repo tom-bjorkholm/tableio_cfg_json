@@ -51,6 +51,7 @@ one so the console bridge and the deprecated base fallback share code.
 
 _ERASE_TOKEN = ':e'  # empties an editable cell in the ask_table fallback
 _CHOICE_ERROR = 'Please enter one of the listed choices.'
+_INT_ERROR = 'Please enter an integer.'
 
 
 class WizardNavigation(Exception):
@@ -249,6 +250,55 @@ class WizardUiBridge:
         text = answer if isinstance(answer, str) else str(answer)
         return None if (nullable and text == '') else text
 
+    def ask_int(self, question: str, re_ask_reason: Optional[str] = None, *,
+                nullable: bool = False, min_value: Optional[int] = None,
+                max_value: Optional[int] = None) -> Optional[int]:
+        """Ask a question for an integer and return the entered integer.
+
+        The method asks the user for an integer value (optionally
+        within a range) and returns it. The range is inclusive.
+        If the answer is invalid, the method re-asks the question
+        internally, until a valid answer is entered.
+
+        This method is implemented by the base class using ask_text(),
+        but a derived bridge can override it to implement something
+        that is more efficient or more user-friendly.
+
+        Args:
+            question: The question to ask the user.
+            re_ask_reason: The reason for re-asking the question, for
+                           instance that the user's answer was invalid.
+            nullable: When True an empty answer is reported as None, so
+                      the caller can treat it as a request to use the
+                      default. When False an empty answer will be re-asked
+                      until a valid answer is entered.
+            min_value: The minimum allowed value, or None for no lower bound.
+                       The min value is inclusive.
+            max_value: The maximum allowed value, or None for no upper bound.
+                       The max value is inclusive.
+
+        Returns:
+            The entered integer, or None for an empty answer when nullable.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        assert (min_value is None or max_value is None
+                or min_value <= max_value)
+        reason = re_ask_reason
+        while True:
+            text = self.ask_text(question, reason, nullable)
+            if text is None:
+                return None
+            value = _int_text(text)
+            if value is None:
+                reason = _INT_ERROR
+            elif _out_of_range(value, min_value, max_value):
+                reason = _range_error(min_value, max_value)
+            else:
+                return value
+
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:
         """Ask a yes/no question and return the chosen boolean.
@@ -277,6 +327,7 @@ class WizardUiBridge:
             WizardAbort: The user abandoned the whole configuration.
         """
         self._guard_fallback('ask_yes_no')
+
         def reader(reason: Optional[str]) -> str | int:
             return self.ask(question, reason, choices=('yes', 'no'))
         return _ask_yes_no(reader, default, re_ask_reason)
@@ -313,6 +364,7 @@ class WizardUiBridge:
             WizardAbort: The user abandoned the whole configuration.
         """
         self._guard_fallback('ask_choice')
+
         def reader(reason: Optional[str]) -> str | int:
             return self.ask(question, reason, choices)
         return _ask_one(reader, choices, default, re_ask_reason)
@@ -354,6 +406,7 @@ class WizardUiBridge:
             WizardAbort: The user abandoned the whole configuration.
         """
         self._guard_fallback('ask_multi')
+
         def reader(reason: Optional[str]) -> str | int:
             return self.ask(question, reason, choices)
         return _ask_many(reader, choices, default, min_select, max_select,
@@ -655,6 +708,23 @@ def _int_text(text: str) -> Optional[int]:
         return int(text)
     except ValueError:
         return None
+
+
+def _out_of_range(value: int, min_value: Optional[int],
+                  max_value: Optional[int]) -> bool:
+    """Return whether value lies outside the inclusive bounds."""
+    below = min_value is not None and value < min_value
+    above = max_value is not None and value > max_value
+    return below or above
+
+
+def _range_error(min_value: Optional[int], max_value: Optional[int]) -> str:
+    """Return the message shown when an integer is out of range."""
+    if min_value is None:
+        return f'Please enter an integer at most {max_value}.'
+    if max_value is None:
+        return f'Please enter an integer at least {min_value}.'
+    return f'Please enter an integer between {min_value} and {max_value}.'
 
 
 def _ask_one(reader: Callable[[Optional[str]], str | int],
