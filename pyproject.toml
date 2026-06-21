@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=82.0.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tableio-cfg-json"
-version = "0.4.1"
+version = "0.5"
 authors = [
   { name="Tom Björkholm", email="klausuler_linnet0q@icloud.com" },
 ]
@@ -13,9 +13,17 @@ readme = "README_pypi.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE.txt"]
+keywords = [
+    "configuration", "wizard", "TableIO"
+]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent"
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Typing :: Typed"
 ]
 dynamic = ["dependencies"]
 
