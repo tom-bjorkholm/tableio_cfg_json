@@ -9,6 +9,7 @@
 This is a small package that stores
 [TableIO](https://pypi.org/project/tableio/) configuration as validated JSON
 by using [config-as-json](https://pypi.org/project/config-as-json/).
+I also include wizard functionality to configure TableIO.
 
 ## Related documentation
 

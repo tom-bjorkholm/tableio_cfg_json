@@ -133,7 +133,8 @@ thorough introduction.
   Interactive helper for creating one TableIO endpoint configuration through
   a user interface bridge.
 
-- `WizardUiBridge` and `WizardUiBridgeConsole`
+- `WizardUiBridge`, `WizardUiBridgeConsole`, `WizardUiBridgeTextual` and
+  `make_text_ui_bridge`
   Interfaces for connecting the wizard to a console, GUI or scripted UI.
 
 ## Validation model
