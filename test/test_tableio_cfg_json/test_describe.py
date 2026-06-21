@@ -12,7 +12,7 @@ from typing import Optional
 
 import pytest
 
-from tableio import CAP_NEEDED, Capabilities, FileAccess, \
+from tableio import CAP_NEEDED, Capabilities, ConfigSpec, FileAccess, \
     list_registered_tableio
 from tableio.factory import TableIOFactoryNoCapabilityMatch
 from tableio_cfg_json import describe_config, describe_config_example, \
@@ -274,3 +274,40 @@ def test_format_lookup_guard(monkeypatch: pytest.MonkeyPatch) -> None:
                         fake_impls)
     with pytest.raises(AssertionError, match='Unreachable'):
         describe_module._format_names(None, 'missing')
+
+
+def test_format_caps_skip() -> None:
+    """A capability-mismatched later format is reported after a skip."""
+    caps = Capabilities(can_write_borders=CAP_NEEDED)
+    with pytest.raises(TableIOFactoryNoCapabilityMatch) as exc_info:
+        describe_config(capabilities=caps, file_access=FileAccess.CREATE,
+                        format_name='HTML')
+    assert 'does not match the capabilities' in str(exc_info.value)
+
+
+def test_member_no_default() -> None:
+    """A member without a default omits the default line."""
+    spec = ConfigSpec(name='member_x', description='A member.',
+                      value_type='str')
+    lines: list[str] = []
+    describe_module._add_member(lines, spec, [], [])
+    assert 'member_x' in lines
+    assert not any('Default' in line for line in lines)
+
+
+def test_ref_no_default() -> None:
+    """A reference member without a default omits the default line."""
+    spec = ConfigSpec(name='member_y', description='A member.',
+                      value_type='str')
+    lines: list[str] = []
+    describe_module._add_ref_member(lines, spec)
+    assert 'member_y' in lines
+    assert not any('Default' in line for line in lines)
+
+
+def test_example_all_fail() -> None:
+    """When every candidate access fails the first error is the cause."""
+    caps = Capabilities(can_read=CAP_NEEDED, can_write=CAP_NEEDED)
+    with pytest.raises(TableIOFactoryNoCapabilityMatch) as exc_info:
+        describe_config_example(capabilities=caps, format_name='HTML')
+    assert exc_info.value.__cause__ is not None

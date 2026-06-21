@@ -7,16 +7,21 @@
 # pylint: disable=protected-access
 
 import asyncio
+import importlib
+import sys
 from io import StringIO
 from typing import Any, Optional, Sequence
 
 import pytest
 
+import tableio_cfg_json
+import tableio_cfg_json.wizard_ui_factory as wizard_factory
 from tableio_cfg_json import TableCell, TableColumn, WizardAbort, \
     WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeConsole, \
     WizardUiBridgeTextual, make_text_ui_bridge
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
-    _NavApp, _TableApp, _TextApp, _new_row_template
+    _NavApp, _TableApp, _TextApp, _new_row_template, _parse_cell_id, \
+    _preselected
 
 
 def drive(app: _NavApp[Any], steps: Sequence[str]) -> _NavApp[Any]:
@@ -471,3 +476,90 @@ def test_ask_table_variable() -> None:
     assert isinstance(app, _TableApp)
     assert app._variable is True
     assert (app._min_rows, app._max_rows) == (1, 3)
+
+
+def test_header_messages() -> None:
+    """Buffered messages are rendered above the question."""
+    app = drive(_TextApp('q', ['note one', 'note two']), ['enter'])
+    assert app.return_value == ''
+
+
+def test_preselected_default() -> None:
+    """Default values map to indexes, and no default maps to empty."""
+    assert _preselected(('a', 'b', 'c'), ('a', 'c')) == [0, 2]
+    assert _preselected(('a', 'b'), None) == []
+
+
+def test_parse_cell_id() -> None:
+    """A cell id parses to its position; other ids parse to None."""
+    assert _parse_cell_id('cell_2_3') == (2, 3)
+    assert _parse_cell_id(None) is None
+    assert _parse_cell_id('submit') is None
+
+
+def test_make_select_nonnull() -> None:
+    """A non-nullable empty drop-down defaults to its first choice."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(choices=('x', 'y'))]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None), ['ctrl+s'])
+    assert driven.return_value == [['x']]
+
+
+def test_focus_empty_rows() -> None:
+    """A table with no rows mounts and submits an empty result."""
+    columns = (TableColumn('Value'),)
+    driven = drive(_TableApp(columns, [], 'q', [], None, 0, 2), ['ctrl+s'])
+    assert driven.return_value == []
+
+
+def test_focus_all_readonly() -> None:
+    """A first row of only read-only cells leaves nothing focused."""
+    columns = (TableColumn('P', read_only=True),)
+    cells = [[TableCell(value='x')]]
+    driven = drive(_TableApp(columns, cells, 'q', [], None), ['ctrl+s'])
+    assert driven.return_value == [['x']]
+
+
+def test_recheck_none() -> None:
+    """A cell change with no parsed position is ignored."""
+    columns = (TableColumn('Value'),)
+    app = _TableApp(columns, [[TableCell(value='a')]], 'q', [], None)
+    app._recheck(None)
+    assert app._table == [['a']]
+
+
+def test_add_past_max() -> None:
+    """Adding beyond max_rows is refused and the row count holds."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='a')]]
+    app = _TableApp(columns, cells, 'q', [], None, 1, 2)
+
+    async def scenario() -> int:
+        async with app.run_test() as pilot:
+            app._add_row()
+            await pilot.pause()
+            app._add_row()
+            await pilot.pause()
+            return len(app._rows)
+    assert asyncio.run(scenario()) == 2
+
+
+def test_import_no_textual() -> None:
+    """Without the Textual bridge the factory falls back to console."""
+    key = 'tableio_cfg_json.wizard_ui_bridge_textual'
+    saved = sys.modules.get(key)
+    sys.modules[key] = None  # type: ignore[assignment]
+    try:
+        importlib.reload(wizard_factory)
+        importlib.reload(tableio_cfg_json)
+        assert wizard_factory._TEXTUAL is None
+        ttys = (_TtyStream(), _TtyStream(), _TtyStream())
+        bridge = wizard_factory.make_text_ui_bridge(*ttys)
+        assert isinstance(bridge, WizardUiBridgeConsole)
+    finally:
+        if saved is not None:
+            sys.modules[key] = saved
+        else:
+            sys.modules.pop(key, None)
+        importlib.reload(wizard_factory)
+        importlib.reload(tableio_cfg_json)

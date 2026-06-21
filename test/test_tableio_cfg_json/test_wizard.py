@@ -14,10 +14,11 @@ import pytest
 
 from tableio import Capabilities, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
-    list_implementations_tableio, list_registered_tableio
+    list_implementations_tableio, list_registered_tableio, tio_config_specs
 from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
     WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard, \
-    TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel
+    TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
+    PartialCheck
 import tableio_cfg_json.wizard as wizard_module
 
 
@@ -607,3 +608,176 @@ def test_console_multi() -> None:
     """The console multi menu maps 1-based numbers to choices."""
     bridge = WizardUiBridgeConsole(StringIO(), StringIO('1,3\n'), StringIO())
     assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
+
+
+def test_ask_table_reask() -> None:
+    """The table fallback shows a re-ask reason above the table."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='x')]]
+    bridge = _ScriptedBridge([''])
+    bridge.ask_table(columns, cells, 'Pick:', re_ask_reason='try again')
+    assert 'try again' in bridge.messages
+
+
+def test_cell_bool_invalid() -> None:
+    """A boolean cell answer is rejected and the cell is re-asked."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell()]]
+    bridge = _ScriptedBridge([True, 'ok'])
+    assert bridge.ask_table(columns, cells, 'Pick:') == [['ok']]
+    assert bridge.calls[1][1] == 'Please enter a value.'
+
+
+@pytest.mark.parametrize('answer', [True, False])
+def test_yes_no_bool(answer: bool) -> None:
+    """A boolean bridge answer maps straight to that boolean."""
+    bridge = _ScriptedBridge([answer])
+    assert bridge.ask_yes_no('OK?', not answer) is answer
+
+
+def test_yes_no_bad_index() -> None:
+    """An out-of-range index answer is re-asked as yes or no."""
+    bridge = _ScriptedBridge([7, 0])
+    assert bridge.ask_yes_no('OK?', False) is True
+    assert bridge.calls[1][1] == 'Please answer yes or no.'
+
+
+def test_erase_freetext() -> None:
+    """Erasing a non-nullable free-text cell yields an empty string."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(value='x')]]
+    bridge = _ScriptedBridge([':e'])
+    assert bridge.ask_table(columns, cells, 'Pick:') == [['']]
+
+
+def test_erase_choice() -> None:
+    """Erasing a non-nullable choice cell is rejected and re-asked."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(choices=('a', 'b'))]]
+    bridge = _ScriptedBridge([':e', 0])
+    assert bridge.ask_table(columns, cells, 'Pick:') == [['a']]
+    assert bridge.calls[1][1] == 'Please enter a value.'
+
+
+def test_cell_index_oob() -> None:
+    """An out-of-range choice index is rejected and the cell re-asked."""
+    columns = (TableColumn('Value'),)
+    cells = [[TableCell(choices=('a', 'b'))]]
+    bridge = _ScriptedBridge([9, 1])
+    assert bridge.ask_table(columns, cells, 'Pick:') == [['b']]
+    assert bridge.calls[1][1] == 'Please enter a value.'
+
+
+def test_multi_bool() -> None:
+    """A boolean multi answer is rejected and the answer re-asked."""
+    bridge = _ScriptedBridge([True, '0'])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a']
+    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
+
+
+def test_multi_int_index() -> None:
+    """A single integer multi answer selects that one choice."""
+    bridge = _ScriptedBridge([1])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['b']
+
+
+def test_multi_int_oob() -> None:
+    """An out-of-range integer multi answer is re-asked."""
+    bridge = _ScriptedBridge([9, '0'])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a']
+    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
+
+
+def test_multi_empty_token() -> None:
+    """Empty tokens between commas are ignored in a multi answer."""
+    bridge = _ScriptedBridge(['0,,1'])
+    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a', 'b']
+
+
+class _TableBridge(WizardUiBridge):
+    """Bridge returning scripted, unvalidated tables for one section.
+
+    The format question is answered with a fixed menu index and every
+    scalar member is skipped with an empty answer. Each ask_table call
+    returns a table built from the supplied rows and the values in one
+    scripted override dict, keyed by parameter name, so a test can submit
+    tables the per-cell partial check would otherwise have blocked.
+    """
+
+    def __init__(self, format_index: int,
+                 tables: Sequence[dict[str, str]]) -> None:
+        """Store the format index and the scripted table overrides."""
+        self.format_index = format_index
+        self.tables = list(tables)
+        self.table_reasons: list[Optional[str]] = []
+        self.stderr_file = StringIO()
+        self.shown: list[str] = []
+        self.format_asked = False
+
+    def ask(self, question: str, re_ask_reason: Optional[str] = None,
+            choices: Optional[Sequence[str]] = None) -> str | int:
+        """Answer the format menu once, then skip every other question."""
+        if not self.format_asked and choices is not None:
+            self.format_asked = True
+            return self.format_index
+        return ''
+
+    # pylint: disable-next=too-many-arguments
+    def ask_table(self, columns: Sequence[TableColumn],
+                  cells: list[list[TableCell]], question: str, *,
+                  re_ask_reason: Optional[str] = None,
+                  partial_check: Optional[PartialCheck] = None,
+                  min_rows: Optional[int] = None,
+                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
+        """Return a table built from the next scripted override dict."""
+        self.table_reasons.append(re_ask_reason)
+        overrides = self.tables.pop(0)
+        return [[row[0].value, overrides.get(str(row[0].value))]
+                for row in cells]
+
+    def error_file(self) -> StringIO:
+        """Return the stream used for validation diagnostics."""
+        return self.stderr_file
+
+    def show(self, message: str) -> None:
+        """Record a shown message."""
+        self.shown.append(message)
+
+
+def test_section_bad_table() -> None:
+    """An invalid submitted section table is rejected and re-asked."""
+    file_access = FileAccess.CREATE
+    caps = access_capabilities(file_access)
+    match = list_registered_tableio(
+        capabilities=add_access_capabilities(file_access, caps))
+    tables = [{'dialect': 'zzz'}, {'delimiter': ';;'}, {}]
+    bridge = _TableBridge(match.index('CSV'), tables)
+    config = tio_json_config_wizard(caps, file_access, bridge)
+    assert config.format_name == 'CSV'
+    assert config.csv is None
+    assert bridge.table_reasons[0] is None
+    first_retry = bridge.table_reasons[1]
+    second_retry = bridge.table_reasons[2]
+    assert first_retry is not None and 'Invalid value' in first_retry
+    assert second_retry is not None and 'Invalid value' in second_retry
+
+
+def test_scalar_commit_retry() -> None:
+    """A scalar value that fails validation is rejected and re-asked."""
+    file_access = FileAccess.CREATE
+    caps = access_capabilities(file_access)
+    spec = tio_config_specs()['character_encoding']
+    bridge = _ScriptedBridge(['bogus-encoding-xyz', ''])
+    data: dict[str, object] = {'format_name': 'CSV'}
+    wizard_module._ask_config_member(spec, data, caps, file_access, bridge,
+                                     bridge.error_file())
+    assert 'character_encoding' not in data
+    assert bridge.calls[0][1] is None
+    retry = bridge.calls[1][1]
+    assert retry is not None and 'Invalid value' in retry
+
+
+def test_ask_impl_single() -> None:
+    """A single implementation needs no question and returns None."""
+    bridge = _ScriptedBridge([])
+    assert wizard_module._ask_implementation(('only',), bridge) is None

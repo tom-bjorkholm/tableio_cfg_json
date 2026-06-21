@@ -527,7 +527,7 @@ class WizardUiBridgeTextual(WizardUiBridge):
         This is the only place that drives the terminal, so tests
         override it to exercise the bridge without a real terminal.
         """
-        return app.run()
+        return app.run()  # pragma: no cover
 
     def _collect(self, re_ask_reason: Optional[str]) -> list[str]:
         """Drain buffered messages and append any re-ask reason."""
