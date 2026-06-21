@@ -35,6 +35,7 @@ from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
     WizardNavigation, WizardUiBridge, _multi_count_error
 
 _T = TypeVar('_T')
+_V = TypeVar('_V')
 
 
 class _NavApp(App[_T]):
@@ -224,18 +225,47 @@ def _make_select(cell: TableCell, widget_id: str) -> Select[str]:
                   id=widget_id)
 
 
+def _uniform(values: list[_V], default: _V) -> _V:
+    """Return the value shared by every entry, or the default."""
+    if values and all(value == values[0] for value in values):
+        return values[0]
+    return default
+
+
+def _new_row_template(columns: Sequence[TableColumn],
+                      cells: list[list[TableCell]]) -> list[TableCell]:
+    """Return the cell descriptors used for rows added to the table.
+
+    For each column, a member of the new cell keeps the value shared by
+    every template cell in that column, or falls back to a default when
+    they differ: an empty string for value, None for choices and False
+    for nullable.
+    """
+    new_row: list[TableCell] = []
+    for col in range(len(columns)):
+        column = [row[col] for row in cells]
+        new_row.append(TableCell(
+            value=_uniform([cell.value for cell in column], ''),
+            choices=_uniform([cell.choices for cell in column], None),
+            nullable=_uniform([cell.nullable for cell in column], False)))
+    return new_row
+
+
+# pylint: disable-next=too-many-instance-attributes
 class _TableApp(_NavApp[list[list[Optional[str]]]]):
     """Editable grid returning every cell the user left.
 
-    Read-only columns show fixed text. Editable cells are a text input,
-    or a drop-down when the cell offers choices. An empty editable cell
-    is reported as None when the cell is nullable and as an empty string
-    for a free-text cell, while a drop-down is blank only when the cell
-    is nullable.
+    Read-only columns show fixed text in the template rows. Editable
+    cells are a text input, or a drop-down when the cell offers choices.
+    An empty editable cell is reported as None when the cell is nullable
+    and as an empty string for a free-text cell, while a drop-down is
+    blank only when the cell is nullable.
 
-    A variable number of rows is not yet supported: min_rows and
-    max_rows are accepted for interface parity but the grid always shows
-    the rows in cells, as the temporary base-class fallback does.
+    When min_rows and max_rows are both given the table has a variable
+    number of rows: an Add row and a Remove row button grow the table up
+    to max_rows and shrink it down to min_rows. Every cell in an added
+    row is editable, even in a read-only column, and its descriptor comes
+    from _new_row_template().
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [('ctrl+s', 'submit', 'Submit')]
@@ -244,23 +274,32 @@ class _TableApp(_NavApp[list[list[Optional[str]]]]):
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def __init__(self, columns: Sequence[TableColumn],
                  cells: list[list[TableCell]], question: str,
-                 messages: list[str],
-                 partial_check: Optional[PartialCheck]) -> None:
-        """Store the columns, starting cells, prompt and check."""
+                 messages: list[str], partial_check: Optional[PartialCheck],
+                 min_rows: Optional[int] = None,
+                 max_rows: Optional[int] = None) -> None:
+        """Store the columns, starting rows, prompt, check and bounds."""
         super().__init__()
         self._columns = columns
-        self._cells = cells
         self._question = question
         self._messages = messages
         self._partial_check = partial_check
+        self._variable = min_rows is not None and max_rows is not None
+        self._min_rows = len(cells) if min_rows is None else min_rows
+        self._max_rows = len(cells) if max_rows is None else max_rows
+        self._new_row = _new_row_template(columns, cells)
+        self._rows = [list(row) for row in cells]
+        self._added = [False] * len(cells)
         self._table: list[list[Optional[str]]] = [
             [cell.value for cell in row] for row in cells]
 
     def compose(self) -> ComposeResult:
-        """Lay out the header, the editable grid, submit and footer."""
+        """Lay out the header, the editable grid, the buttons and footer."""
         yield from _header_widgets(self._messages, self._question)
         with VerticalScroll(id='scroll'), Grid(id='grid'):
             yield from self._grid_cells()
+        if self._variable:
+            yield Button('Add row', id='add_row')
+            yield Button('Remove row', id='remove_row')
         yield Button('Submit', id='submit')
         yield Static('', id='table_status')
         yield Footer()
@@ -273,29 +312,40 @@ class _TableApp(_NavApp[list[list[Optional[str]]]]):
         self._focus_first_cell()
 
     def _focus_first_cell(self) -> None:
-        """Move focus to the first editable cell, if there is one.
-
-        Editability is per column, so the first editable cell is in the
-        first row of the first editable column.
-        """
-        editable = [col for col, column in enumerate(self._columns)
-                    if not column.read_only]
-        if editable and self._cells:
-            self.query_one(f'#cell_0_{editable[0]}').focus()
+        """Move focus to the first editable cell of the first row."""
+        if not self._rows:
+            return
+        for col in range(len(self._columns)):
+            if not self._is_readonly(0, col):
+                self.query_one(f'#cell_0_{col}').focus()
+                return
 
     def _grid_cells(self) -> Iterator[Widget]:
-        """Yield the header labels and then one widget per table cell."""
+        """Yield the header labels and then the rows, top to bottom."""
         for column in self._columns:
             yield Static(column.header)
-        for row, cells in enumerate(self._cells):
-            for col, cell in enumerate(cells):
-                yield self._cell_widget(row, col, cell)
+        for row in range(len(self._rows)):
+            yield from self._row_widgets(row)
 
-    def _cell_widget(self, row: int, col: int, cell: TableCell) -> Widget:
+    def _row_widgets(self, row: int) -> Iterator[Widget]:
+        """Yield the widgets of one data row, left to right."""
+        for col in range(len(self._columns)):
+            yield self._cell_widget(row, col)
+
+    def _is_readonly(self, row: int, col: int) -> bool:
+        """Return whether a cell shows fixed text instead of a widget.
+
+        Cells in added rows are always editable, even in a column that is
+        read-only in the template rows.
+        """
+        return not self._added[row] and self._columns[col].read_only
+
+    def _cell_widget(self, row: int, col: int) -> Widget:
         """Return the widget shown for one cell of the grid."""
-        if self._columns[col].read_only:
-            return Static(cell.value or '')
+        cell = self._rows[row][col]
         widget_id = f'cell_{row}_{col}'
+        if self._is_readonly(row, col):
+            return Static(cell.value or '', id=widget_id)
         if cell.choices is None:
             return Input(value=cell.value or '', id=widget_id)
         return _make_select(cell, widget_id)
@@ -319,25 +369,63 @@ class _TableApp(_NavApp[list[list[Optional[str]]]]):
         if self._partial_check is None:
             return
         accepted, message = self._partial_check(self._table, position)
-        self.query_one('#table_status', Static).update(
-            '' if accepted else message)
+        self._set_status('' if accepted else message)
 
     def action_submit(self) -> None:
         """Exit returning every cell, including the read-only columns."""
         result = [[self._read_cell(row, col)
                    for col in range(len(self._columns))]
-                  for row in range(len(self._cells))]
+                  for row in range(len(self._rows))]
         self.exit(result)
 
-    @on(Button.Pressed)
-    def _clicked(self, _event: Button.Pressed) -> None:
-        """Treat a click on the submit button like the submit action."""
+    @on(Button.Pressed, '#submit')
+    def _submit_clicked(self, _event: Button.Pressed) -> None:
+        """Submit the table when the submit button is pressed."""
         self.action_submit()
+
+    @on(Button.Pressed, '#add_row')
+    def _add_clicked(self, _event: Button.Pressed) -> None:
+        """Add a row when the add-row button is pressed."""
+        self._add_row()
+
+    @on(Button.Pressed, '#remove_row')
+    def _remove_clicked(self, _event: Button.Pressed) -> None:
+        """Remove the last row when the remove-row button is pressed."""
+        self._remove_row()
+
+    def _add_row(self) -> None:
+        """Append one editable row, up to max_rows."""
+        if len(self._rows) >= self._max_rows:
+            self._set_status(f'At most {self._max_rows} rows allowed.')
+            return
+        row = len(self._rows)
+        self._rows.append(list(self._new_row))
+        self._added.append(True)
+        self._table.append([cell.value for cell in self._new_row])
+        self.query_one('#grid', Grid).mount(*self._row_widgets(row))
+        self._set_status('')
+
+    def _remove_row(self) -> None:
+        """Remove the last row, down to min_rows."""
+        if len(self._rows) <= self._min_rows:
+            self._set_status(f'At least {self._min_rows} rows required.')
+            return
+        row = len(self._rows) - 1
+        for col in range(len(self._columns)):
+            self.query_one(f'#cell_{row}_{col}').remove()
+        self._rows.pop()
+        self._added.pop()
+        self._table.pop()
+        self._set_status('')
+
+    def _set_status(self, message: str) -> None:
+        """Show a status message below the table."""
+        self.query_one('#table_status', Static).update(message)
 
     def _read_cell(self, row: int, col: int) -> Optional[str]:
         """Return the current value of one cell for the result table."""
-        cell = self._cells[row][col]
-        if self._columns[col].read_only:
+        cell = self._rows[row][col]
+        if self._is_readonly(row, col):
             return cell.value
         widget_id = f'#cell_{row}_{col}'
         if cell.choices is not None:
@@ -414,16 +502,10 @@ class WizardUiBridgeTextual(WizardUiBridge):
                   partial_check: Optional[PartialCheck] = None,
                   min_rows: Optional[int] = None,
                   max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
-        """Ask the user to fill a table; see WizardUiBridge.ask_table.
-
-        A variable number of rows is not yet supported here: min_rows
-        and max_rows are accepted for interface parity but the grid
-        shows the fixed rows in cells, as the base-class fallback does.
-        """
+        """Ask the user to fill a table; see WizardUiBridge.ask_table."""
         messages = self._collect(re_ask_reason)
-        _ = (min_rows, max_rows)  # variable rows not yet supported
         return self._run(_TableApp(columns, cells, question, messages,
-                                   partial_check))
+                                   partial_check, min_rows, max_rows))
 
     def _run(self, app: _NavApp[_T]) -> _T:
         """Run one screen and translate its outcome.

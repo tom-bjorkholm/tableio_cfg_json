@@ -1351,10 +1351,6 @@ def ask_table(columns: Sequence[TableColumn],
 
 Ask the user to fill a table; see WizardUiBridge.ask_table.
 
-A variable number of rows is not yet supported here: min_rows
-and max_rows are accepted for interface parity but the grid
-shows the fixed rows in cells, as the base-class fallback does.
-
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.error_file"></a>
 
 #### error\_file

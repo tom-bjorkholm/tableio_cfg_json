@@ -16,7 +16,7 @@ from tableio_cfg_json import TableCell, TableColumn, WizardAbort, \
     WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeConsole, \
     WizardUiBridgeTextual, make_text_ui_bridge
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
-    _NavApp, _TableApp, _TextApp
+    _NavApp, _TableApp, _TextApp, _new_row_template
 
 
 def drive(app: _NavApp[Any], steps: Sequence[str]) -> _NavApp[Any]:
@@ -340,3 +340,134 @@ def test_ask_table_nav() -> None:
     bridge = _CannedBridge([WizardCancelLevel])
     with pytest.raises(WizardCancelLevel):
         bridge.ask_table(columns, cells, 'q')
+
+
+def test_new_row_uniform() -> None:
+    """A new row keeps the members shared across each template column."""
+    columns = (TableColumn('P', read_only=True), TableColumn('V'))
+    cells = [[TableCell(value='p', choices=('a', 'b'), nullable=True),
+              TableCell(value='x', choices=('a', 'b'), nullable=True)],
+             [TableCell(value='p', choices=('a', 'b'), nullable=True),
+              TableCell(value='y', choices=('a', 'b'), nullable=True)]]
+    new_row = _new_row_template(columns, cells)
+    assert new_row[0].value == 'p'
+    assert new_row[0].choices == ('a', 'b')
+    assert new_row[0].nullable is True
+    assert new_row[1].value == ''
+    assert new_row[1].choices == ('a', 'b')
+
+
+def test_new_row_defaults() -> None:
+    """Differing template members fall back to '', None and False."""
+    columns = (TableColumn('V'),)
+    cells = [[TableCell(value='x', choices=('a',), nullable=True)],
+             [TableCell(value='y', choices=('a', 'b'), nullable=False)]]
+    new_row = _new_row_template(columns, cells)
+    assert new_row[0].value == ''
+    assert new_row[0].choices is None
+    assert new_row[0].nullable is False
+
+
+def test_new_row_none() -> None:
+    """A uniformly None value stays None in added rows."""
+    columns = (TableColumn('V'),)
+    cells = [[TableCell(value=None, nullable=True)],
+             [TableCell(value=None, nullable=True)]]
+    new_row = _new_row_template(columns, cells)
+    assert new_row[0].value is None
+    assert new_row[0].nullable is True
+
+
+def test_table_add_row() -> None:
+    """Adding a row, filling it, and submitting returns the new row."""
+    columns = (TableColumn('V'),)
+    cells = [[TableCell(value='a')], [TableCell(value='b')]]
+    app = _TableApp(columns, cells, 'q', [], None, 2, 4)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            await pilot.click('#add_row')
+            await pilot.pause()
+            app.query_one('#cell_2_0').focus()
+            await pilot.press('c')
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    assert app.return_value == [['a'], ['b'], ['c']]
+
+
+def test_add_row_readonly() -> None:
+    """A read-only column becomes editable in an added row."""
+    columns = (TableColumn('P', read_only=True), TableColumn('V'))
+    cells = [[TableCell(value='p1'), TableCell(value='x')],
+             [TableCell(value='p2'), TableCell(value='y')]]
+    app = _TableApp(columns, cells, 'q', [], None, 2, 4)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            await pilot.click('#add_row')
+            await pilot.pause()
+            app.query_one('#cell_2_0').focus()
+            await pilot.press('z')
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    assert app.return_value == [['p1', 'x'], ['p2', 'y'], ['z', '']]
+
+
+def test_table_remove_row() -> None:
+    """Removing the last row drops it from the result."""
+    columns = (TableColumn('V'),)
+    cells = [[TableCell(value='a')], [TableCell(value='b')]]
+    app = _TableApp(columns, cells, 'q', [], None, 1, 3)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            await pilot.click('#remove_row')
+            await pilot.pause()
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    assert app.return_value == [['a']]
+
+
+def test_table_row_bounds() -> None:
+    """The table will not shrink below min_rows or grow past max_rows."""
+    columns = (TableColumn('V'),)
+    cells = [[TableCell(value='a')]]
+    app = _TableApp(columns, cells, 'q', [], None, 1, 2)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            await pilot.click('#remove_row')
+            await pilot.pause()
+            await pilot.click('#add_row')
+            await pilot.pause()
+            await pilot.click('#add_row')
+            await pilot.pause()
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    result = app.return_value
+    assert result is not None
+    assert len(result) == 2
+
+
+def test_fixed_no_buttons() -> None:
+    """A fixed table has no Add row or Remove row button."""
+    columns = (TableColumn('V'),)
+    cells = [[TableCell(value='a')]]
+    app = _TableApp(columns, cells, 'q', [], None)
+
+    async def scenario() -> tuple[int, int]:
+        async with app.run_test():
+            return (len(app.query('#add_row')), len(app.query('#remove_row')))
+    assert asyncio.run(scenario()) == (0, 0)
+
+
+def test_ask_table_variable() -> None:
+    """ask_table passes the row bounds through to the table screen."""
+    columns = (TableColumn('V'),)
+    cells = [[TableCell(value='a')]]
+    bridge = _CannedBridge([[['a']]])
+    bridge.ask_table(columns, cells, 'q', min_rows=1, max_rows=3)
+    app = bridge.launched[0]
+    assert isinstance(app, _TableApp)
+    assert app._variable is True
+    assert (app._min_rows, app._max_rows) == (1, 3)

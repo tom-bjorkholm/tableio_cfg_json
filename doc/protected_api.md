@@ -127,18 +127,27 @@
   * [\_preselected](#tableio_cfg_json.wizard_ui_bridge_textual._preselected)
   * [\_parse\_cell\_id](#tableio_cfg_json.wizard_ui_bridge_textual._parse_cell_id)
   * [\_make\_select](#tableio_cfg_json.wizard_ui_bridge_textual._make_select)
+  * [\_uniform](#tableio_cfg_json.wizard_ui_bridge_textual._uniform)
+  * [\_new\_row\_template](#tableio_cfg_json.wizard_ui_bridge_textual._new_row_template)
   * [\_TableApp](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.compose)
     * [on\_mount](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.on_mount)
     * [\_focus\_first\_cell](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._focus_first_cell)
     * [\_grid\_cells](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._grid_cells)
+    * [\_row\_widgets](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._row_widgets)
+    * [\_is\_readonly](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._is_readonly)
     * [\_cell\_widget](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._cell_widget)
     * [\_on\_input](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._on_input)
     * [\_on\_select](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._on_select)
     * [\_recheck](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._recheck)
     * [action\_submit](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.action_submit)
-    * [\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._clicked)
+    * [\_submit\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._submit_clicked)
+    * [\_add\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._add_clicked)
+    * [\_remove\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._remove_clicked)
+    * [\_add\_row](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._add_row)
+    * [\_remove\_row](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._remove_row)
+    * [\_set\_status](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._set_status)
     * [\_read\_cell](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._read_cell)
   * [WizardUiBridgeTextual](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.__init__)
@@ -2706,6 +2715,32 @@ def _make_select(cell: TableCell, widget_id: str) -> Select[str]
 
 Return a drop-down for one cell, blank only when nullable.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._uniform"></a>
+
+#### \_uniform
+
+```python
+def _uniform(values: list[_V], default: _V) -> _V
+```
+
+Return the value shared by every entry, or the default.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._new_row_template"></a>
+
+#### \_new\_row\_template
+
+```python
+def _new_row_template(columns: Sequence[TableColumn],
+                      cells: list[list[TableCell]]) -> list[TableCell]
+```
+
+Return the cell descriptors used for rows added to the table.
+
+For each column, a member of the new cell keeps the value shared by
+every template cell in that column, or falls back to a default when
+they differ: an empty string for value, None for choices and False
+for nullable.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp"></a>
 
 ## \_TableApp Objects
@@ -2716,27 +2751,33 @@ class _TableApp(_NavApp[list[list[Optional[str]]]])
 
 Editable grid returning every cell the user left.
 
-Read-only columns show fixed text. Editable cells are a text input,
-or a drop-down when the cell offers choices. An empty editable cell
-is reported as None when the cell is nullable and as an empty string
-for a free-text cell, while a drop-down is blank only when the cell
-is nullable.
+Read-only columns show fixed text in the template rows. Editable
+cells are a text input, or a drop-down when the cell offers choices.
+An empty editable cell is reported as None when the cell is nullable
+and as an empty string for a free-text cell, while a drop-down is
+blank only when the cell is nullable.
 
-A variable number of rows is not yet supported: min_rows and
-max_rows are accepted for interface parity but the grid always shows
-the rows in cells, as the temporary base-class fallback does.
+When min_rows and max_rows are both given the table has a variable
+number of rows: an Add row and a Remove row button grow the table up
+to max_rows and shrink it down to min_rows. Every cell in an added
+row is editable, even in a read-only column, and its descriptor comes
+from _new_row_template().
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp.__init__"></a>
 
 #### \_\_init\_\_
 
 ```python
-def __init__(columns: Sequence[TableColumn], cells: list[list[TableCell]],
-             question: str, messages: list[str],
-             partial_check: Optional[PartialCheck]) -> None
+def __init__(columns: Sequence[TableColumn],
+             cells: list[list[TableCell]],
+             question: str,
+             messages: list[str],
+             partial_check: Optional[PartialCheck],
+             min_rows: Optional[int] = None,
+             max_rows: Optional[int] = None) -> None
 ```
 
-Store the columns, starting cells, prompt and check.
+Store the columns, starting rows, prompt, check and bounds.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp.compose"></a>
 
@@ -2746,7 +2787,7 @@ Store the columns, starting cells, prompt and check.
 def compose() -> ComposeResult
 ```
 
-Lay out the header, the editable grid, submit and footer.
+Lay out the header, the editable grid, the buttons and footer.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp.on_mount"></a>
 
@@ -2766,10 +2807,7 @@ Size the grid, keep the scroll unfocused, focus a cell.
 def _focus_first_cell() -> None
 ```
 
-Move focus to the first editable cell, if there is one.
-
-Editability is per column, so the first editable cell is in the
-first row of the first editable column.
+Move focus to the first editable cell of the first row.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._grid_cells"></a>
 
@@ -2779,14 +2817,37 @@ first row of the first editable column.
 def _grid_cells() -> Iterator[Widget]
 ```
 
-Yield the header labels and then one widget per table cell.
+Yield the header labels and then the rows, top to bottom.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._row_widgets"></a>
+
+#### \_row\_widgets
+
+```python
+def _row_widgets(row: int) -> Iterator[Widget]
+```
+
+Yield the widgets of one data row, left to right.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._is_readonly"></a>
+
+#### \_is\_readonly
+
+```python
+def _is_readonly(row: int, col: int) -> bool
+```
+
+Return whether a cell shows fixed text instead of a widget.
+
+Cells in added rows are always editable, even in a column that is
+read-only in the template rows.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._cell_widget"></a>
 
 #### \_cell\_widget
 
 ```python
-def _cell_widget(row: int, col: int, cell: TableCell) -> Widget
+def _cell_widget(row: int, col: int) -> Widget
 ```
 
 Return the widget shown for one cell of the grid.
@@ -2833,16 +2894,68 @@ def action_submit() -> None
 
 Exit returning every cell, including the read-only columns.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._clicked"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._submit_clicked"></a>
 
-#### \_clicked
+#### \_submit\_clicked
 
 ```python
-@on(Button.Pressed)
-def _clicked(_event: Button.Pressed) -> None
+@on(Button.Pressed, '#submit')
+def _submit_clicked(_event: Button.Pressed) -> None
 ```
 
-Treat a click on the submit button like the submit action.
+Submit the table when the submit button is pressed.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._add_clicked"></a>
+
+#### \_add\_clicked
+
+```python
+@on(Button.Pressed, '#add_row')
+def _add_clicked(_event: Button.Pressed) -> None
+```
+
+Add a row when the add-row button is pressed.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._remove_clicked"></a>
+
+#### \_remove\_clicked
+
+```python
+@on(Button.Pressed, '#remove_row')
+def _remove_clicked(_event: Button.Pressed) -> None
+```
+
+Remove the last row when the remove-row button is pressed.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._add_row"></a>
+
+#### \_add\_row
+
+```python
+def _add_row() -> None
+```
+
+Append one editable row, up to max_rows.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._remove_row"></a>
+
+#### \_remove\_row
+
+```python
+def _remove_row() -> None
+```
+
+Remove the last row, down to min_rows.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._set_status"></a>
+
+#### \_set\_status
+
+```python
+def _set_status(message: str) -> None
+```
+
+Show a status message below the table.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp._read_cell"></a>
 
@@ -2954,10 +3067,6 @@ def ask_table(columns: Sequence[TableColumn],
 ```
 
 Ask the user to fill a table; see WizardUiBridge.ask_table.
-
-A variable number of rows is not yet supported here: min_rows
-and max_rows are accepted for interface parity but the grid
-shows the fixed rows in cells, as the base-class fallback does.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._run"></a>
 
