@@ -7,14 +7,13 @@ and the column and cell descriptors used by table questions. Concrete
 console and graphical bridges derive from WizardUiBridge.
 
 An application that drives the wizard is responsible for implementing
-all the public ask methods of its bridge, together with show(). As a
-migration aid the base class provides temporary fallback
-implementations of ask_yes_no(), ask_choice(), ask_multi() and
-ask_table() written in terms of ask(), so a bridge that so far only
-overrides ask() keeps working while the application is adjusted to the
-full API. These fallbacks are a temporary compatibility aid and may be
-withdrawn in a future release once applications implement the methods
-directly.
+all the public ask methods of its bridge, together with show(). To give
+application bridge authors time to migrate to the full API, the base
+class provides temporary fallback implementations of ask_yes_no(),
+ask_choice(), ask_multi() and ask_table() written in terms of ask(), so
+a bridge that has not yet overridden one of them keeps working. These
+fallbacks are a temporary compatibility aid and will be withdrawn in a
+future release once bridges implement the methods directly.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -150,11 +149,12 @@ class WizardUiBridge:
     of its bridge, together with show(). At minimum a concrete bridge must
     implement ask() and show(), which have no fallback. As a temporary
     migration aid the base class implements ask_yes_no(), ask_choice(),
-    ask_multi() and ask_table() in terms of ask(), so a bridge that only
-    overrides ask() keeps working while the application is adjusted to
-    implement these methods directly. Any ask method may raise a
-    WizardNavigation subclass to request back, cancel-level or abort
-    instead of returning an answer.
+    ask_multi() and ask_table() in terms of ask(), so a bridge that has
+    not yet overridden one of them keeps working while it is adjusted to
+    implement these methods directly. These fallbacks are temporary and
+    will be withdrawn once bridges implement them directly. Any ask
+    method may raise a WizardNavigation subclass to request back,
+    cancel-level or abort instead of returning an answer.
     """
 
     def ask(self, question: str, re_ask_reason: Optional[str] = None,
@@ -189,7 +189,7 @@ class WizardUiBridge:
                    re_ask_reason: Optional[str] = None) -> bool:
         """Ask a yes/no question and return the chosen boolean.
 
-        The wizard asks every yes/no question through this method, and the
+        Yes/no questions are asked through this method, and the
         application is responsible for implementing it with a real yes/no
         interface, such as a pair of yes and no buttons in a graphical
         bridge or a y/n prompt in a console bridge. As a temporary
@@ -316,7 +316,9 @@ class WizardUiBridge:
         provides a fallback in terms of ask(), asking once per editable
         cell and folding the read-only cells of the row into the prompt,
         so a bridge that has not yet overridden this method keeps
-        working. In that fallback an empty answer keeps the cell's
+        working. The fallback only fills the rows given in cells, so it
+        ignores min_rows and max_rows and cannot add or remove rows. In
+        that fallback an empty answer keeps the cell's
         current value and a reserved erase token empties the cell, which
         is how a console user replaces a pre-filled default with an empty
         cell.

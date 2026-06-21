@@ -6,8 +6,7 @@ does not hard-code the console bridge. Instead it asks the library
 helper make_text_ui_bridge() for the best available text-mode bridge:
 
 - In a real terminal it returns WizardUiBridgeTextual, a full-screen
-  Textual interface with selectable lists, check boxes and editable
-  tables.
+  Textual interface with selectable lists and editable tables.
 - When the streams are not a terminal, for instance when input is piped
   or redirected (as the automated tests do), it returns the console
   bridge instead.

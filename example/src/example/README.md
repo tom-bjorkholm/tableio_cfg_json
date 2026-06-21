@@ -208,7 +208,7 @@ The example source files are:
   does exactly what `e05_split_cities_wizard.py` does, but builds its bridge
   with `make_text_ui_bridge()` instead of hard-coding the console bridge. In a
   real terminal that gives a full-screen Textual interface with selectable
-  lists, check boxes and editable tables; with redirected input it falls back
+  lists and editable tables; with redirected input it falls back
   to the console bridge, so the program stays scriptable. It reuses all of
   e05's question, config and guide logic unchanged, so the only difference is
   the one line that builds the bridge.
