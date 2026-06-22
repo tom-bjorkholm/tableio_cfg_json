@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Tests for the Textual user interface bridge and its factory."""
+"""Tests for the Textual user interface bridge."""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
@@ -7,18 +7,12 @@
 # pylint: disable=protected-access
 
 import asyncio
-import importlib
-import sys
-from io import StringIO
 from typing import Any, Optional, Sequence
 
 import pytest
 
-import tableio_cfg_json
-import tableio_cfg_json.wizard_ui_factory as wizard_factory
 from tableio_cfg_json import TableCell, TableColumn, WizardAbort, \
-    WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeConsole, \
-    WizardUiBridgeTextual, make_text_ui_bridge
+    WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeTextual
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
     _NavApp, _TableApp, _TextApp, _new_row_template, _parse_cell_id, \
     _preselected
@@ -65,14 +59,6 @@ class _CannedBridge(WizardUiBridgeTextual):
             app.nav = outcome
             return None
         return outcome
-
-
-class _TtyStream(StringIO):
-    """In-memory stream that reports itself as a terminal."""
-
-    def isatty(self) -> bool:
-        """Pretend to be a terminal so the factory picks Textual."""
-        return True
 
 
 def test_text_returns_typed() -> None:
@@ -245,18 +231,6 @@ def test_drained_once() -> None:
     assert isinstance(first, _TextApp) and isinstance(second, _TextApp)
     assert 'once' in first._messages
     assert 'once' not in second._messages
-
-
-def test_factory_console() -> None:
-    """Without a terminal the factory returns the console bridge."""
-    bridge = make_text_ui_bridge(StringIO(), StringIO(), StringIO())
-    assert isinstance(bridge, WizardUiBridgeConsole)
-
-
-def test_factory_textual() -> None:
-    """With a terminal the factory returns the Textual bridge."""
-    bridge = make_text_ui_bridge(_TtyStream(), _TtyStream(), _TtyStream())
-    assert isinstance(bridge, WizardUiBridgeTextual)
 
 
 def test_table_prefilled() -> None:
@@ -544,24 +518,3 @@ def test_add_past_max() -> None:
             await pilot.pause()
             return len(app._rows)
     assert asyncio.run(scenario()) == 2
-
-
-def test_import_no_textual() -> None:
-    """Without the Textual bridge the factory falls back to console."""
-    key = 'tableio_cfg_json.wizard_ui_bridge_textual'
-    saved = sys.modules.get(key)
-    sys.modules[key] = None  # type: ignore[assignment]
-    try:
-        importlib.reload(wizard_factory)
-        importlib.reload(tableio_cfg_json)
-        assert wizard_factory._TEXTUAL is None
-        ttys = (_TtyStream(), _TtyStream(), _TtyStream())
-        bridge = wizard_factory.make_text_ui_bridge(*ttys)
-        assert isinstance(bridge, WizardUiBridgeConsole)
-    finally:
-        if saved is not None:
-            sys.modules[key] = saved
-        else:
-            sys.modules.pop(key, None)
-        importlib.reload(wizard_factory)
-        importlib.reload(tableio_cfg_json)

@@ -219,6 +219,7 @@
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
 * [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
+  * [UiBridgeType](#tableio_cfg_json.wizard_ui_factory.UiBridgeType)
   * [make\_text\_ui\_bridge](#tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge)
   * [\_is\_tty](#tableio_cfg_json.wizard_ui_factory._is_tty)
 
@@ -3933,13 +3934,32 @@ This factory chooses between text-mode bridges only. An application
 with a graphical user interface should provide and use its own
 graphical bridge instead.
 
+<a id="tableio_cfg_json.wizard_ui_factory.UiBridgeType"></a>
+
+## UiBridgeType Objects
+
+```python
+class UiBridgeType(Enum)
+```
+
+Type of wizard user interface bridge.
+
+AUTO: Auto-select the best bridge based on the environment.
+      This will use Textual if it is installed and the streams
+      are a terminal, else a console bridge.
+TEXTUAL: Use the Textual bridge, even if it might fail.
+CONSOLE: Use the console bridge, even if Textual could be used.
+
 <a id="tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge"></a>
 
 #### make\_text\_ui\_bridge
 
 ```python
-def make_text_ui_bridge(stdout_file: TextIO, stdin_file: TextIO,
-                        stderr_file: TextIO) -> WizardUiBridge
+def make_text_ui_bridge(
+        stdout_file: TextIO,
+        stdin_file: TextIO,
+        stderr_file: TextIO,
+        bridge_type: UiBridgeType = UiBridgeType.AUTO) -> WizardUiBridge
 ```
 
 Return a Textual bridge for a terminal, else a console bridge.
@@ -3951,6 +3971,16 @@ Return a Textual bridge for a terminal, else a console bridge.
 - `stdin_file` - Stream the console bridge reads from, also checked
   for being a terminal.
 - `stderr_file` - Stream the console bridge prints errors to.
+- `bridge_type` - Type of bridge to use. Defaults to AUTO.
+  If AUTO, select the best bridge based on the environment.
+  If TEXTUAL, use the Textual bridge that might fail.
+  If CONSOLE, use the console bridge.
+  
+
+**Raises**:
+
+- `RuntimeError` - If Textual is selected but Textual bridge is not
+  installed.
   
 
 **Returns**:
