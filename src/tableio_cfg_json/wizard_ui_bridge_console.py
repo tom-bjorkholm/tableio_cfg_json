@@ -50,7 +50,9 @@ class WizardUiBridgeConsole(WizardUiBridge):
                    re_ask_reason: Optional[str] = None) -> bool:
         """Ask a yes/no question on the console; see ask_yes_no."""
         def reader(reason: Optional[str]) -> str | int:
-            self._emit_question(question, reason, _menu_lines(('yes', 'no')))
+            marked = ('yes',) if default else ('no',)
+            menu_lines = _menu_lines(('yes', 'no'), marked=marked)
+            self._emit_question(question, reason, menu_lines)
             return _to_index(self._read_answer(question))
         return _ask_yes_no(reader, default, re_ask_reason)
 

@@ -14,7 +14,7 @@ import pytest
 from tableio_cfg_json import TableCell, TableColumn, WizardAbort, \
     WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeTextual
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
-    _NavApp, _TableApp, _TextApp, _parse_cell_id, _preselected
+    _NavApp, _TableApp, _TextApp, _default_index, _parse_cell_id, _preselected
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 
@@ -154,6 +154,16 @@ def test_yes_no_map(index: int, expected: bool) -> None:
     """ask_yes_no() maps the yes index to True and the no index to False."""
     bridge = _CannedBridge([index])
     assert bridge.ask_yes_no('q', default=True) is expected
+
+
+@pytest.mark.parametrize('default,index', [(True, 0), (False, 1)])
+def test_yes_no_default_idx(default: bool, index: int) -> None:
+    """ask_yes_no() highlights yes for a True default and no for False."""
+    bridge = _CannedBridge([0])
+    bridge.ask_yes_no('q', default=default)
+    app = bridge.launched[0]
+    assert isinstance(app, _ChoiceApp)
+    assert app._default_index == index
 
 
 def test_multi_map() -> None:
@@ -464,6 +474,12 @@ def test_preselected_default() -> None:
     """Default values map to indexes, and no default maps to empty."""
     assert _preselected(('a', 'b', 'c'), ('a', 'c')) == [0, 2]
     assert _preselected(('a', 'b'), None) == []
+
+
+def test_default_idx_missing() -> None:
+    """A default outside the choices highlights no option."""
+    assert _default_index(('a', 'b'), 'zzz') is None
+    assert _default_index(('a', 'b'), None) is None
 
 
 def test_parse_cell_id() -> None:
