@@ -135,8 +135,6 @@
   * [\_preselected](#tableio_cfg_json.wizard_ui_bridge_textual._preselected)
   * [\_parse\_cell\_id](#tableio_cfg_json.wizard_ui_bridge_textual._parse_cell_id)
   * [\_make\_select](#tableio_cfg_json.wizard_ui_bridge_textual._make_select)
-  * [\_uniform](#tableio_cfg_json.wizard_ui_bridge_textual._uniform)
-  * [\_new\_row\_template](#tableio_cfg_json.wizard_ui_bridge_textual._new_row_template)
   * [\_TableApp](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.compose)
@@ -218,6 +216,26 @@
   * [\_member\_question](#tableio_cfg_json.wizard._member_question)
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
+* [tableio\_cfg\_json.wizard\_ui\_bridge\_table](#tableio_cfg_json.wizard_ui_bridge_table)
+  * [\_ADD\_ROW](#tableio_cfg_json.wizard_ui_bridge_table._ADD_ROW)
+  * [\_DEL\_ROW](#tableio_cfg_json.wizard_ui_bridge_table._DEL_ROW)
+  * [\_uniform](#tableio_cfg_json.wizard_ui_bridge_table._uniform)
+  * [\_new\_row\_template](#tableio_cfg_json.wizard_ui_bridge_table._new_row_template)
+  * [\_VarTable](#tableio_cfg_json.wizard_ui_bridge_table._VarTable)
+    * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_table._VarTable.__init__)
+    * [step](#tableio_cfg_json.wizard_ui_bridge_table._VarTable.step)
+    * [\_accept](#tableio_cfg_json.wizard_ui_bridge_table._VarTable._accept)
+    * [\_add](#tableio_cfg_json.wizard_ui_bridge_table._VarTable._add)
+    * [\_delete](#tableio_cfg_json.wizard_ui_bridge_table._VarTable._delete)
+    * [\_edit](#tableio_cfg_json.wizard_ui_bridge_table._VarTable._edit)
+    * [\_edit\_row](#tableio_cfg_json.wizard_ui_bridge_table._VarTable._edit_row)
+    * [\_fill\_one](#tableio_cfg_json.wizard_ui_bridge_table._VarTable._fill_one)
+    * [\_editable](#tableio_cfg_json.wizard_ui_bridge_table._VarTable._editable)
+  * [\_run\_variable\_table](#tableio_cfg_json.wizard_ui_bridge_table._run_variable_table)
+  * [\_overview\_lines](#tableio_cfg_json.wizard_ui_bridge_table._overview_lines)
+  * [\_column\_widths](#tableio_cfg_json.wizard_ui_bridge_table._column_widths)
+  * [\_overview\_line](#tableio_cfg_json.wizard_ui_bridge_table._overview_line)
+  * [\_cell\_text](#tableio_cfg_json.wizard_ui_bridge_table._cell_text)
 * [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
   * [UiBridgeType](#tableio_cfg_json.wizard_ui_factory.UiBridgeType)
   * [make\_text\_ui\_bridge](#tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge)
@@ -2897,32 +2915,6 @@ def _make_select(cell: TableCell, widget_id: str) -> Select[str]
 
 Return a drop-down for one cell, blank only when nullable.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._uniform"></a>
-
-#### \_uniform
-
-```python
-def _uniform(values: list[_V], default: _V) -> _V
-```
-
-Return the value shared by every entry, or the default.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._new_row_template"></a>
-
-#### \_new\_row\_template
-
-```python
-def _new_row_template(columns: Sequence[TableColumn],
-                      cells: list[list[TableCell]]) -> list[TableCell]
-```
-
-Return the cell descriptors used for rows added to the table.
-
-For each column, a member of the new cell keeps the value shared by
-every template cell in that column, or falls back to a default when
-they differ: an empty string for value, None for choices and False
-for nullable.
-
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp"></a>
 
 ## \_TableApp Objects
@@ -3398,6 +3390,10 @@ def ask_table(columns: Sequence[TableColumn],
 ```
 
 Ask the user to fill a table on the console; see ask_table.
+
+With both min_rows and max_rows given the table has a variable
+number of rows, edited through a row-menu interface. Otherwise the
+fixed rows in cells are filled one editable cell at a time.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole._ask_raw"></a>
 
@@ -3916,6 +3912,226 @@ def _config_from_data(data: dict[str, object], capabilities: Capabilities,
 ```
 
 Validate JSON data and return it as a TableIO JSON config.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table"></a>
+
+# tableio\_cfg\_json.wizard\_ui\_bridge\_table
+
+Variable-row table editing shared by the wizard UI bridges.
+
+This module holds the parts of the table question that are about a
+variable number of rows: the descriptor for rows added at run time,
+shared by the console and Textual bridges, and the console row-menu
+editor used when the console bridge is asked for a variable-row table.
+
+The console editor shows the whole table as a numbered overview each
+round and then asks one action prompt last, so the actions and any
+re-ask reason stay visible after a long table has scrolled off the
+screen. A row number edits that row, ':+' adds a row and ':- N' deletes
+row N, while a blank answer accepts the table. Editing a row reuses the
+same per-cell helpers as a fixed table, so choice cells, the erase token
+and per-cell navigation behave identically.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._ADD_ROW"></a>
+
+#### \_ADD\_ROW
+
+appends a row in the variable-row console table editor
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._DEL_ROW"></a>
+
+#### \_DEL\_ROW
+
+deletes a row in the variable-row console table editor
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._uniform"></a>
+
+#### \_uniform
+
+```python
+def _uniform(values: list[_V], default: _V) -> _V
+```
+
+Return the value shared by every entry, or the default.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._new_row_template"></a>
+
+#### \_new\_row\_template
+
+```python
+def _new_row_template(columns: Sequence[TableColumn],
+                      cells: list[list[TableCell]]) -> list[TableCell]
+```
+
+Return the cell descriptors used for rows added to the table.
+
+For each column, a member of the new cell keeps the value shared by
+every template cell in that column, or falls back to a default when
+they differ: an empty string for value, None for choices and False
+for nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable"></a>
+
+## \_VarTable Objects
+
+```python
+class _VarTable()
+```
+
+Mutable state and editing for a variable-row console table.
+
+A row number edits that row cell by cell, ':+' appends a row and
+edits it, ':- N' deletes row N, and a blank answer accepts the table.
+A row added to the table is fully editable, even in a column that is
+read-only in the template rows, mirroring the Textual bridge.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(columns: Sequence[TableColumn], cells: list[list[TableCell]],
+             partial_check: Optional[PartialCheck], min_rows: int,
+             max_rows: int) -> None
+```
+
+Start from the given rows and remember the row bounds.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable.step"></a>
+
+#### step
+
+```python
+def step(ask: AskReader, reason: Optional[str]) -> bool
+```
+
+Run one menu round; return True when the table is accepted.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable._accept"></a>
+
+#### \_accept
+
+```python
+def _accept() -> bool
+```
+
+Accept the table when its row count is within the bounds.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable._add"></a>
+
+#### \_add
+
+```python
+def _add(ask: AskReader) -> None
+```
+
+Append one editable row, up to max_rows, then edit it.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable._delete"></a>
+
+#### \_delete
+
+```python
+def _delete(arg: str) -> None
+```
+
+Delete the row named by a one-based number, down to min_rows.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable._edit"></a>
+
+#### \_edit
+
+```python
+def _edit(ask: AskReader, token: str) -> None
+```
+
+Edit the row named by a one-based number.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable._edit_row"></a>
+
+#### \_edit\_row
+
+```python
+def _edit_row(ask: AskReader, row: int) -> None
+```
+
+Walk the editable cells of one row, back to the menu on back.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable._fill_one"></a>
+
+#### \_fill\_one
+
+```python
+def _fill_one(ask: AskReader, row: int, col: int) -> None
+```
+
+Ask one editable cell and store its accepted value.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._VarTable._editable"></a>
+
+#### \_editable
+
+```python
+def _editable(row: int, col: int) -> bool
+```
+
+Return whether one cell can be edited in the console table.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._run_variable_table"></a>
+
+#### \_run\_variable\_table
+
+```python
+def _run_variable_table(ask: AskReader, show: Callable[[str], None],
+                        columns: Sequence[TableColumn],
+                        cells: list[list[TableCell]], question: str,
+                        re_ask_reason: Optional[str],
+                        partial_check: Optional[PartialCheck], min_rows: int,
+                        max_rows: int) -> list[list[Optional[str]]]
+```
+
+Edit a variable-row table through the console row-menu interface.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._overview_lines"></a>
+
+#### \_overview\_lines
+
+```python
+def _overview_lines(columns: Sequence[TableColumn],
+                    table: list[list[Optional[str]]]) -> list[str]
+```
+
+Return the numbered overview lines for a variable-row table.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._column_widths"></a>
+
+#### \_column\_widths
+
+```python
+def _column_widths(lines: list[list[str]]) -> list[int]
+```
+
+Return the widest text in each column across the given lines.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._overview_line"></a>
+
+#### \_overview\_line
+
+```python
+def _overview_line(cells: list[str], widths: list[int]) -> str
+```
+
+Return one space-padded overview line, without trailing spaces.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_table._cell_text"></a>
+
+#### \_cell\_text
+
+```python
+def _cell_text(value: Optional[str]) -> str
+```
+
+Return the overview display text for one cell value.
 
 <a id="tableio_cfg_json.wizard_ui_factory"></a>
 

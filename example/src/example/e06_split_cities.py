@@ -7,7 +7,7 @@
 import argparse
 from pathlib import Path
 import sys
-from typing import Optional, TextIO, override
+from typing import Callable, Optional, Sequence, TextIO, override
 
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     MemberValidationStep, NestedConfigs, PathOrStr, StrLenValidator, \
@@ -182,8 +182,14 @@ def _value_text(value: Value) -> str:
 
 
 def _write_rows(config: TioJsonConfig, output_file: Path,
-                rows: DictDataMap[Value]) -> None:
-    """Write rows with the configured output TableIO backend."""
+                rows: DictDataMap[Value],
+                column_order: Sequence[str] = CITY_COLUMNS) -> None:
+    """Write rows with the configured output TableIO backend.
+
+    The column_order names the columns to write and their order. It
+    defaults to the input columns; e09_split_cities_rename passes renamed
+    output column names instead.
+    """
     file_access = FileAccess.CREATE
     capabilities = access_capabilities(file_access, error_file=sys.stderr)
     with tio_config_create(config=config, file_name=output_file,
@@ -192,7 +198,7 @@ def _write_rows(config: TioJsonConfig, output_file: Path,
         # Dict writing stores the configured application columns in a stable
         # order. The flags make the example tolerant of incomplete input rows
         # or extra columns supplied by a user's own file.
-        tableio.write_table_dictdata(rows, column_order=list(CITY_COLUMNS),
+        tableio.write_table_dictdata(rows, column_order=list(column_order),
                                      missing_ok=True, extra_ok=True)
 
 
@@ -217,14 +223,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def run_split_file_cli(split_func: Callable[[Path, Path, Path, Path], None],
+                       args: Optional[list[str]]) -> int:
+    """Parse the splitter command line and run one split function.
+
+    Shared by e06 and e09_split_cities_rename so both expose the same
+    --cfg/--input/--less-than-output/--not-less-than-output command line,
+    differing only in the split function they run.
+    """
+    parsed = build_parser().parse_args(args)
+    split_func(parsed.config_file, parsed.input_file, parsed.less_than_file,
+               parsed.not_less_file)
+    return 0
+
+
 def main(args: Optional[list[str]] = None) -> int:
     """Parse command line arguments and split the configured table."""
-    parsed = build_parser().parse_args(args)
-    split_city_file(config_file=parsed.config_file,
-                    input_file=parsed.input_file,
-                    less_than_file=parsed.less_than_file,
-                    not_less_file=parsed.not_less_file)
-    return 0
+    return run_split_file_cli(split_city_file, args)
 
 
 if __name__ == '__main__':

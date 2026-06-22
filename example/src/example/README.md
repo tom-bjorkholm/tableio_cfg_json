@@ -212,6 +212,19 @@ The example source files are:
   to the console bridge, so the program stays scriptable. It reuses all of
   e05's question, config and guide logic unchanged, so the only difference is
   the one line that builds the bridge.
+- [`e08_rename_wizard.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e08_rename_wizard.py)
+  builds on e05 and e07. It asks the same questions and adds, for each output,
+  a variable-row table that maps input columns to the column names written in
+  that output file. It also adds a `--ui {auto,console,textual}` switch that
+  forces the bridge through `make_text_ui_bridge()` instead of auto-selecting
+  by terminal. It demonstrates a wizard `ask_table` with a variable number of
+  rows: in a terminal the Textual bridge offers Add row and Remove row
+  buttons, and on the console the row-menu editor offers `:+` to add a row and
+  `:- N` to delete row N.
+- [`e09_split_cities_rename.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e09_split_cities_rename.py)
+  builds on e06. It reads the configuration written by e08 and splits the city
+  table the same way, but renames each output's columns independently using
+  the two mappings `less_output_names` and `not_less_output_names`.
 
 ### Split-Cities Walkthrough
 

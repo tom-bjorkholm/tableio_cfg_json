@@ -651,7 +651,8 @@ def _cell_prompt(columns: Sequence[TableColumn], row: list[TableCell],
                  col_index: int, current: Optional[str]) -> str:
     """Return the console prompt for one editable cell."""
     labels = [str(row[i].value) for i in range(len(columns))
-              if columns[i].read_only and row[i].value is not None]
+              if columns[i].read_only and i != col_index
+              and row[i].value is not None]
     prefix = ' / '.join(labels)
     lead = f'{prefix} - ' if prefix else ''
     shown = '' if current is None else current

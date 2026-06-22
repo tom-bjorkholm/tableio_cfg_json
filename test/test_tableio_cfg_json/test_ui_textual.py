@@ -14,8 +14,8 @@ import pytest
 from tableio_cfg_json import TableCell, TableColumn, WizardAbort, \
     WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeTextual
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
-    _NavApp, _TableApp, _TextApp, _new_row_template, _parse_cell_id, \
-    _preselected
+    _NavApp, _TableApp, _TextApp, _parse_cell_id, _preselected
+from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 
 def drive(app: _NavApp[Any], steps: Sequence[str]) -> _NavApp[Any]:

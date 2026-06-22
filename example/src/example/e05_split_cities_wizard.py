@@ -97,6 +97,26 @@ def _collect_answers(ui_bridge: WizardUiBridge) -> Optional[dict[str, object]]:
         ('the split limit', _step_split_limit),
         (LESS_TITLE, _step_less),
         (NOT_LESS_TITLE, _step_not_less)]
+    return run_steps(ui_bridge, steps)
+
+
+def run_steps(ui_bridge: WizardUiBridge,
+              steps: Sequence[tuple[str, Callable[..., None]]]
+              ) -> Optional[dict[str, object]]:
+    """Ask every step in order, honoring back, cancel and abort.
+
+    Each step is a (title, function) pair; the function asks one item and
+    stores its answer in the shared results. This is the generic outer
+    navigation loop reused by e08_rename_wizard, which supplies its own
+    step list including the variable-row column-rename steps.
+
+    The snapshot stack lets going back restore the answers as they were
+    before the previous item, exactly as the wizard does for its
+    questions.
+
+    Returns:
+        The collected answers keyed by item, or None when the user aborts.
+    """
     results: dict[str, object] = {}
     history: list[dict[str, object]] = []
     index = 0
@@ -163,6 +183,19 @@ def _build_config(results: dict[str, object],
     # A config object is first created with defaults. The application then
     # assigns the specific values it collected, just as a real program often
     # starts with defaults and overrides the choices made by the user.
+    config = SplitCitiesConfig(stderr_file=stderr_file)
+    _assign_split(config, results)
+    return config
+
+
+def _assign_split(config: SplitCitiesConfig,
+                  results: dict[str, object]) -> None:
+    """Assign the five shared split-cities members from the answers.
+
+    e08_rename_wizard reuses this on a RenameSplitConfig and then assigns
+    its two extra column-rename members, so the shared assignment lives in
+    one place.
+    """
     input_config = results['input']
     less_config = results['less']
     not_less_config = results['not_less']
@@ -173,13 +206,11 @@ def _build_config(results: dict[str, object],
     assert isinstance(not_less_config, TioJsonConfig)
     assert isinstance(split_column, str)
     assert isinstance(split_limit, str)
-    config = SplitCitiesConfig(stderr_file=stderr_file)
     config.input = input_config
     config.less_than_output = less_config
     config.not_less_than_output = not_less_config
     config.split_column = split_column
     config.split_limit = split_limit
-    return config
 
 
 def _ask_endpoint(title: str, file_access: FileAccess,

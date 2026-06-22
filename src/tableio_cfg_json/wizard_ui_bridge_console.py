@@ -15,6 +15,7 @@ from typing import Optional, Sequence, TextIO
 from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
     TableColumn, WizardAbort, WizardBack, WizardCancelLevel, WizardUiBridge, \
     _ask_many, _ask_one, _ask_yes_no, _int_text, _run_table
+from tableio_cfg_json.wizard_ui_bridge_table import _run_variable_table
 
 _BACK = ':b'
 _CANCEL = ':c'
@@ -60,8 +61,16 @@ class WizardUiBridgeConsole(WizardUiBridge):
                   partial_check: Optional[PartialCheck] = None,
                   min_rows: Optional[int] = None,
                   max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
-        """Ask the user to fill a table on the console; see ask_table."""
-        _ = (min_rows, max_rows)  # the console fills the fixed rows in cells
+        """Ask the user to fill a table on the console; see ask_table.
+
+        With both min_rows and max_rows given the table has a variable
+        number of rows, edited through a row-menu interface. Otherwise the
+        fixed rows in cells are filled one editable cell at a time.
+        """
+        if min_rows is not None and max_rows is not None:
+            return _run_variable_table(self._ask_raw, self.show, columns,
+                                       cells, question, re_ask_reason,
+                                       partial_check, min_rows, max_rows)
         return _run_table(self._ask_raw, self.show, columns, cells, question,
                           re_ask_reason, partial_check)
 

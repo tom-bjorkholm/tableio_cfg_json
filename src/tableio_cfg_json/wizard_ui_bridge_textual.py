@@ -33,9 +33,9 @@ from textual.widgets.selection_list import Selection
 from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
     TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
     WizardNavigation, WizardUiBridge, _multi_count_error
+from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 _T = TypeVar('_T')
-_V = TypeVar('_V')
 
 
 class _NavApp(App[_T]):
@@ -223,32 +223,6 @@ def _make_select(cell: TableCell, widget_id: str) -> Select[str]:
         return Select(options, allow_blank=True, id=widget_id)
     return Select(options, value=cell.choices[0], allow_blank=False,
                   id=widget_id)
-
-
-def _uniform(values: list[_V], default: _V) -> _V:
-    """Return the value shared by every entry, or the default."""
-    if values and all(value == values[0] for value in values):
-        return values[0]
-    return default
-
-
-def _new_row_template(columns: Sequence[TableColumn],
-                      cells: list[list[TableCell]]) -> list[TableCell]:
-    """Return the cell descriptors used for rows added to the table.
-
-    For each column, a member of the new cell keeps the value shared by
-    every template cell in that column, or falls back to a default when
-    they differ: an empty string for value, None for choices and False
-    for nullable.
-    """
-    new_row: list[TableCell] = []
-    for col in range(len(columns)):
-        column = [row[col] for row in cells]
-        new_row.append(TableCell(
-            value=_uniform([cell.value for cell in column], ''),
-            choices=_uniform([cell.choices for cell in column], None),
-            nullable=_uniform([cell.nullable for cell in column], False)))
-    return new_row
 
 
 # pylint: disable-next=too-many-instance-attributes

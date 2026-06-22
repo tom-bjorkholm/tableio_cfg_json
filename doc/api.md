@@ -1551,6 +1551,10 @@ def ask_table(columns: Sequence[TableColumn],
 
 Ask the user to fill a table on the console; see ask_table.
 
+With both min_rows and max_rows given the table has a variable
+number of rows, edited through a row-menu interface. Otherwise the
+fixed rows in cells are filled one editable cell at a time.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_choice"></a>
 
 #### ask\_choice

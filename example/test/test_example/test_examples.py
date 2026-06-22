@@ -15,11 +15,11 @@ import pytest
 from tableio import FileAccess, access_capabilities, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio
-from tableio_cfg_json import get_config_member_names
+from tableio_cfg_json import get_config_member_names, UiBridgeType
 
 from example import e01_create_config, e02_write_table, e03_read_table, \
     e04_create_custom_config, e05_split_cities_wizard, e06_split_cities, \
-    e07_split_cities_textual
+    e07_split_cities_textual, e08_rename_wizard, e09_split_cities_rename
 
 
 def _read_json(json_file: Path) -> dict[str, object]:
@@ -431,3 +431,129 @@ def test_split_missing_column(tmp_path: Path) -> None:
                                          input_file=input_file,
                                          less_than_file=less_file,
                                          not_less_file=not_less_file)
+
+
+def _rename_happy_answers() -> list[str]:
+    """Return scripted answers that rename columns for both outputs.
+
+    The less-than output edits one row, deletes another, and adds a third
+    through the variable-row table, while the not-less-than output accepts
+    the two identity rows unchanged. This exercises editing, deleting and
+    adding rows in the console row-menu editor.
+    """
+    lines = list(_csv_wizard_answers(FileAccess.READ))
+    lines.append('')
+    lines.append('M')
+    lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    lines.extend(['1', '', 'Hauptstadt', ':- 2', ':+', '3', 'Kontinent', ''])
+    lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    lines.append('')
+    return lines
+
+
+def _run_rename(lines: list[str], config_file: Path,
+                syntax_file: Path) -> None:
+    """Run the rename wizard with scripted answers and in-memory streams."""
+    stdin_file = StringIO('\n'.join(lines) + '\n')
+    create_files = e08_rename_wizard.create_split_config_files
+    create_files(config_file=config_file, syntax_file=syntax_file,
+                 stdin_file=stdin_file, stdout_file=StringIO(),
+                 stderr_file=StringIO())
+
+
+def test_rename_split(tmp_path: Path) -> None:
+    """The rename wizard config renames each output independently."""
+    config_file = tmp_path / 'rename.json'
+    syntax_file = tmp_path / 'rename.txt'
+    input_file = tmp_path / 'cities.csv'
+    less_file = tmp_path / 'less.csv'
+    not_less_file = tmp_path / 'not-less.csv'
+    _run_rename(_rename_happy_answers(), config_file, syntax_file)
+    config_data = _read_json(config_file)
+    assert config_data['less_output_names'] == {
+        'City': 'Hauptstadt', 'Continent': 'Kontinent'}
+    assert config_data['not_less_output_names'] == {
+        'City': 'City', 'Country': 'Country'}
+    assert config_data['split_column'] == 'Country'
+    syntax_text = syntax_file.read_text(encoding='utf-8')
+    _assert_line_limit(syntax_text)
+    assert 'Output column renaming' in syntax_text
+    assert 'less_output_names' in syntax_text
+    _write_city_input(input_file, 'City,Country,Continent')
+    assert e09_split_cities_rename.main([
+        '--cfg', str(config_file),
+        '--input', str(input_file),
+        '--less-than-output', str(less_file),
+        '--not-less-than-output', str(not_less_file)]) == 0
+    less_lines = less_file.read_text(encoding='utf-8').splitlines()
+    not_less_lines = not_less_file.read_text(encoding='utf-8').splitlines()
+    assert next(csv.reader([less_lines[0]])) == [
+        'Hauptstadt', 'Country', 'Kontinent']
+    assert next(csv.reader([not_less_lines[0]])) == [
+        'City', 'Country', 'Continent']
+    less_text = '\n'.join(less_lines)
+    assert 'Denmark' in less_text and 'Japan' in less_text
+    assert 'Portugal' not in less_text
+    assert 'Portugal' in '\n'.join(not_less_lines)
+
+
+def test_e08_console(tmp_path: Path) -> None:
+    """Forcing the console bridge matches the auto-selected console run."""
+    answers = _rename_happy_answers()
+    auto_cfg = tmp_path / 'auto.json'
+    auto_txt = tmp_path / 'auto.txt'
+    forced_cfg = tmp_path / 'forced.json'
+    forced_txt = tmp_path / 'forced.txt'
+    _run_rename(answers, auto_cfg, auto_txt)
+    stdin_file = StringIO('\n'.join(answers) + '\n')
+    create_files = e08_rename_wizard.create_split_config_files
+    create_files(config_file=forced_cfg, syntax_file=forced_txt,
+                 bridge_type=UiBridgeType.CONSOLE, stdin_file=stdin_file,
+                 stdout_file=StringIO(), stderr_file=StringIO())
+    assert forced_cfg.read_text(encoding='utf-8') == \
+        auto_cfg.read_text(encoding='utf-8')
+    assert forced_txt.read_text(encoding='utf-8') == \
+        auto_txt.read_text(encoding='utf-8')
+
+
+def test_e08_ui_option() -> None:
+    """The --ui option defaults to auto and accepts the bridge names."""
+    parser = e08_rename_wizard.build_parser()
+    default = parser.parse_args(['--cfg', 'c', '--txt', 't'])
+    assert default.ui == 'auto'
+    forced = parser.parse_args(['--cfg', 'c', '--txt', 't', '--ui', 'console'])
+    assert forced.ui == 'console'
+
+
+def test_e08_main_ui(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """main() maps the --ui choice to the bridge and writes the config."""
+    answers = _rename_happy_answers()
+    monkeypatch.setattr('sys.stdin', StringIO('\n'.join(answers) + '\n'))
+    monkeypatch.setattr('sys.stdout', StringIO())
+    config_file = tmp_path / 'main.json'
+    syntax_file = tmp_path / 'main.txt'
+    assert e08_rename_wizard.main([
+        '--cfg', str(config_file), '--txt', str(syntax_file),
+        '--ui', 'console']) == 0
+    config_data = _read_json(config_file)
+    assert config_data['less_output_names'] == {
+        'City': 'Hauptstadt', 'Continent': 'Kontinent'}
+
+
+def test_rename_back(tmp_path: Path) -> None:
+    """Back from a rename table re-asks the previous output endpoint."""
+    config_file = tmp_path / 'rename.json'
+    syntax_file = tmp_path / 'rename.txt'
+    lines = list(_csv_wizard_answers(FileAccess.READ))
+    lines.append('')
+    lines.append('M')
+    lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    lines.append(':b')
+    lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    lines.append('')
+    lines.extend(_csv_wizard_answers(FileAccess.CREATE))
+    lines.append('')
+    _run_rename(lines, config_file, syntax_file)
+    config_data = _read_json(config_file)
+    assert config_data['less_output_names'] == {
+        'City': 'City', 'Country': 'Country'}
