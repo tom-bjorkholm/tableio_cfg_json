@@ -20,7 +20,7 @@ from tableio_cfg_json.wizard_ui_bridge_table import _run_variable_table
 _BACK = ':b'
 _CANCEL = ':c'
 _ABORT = ':q'
-_NAV_HINT = '(:b=back  :c=cancel  :q=abort)'
+_NAV_HINT = '(:b=back  :c=cancel level  :q=abort)'
 
 
 class WizardUiBridgeConsole(WizardUiBridge):

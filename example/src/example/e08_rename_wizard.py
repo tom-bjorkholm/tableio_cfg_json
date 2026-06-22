@@ -31,7 +31,7 @@ member assignment _assign_split and the syntax-guide text.
 import argparse
 from pathlib import Path
 import sys
-from typing import Callable, Optional, TextIO
+from typing import Optional, TextIO
 
 from tableio_cfg_json import TableCell, TableColumn, UiBridgeType, \
     WizardUiBridge, make_text_ui_bridge
@@ -39,9 +39,9 @@ from tableio_cfg_json import TableCell, TableColumn, UiBridgeType, \
 from example.e06_split_cities import CITY_COLUMNS
 from example.e09_split_cities_rename import RenameSplitConfig
 from example.e05_split_cities_wizard import INPUT_TITLE, LESS_TITLE, \
-    NOT_LESS_TITLE, run_steps, _assign_split, _paragraph, _step_input, \
-    _step_less, _step_not_less, _step_split_column, _step_split_limit, \
-    _syntax_text
+    NOT_LESS_TITLE, WizardStep, run_steps, _assign_split, _paragraph, \
+    _step_input, _step_less, _step_not_less, _step_split_column, \
+    _step_split_limit, _syntax_text
 
 LESS_NAMES_TITLE = 'Less-than output column names'
 NOT_LESS_NAMES_TITLE = 'Not-less-than output column names'
@@ -87,7 +87,7 @@ def _write_files(ui_bridge: WizardUiBridge, config_file: Path,
     syntax_file.write_text(text + '\n', encoding='utf-8')
 
 
-def _build_steps() -> list[tuple[str, Callable[..., None]]]:
+def _build_steps() -> list[WizardStep]:
     """Return the ordered (title, step) pairs for the rename wizard.
 
     Each output's column-rename step follows the step that configured

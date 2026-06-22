@@ -24,6 +24,16 @@ LESS_TITLE = 'Less-than output table configuration'
 NOT_LESS_TITLE = 'Not-less-than output table configuration'
 _WIDTH = 79
 
+type WizardStep = tuple[str,
+                        Callable[[WizardUiBridge, dict[str, object]], None]]
+"""One navigable wizard item as a (title, ask-function) pair.
+
+The title labels the item in the back and cancel messages, and the
+function asks that one item and stores its answer in the shared results
+dict. run_steps drives a sequence of these, and e08_rename_wizard
+supplies its own sequence including the variable-row rename steps.
+"""
+
 
 def create_split_config_files(config_file: Path, syntax_file: Path,
                               stdin_file: Optional[TextIO] = None,
@@ -101,8 +111,7 @@ def _collect_answers(ui_bridge: WizardUiBridge) -> Optional[dict[str, object]]:
 
 
 def run_steps(ui_bridge: WizardUiBridge,
-              steps: Sequence[tuple[str, Callable[..., None]]]
-              ) -> Optional[dict[str, object]]:
+              steps: Sequence[WizardStep]) -> Optional[dict[str, object]]:
     """Ask every step in order, honoring back, cancel and abort.
 
     Each step is a (title, function) pair; the function asks one item and
