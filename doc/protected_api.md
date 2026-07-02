@@ -217,13 +217,16 @@
   * [\_WizardRun](#tableio_cfg_json.wizard._WizardRun)
   * [\_Step](#tableio_cfg_json.wizard._Step)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
+  * [\_default\_data](#tableio_cfg_json.wizard._default_data)
   * [\_drive](#tableio_cfg_json.wizard._drive)
+  * [\_start\_index](#tableio_cfg_json.wizard._start_index)
   * [\_build\_steps](#tableio_cfg_json.wizard._build_steps)
   * [\_member\_steps](#tableio_cfg_json.wizard._member_steps)
   * [\_section\_specs](#tableio_cfg_json.wizard._section_specs)
   * [\_run\_step](#tableio_cfg_json.wizard._run_step)
   * [\_run\_format\_step](#tableio_cfg_json.wizard._run_format_step)
   * [\_run\_impl\_step](#tableio_cfg_json.wizard._run_impl_step)
+  * [\_clear\_after\_format](#tableio_cfg_json.wizard._clear_after_format)
   * [\_run\_section\_step](#tableio_cfg_json.wizard._run_section_step)
   * [\_section\_question](#tableio_cfg_json.wizard._section_question)
   * [\_section\_cells](#tableio_cfg_json.wizard._section_cells)
@@ -246,6 +249,7 @@
   * [\_accepts\_default](#tableio_cfg_json.wizard._accepts_default)
   * [\_member\_question](#tableio_cfg_json.wizard._member_question)
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
+  * [\_get\_json\_member](#tableio_cfg_json.wizard._get_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_table](#tableio_cfg_json.wizard_ui_bridge_table)
   * [\_ADD\_ROW](#tableio_cfg_json.wizard_ui_bridge_table._ADD_ROW)
@@ -2103,6 +2107,7 @@ derived bridge may override it with a direct numeric control.
   The max value is inclusive.
 - `default` - The value returned by an empty answer, or None for
   no default.
+  
 
 **Returns**:
 
@@ -3929,8 +3934,12 @@ One navigable question or grouped table in a wizard run.
 #### tio\_json\_config\_wizard
 
 ```python
-def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
-                           ui_bridge: WizardUiBridge) -> TioJsonConfig
+def tio_json_config_wizard(capabilities: Capabilities,
+                           file_access: FileAccess,
+                           ui_bridge: WizardUiBridge,
+                           *,
+                           default: Optional[TioJsonConfig] = None,
+                           backward: bool = False) -> TioJsonConfig
 ```
 
 Interactively create one TableIO JSON endpoint configuration.
@@ -3962,6 +3971,13 @@ optional values stay omitted so TableIO can use backend defaults later.
   file or CREATE for an output file. This controls which formats and
   implementations can be offered.
 - `ui_bridge` - Bridge between the wizard and the user interface.
+- `default` - Default values to pre-fill the wizard. This can be what the
+  what a configuration file already contains, what the user already
+  answered before going back in an enclosing wizard, or what the
+  application wants to suggest as a starting point.
+- `backward` - When True, the wizard starts at the last question instead of
+  the first. This will be set to True when the user asked to go back
+  from a later question in an enclosing wizard.
 
 **Raises**:
 
@@ -3977,21 +3993,42 @@ optional values stay omitted so TableIO can use backend defaults later.
 
   A validated TableIO JSON config for the one endpoint.
 
+<a id="tableio_cfg_json.wizard._default_data"></a>
+
+#### \_default\_data
+
+```python
+def _default_data(default: Optional[TioJsonConfig],
+                  stderr_file: TextIO) -> dict[str, object]
+```
+
+Return compact JSON data copied from a default config.
+
 <a id="tableio_cfg_json.wizard._drive"></a>
 
 #### \_drive
 
 ```python
-def _drive(run: _WizardRun) -> TioJsonConfig
+def _drive(run: _WizardRun, backward: bool) -> TioJsonConfig
 ```
 
 Run the endpoint steps until the configuration validates.
 
-Back steps to the previous question, restoring the data from before
-it. Cancel-level returns to the first step, the format question that
-opened the later option questions, and discards the answers given
-after it. Raised at the format question it propagates out, so the
-application can handle the level enclosing this endpoint.
+Back steps to the previous question and keeps the previous answers
+available as defaults. Cancel-level returns to the first step, the
+format question that opened the later option questions, and discards
+dependent option values. Raised at the format question it propagates
+out, so the application can handle the level enclosing this endpoint.
+
+<a id="tableio_cfg_json.wizard._start_index"></a>
+
+#### \_start\_index
+
+```python
+def _start_index(run: _WizardRun, backward: bool) -> int
+```
+
+Return the first step index for the requested direction.
 
 <a id="tableio_cfg_json.wizard._build_steps"></a>
 
@@ -4054,6 +4091,16 @@ def _run_impl_step(run: _WizardRun) -> None
 ```
 
 Ask for the implementation and store or clear it in the data.
+
+<a id="tableio_cfg_json.wizard._clear_after_format"></a>
+
+#### \_clear\_after\_format
+
+```python
+def _clear_after_format(data: dict[str, object]) -> None
+```
+
+Keep the selected format and discard dependent option values.
 
 <a id="tableio_cfg_json.wizard._run_section_step"></a>
 
@@ -4150,7 +4197,8 @@ caller can re-ask. On success the data is updated in place.
 #### \_ask\_format
 
 ```python
-def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge) -> str
+def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge,
+                default: object) -> str
 ```
 
 Ask the user to select one format that matches the endpoint.
@@ -4171,8 +4219,8 @@ Return matching implementations for the selected format.
 #### \_ask\_implementation
 
 ```python
-def _ask_implementation(impl_names: Sequence[str],
-                        ui_bridge: WizardUiBridge) -> Optional[str]
+def _ask_implementation(impl_names: Sequence[str], ui_bridge: WizardUiBridge,
+                        default: object) -> Optional[str]
 ```
 
 Ask for an implementation only when TableIO exposes a choice.
@@ -4217,7 +4265,8 @@ Ask for one optional member and keep retrying until it validates.
 
 ```python
 def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                      re_ask_reason: Optional[str]) -> Optional[object]
+                      re_ask_reason: Optional[str],
+                      current: object) -> Optional[object]
 ```
 
 Ask for one optional value and convert simple scalar types.
@@ -4228,7 +4277,8 @@ Ask for one optional value and convert simple scalar types.
 
 ```python
 def _ask_text_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                           re_ask_reason: Optional[str]) -> Optional[object]
+                           re_ask_reason: Optional[str],
+                           current: object) -> Optional[object]
 ```
 
 Ask for one free-text optional value.
@@ -4295,6 +4345,16 @@ def _set_json_member(data: dict[str, object], member_name: str,
 ```
 
 Set a top-level or dotted member in the JSON data being built.
+
+<a id="tableio_cfg_json.wizard._get_json_member"></a>
+
+#### \_get\_json\_member
+
+```python
+def _get_json_member(data: dict[str, object], member_name: str) -> object
+```
+
+Return a top-level or dotted member from JSON data, or None.
 
 <a id="tableio_cfg_json.wizard._config_from_data"></a>
 
@@ -4608,3 +4668,4 @@ def _is_tty(stream: TextIO) -> bool
 ```
 
 Return whether a stream reports that it is a terminal.
+

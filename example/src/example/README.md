@@ -44,6 +44,10 @@ The example source files are:
 - [`e04_create_custom_config.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e04_create_custom_config.py)
   starts from the same kind of default config as `e01_create_config.py`, then
   stores a few explicit non-default values.
+- [`e10_edit_config_wizard.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e10_edit_config_wizard.py)
+  edits one write-capable JSON config by passing the previous config back to
+  `tio_json_config_wizard()` as defaults. Its enclosing confirmation question
+  can send the user back into the TableIO wizard.
 
 ### CSV Walkthrough
 
@@ -103,6 +107,22 @@ python -m example.e02_write_table \
 The CSV delimiter is stored in the optional nested `csv` section. If you use
 the same option while creating an Excel config, the value is still valid JSON
 configuration, but it has no effect when TableIO later uses an Excel backend.
+
+### Edit Configuration Walkthrough
+
+After creating a config, you can reopen it in the wizard and keep or change
+the stored answers:
+
+```sh
+python -m example.e10_edit_config_wizard \
+  --cfg capitals-custom-csv.json
+```
+
+If the file already exists, the example reads it as a `TioJsonConfig` and
+passes that object as the wizard default. Pressing Enter keeps the old answer.
+When the final confirmation question is answered with "no", the enclosing
+example calls the TableIO wizard again with `backward=True`, so editing starts
+from the last TableIO question and the user can walk back from there.
 
 ### Excel Walkthrough
 
@@ -167,6 +187,17 @@ The resulting config supplies durable TableIO choices such as format and any
 explicit optional settings. `tio_config_create()` then validates those choices
 for the runtime task, filters the format-specific optional settings, and
 returns the actual TableIO backend object.
+
+The edit wizard shows the same TableIO wizard used in a different mode:
+
+```python
+current = tio_json_config_wizard(capabilities, FileAccess.CREATE, ui_bridge,
+                                 default=current, backward=backward)
+```
+
+The `default` argument is useful both for editing a stored file and for going
+back from an enclosing application wizard. The `backward` argument tells the
+TableIO wizard to start at the last question implied by the default config.
 
 ## Class B: Application Config With Several TableIO Endpoints
 

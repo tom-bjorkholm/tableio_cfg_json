@@ -9,6 +9,7 @@ import csv
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 import pytest
 
@@ -19,7 +20,8 @@ from tableio_cfg_json import get_config_member_names, UiBridgeType
 
 from example import e01_create_config, e02_write_table, e03_read_table, \
     e04_create_custom_config, e05_split_cities_wizard, e06_split_cities, \
-    e07_split_cities_textual, e08_rename_wizard, e09_split_cities_rename
+    e07_split_cities_textual, e08_rename_wizard, e09_split_cities_rename, \
+    e10_edit_config_wizard
 
 
 def _read_json(json_file: Path) -> dict[str, object]:
@@ -72,7 +74,9 @@ def _create_config(config_file: Path, syntax_file: Path, access_arg: str,
     assert e01_create_config.main(args) == 0
 
 
-def _csv_wizard_answers(file_access: FileAccess) -> list[str]:
+def _csv_wizard_answers(file_access: FileAccess,
+                        member_answers: Optional[dict[str, str]] = None
+                        ) -> list[str]:
     """Return blank-default wizard answers for one CSV endpoint config.
 
     Args:
@@ -80,6 +84,7 @@ def _csv_wizard_answers(file_access: FileAccess) -> list[str]:
     Returns:
         Scripted answers that choose CSV and accept optional defaults.
     """
+    answer_map = {} if member_answers is None else member_answers
     capabilities = access_capabilities(file_access)
     match_caps = add_access_capabilities(file_access, capabilities)
     format_names = list_registered_tableio(capabilities=match_caps)
@@ -91,12 +96,21 @@ def _csv_wizard_answers(file_access: FileAccess) -> list[str]:
     member_names = get_config_member_names(capabilities=capabilities,
                                            file_access=file_access,
                                            format_name='CSV')
-    optional_count = len([
-        name for name in member_names
-        if name not in ('format_name', 'implementation')
-    ])
-    lines.extend([''] * optional_count)
+    lines.extend(
+        answer_map.get(name, '') for name in member_names
+        if name not in ('format_name', 'implementation'))
     return lines
+
+
+def _csv_section_answers(file_access: FileAccess,
+                         member_answers: dict[str, str]) -> list[str]:
+    """Return answers for the CSV section part of the endpoint wizard."""
+    capabilities = access_capabilities(file_access)
+    member_names = get_config_member_names(capabilities=capabilities,
+                                           file_access=file_access,
+                                           format_name='CSV')
+    return [member_answers.get(name, '') for name in member_names
+            if name.startswith('csv.')]
 
 
 def _split_happy_answers() -> list[str]:
@@ -415,6 +429,51 @@ def test_split_back(tmp_path: Path) -> None:
     config_data = _read_json(config_file)
     assert config_data['split_limit'] == 'L'
     assert config_data['split_column'] == 'Country'
+
+
+def test_edit_keeps_old(tmp_path: Path) -> None:
+    """e10 uses an existing config file as wizard defaults."""
+    config_file = tmp_path / 'edit-csv.json'
+    config_file.write_text(
+        '{\n'
+        '    "format_name": "CSV",\n'
+        '    "character_encoding": "utf-8",\n'
+        '    "csv": {\n'
+        '        "delimiter": ";"\n'
+        '    }\n'
+        '}\n',
+        encoding='utf-8')
+    answers = _csv_wizard_answers(FileAccess.CREATE)
+    answers.append('')
+    e10_edit_config_wizard.edit_config_file(config_file=config_file,
+                                            stdin_file=StringIO(
+                                                '\n'.join(answers) + '\n'),
+                                            stdout_file=StringIO(),
+                                            stderr_file=StringIO())
+    assert _read_json(config_file) == {
+        'character_encoding': 'utf-8',
+        'csv': {'delimiter': ';'},
+        'format_name': 'CSV'
+    }
+
+
+def test_edit_goes_back(tmp_path: Path) -> None:
+    """e10 can go back from its enclosing confirmation question."""
+    config_file = tmp_path / 'edit-back.csv.json'
+    answers = _csv_wizard_answers(FileAccess.CREATE, {'csv.delimiter': ';'})
+    answers.append('n')
+    answers.extend(_csv_section_answers(FileAccess.CREATE,
+                                        {'csv.delimiter': ','}))
+    answers.append('')
+    e10_edit_config_wizard.edit_config_file(config_file=config_file,
+                                            stdin_file=StringIO(
+                                                '\n'.join(answers) + '\n'),
+                                            stdout_file=StringIO(),
+                                            stderr_file=StringIO())
+    assert _read_json(config_file) == {
+        'csv': {'delimiter': ','},
+        'format_name': 'CSV'
+    }
 
 
 def test_split_missing_column(tmp_path: Path) -> None:

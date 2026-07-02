@@ -1104,6 +1104,7 @@ derived bridge may override it with a direct numeric control.
   The max value is inclusive.
 - `default` - The value returned by an empty answer, or None for
   no default.
+  
 
 **Returns**:
 
@@ -1712,8 +1713,12 @@ larger config-as-json configuration class.
 #### tio\_json\_config\_wizard
 
 ```python
-def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
-                           ui_bridge: WizardUiBridge) -> TioJsonConfig
+def tio_json_config_wizard(capabilities: Capabilities,
+                           file_access: FileAccess,
+                           ui_bridge: WizardUiBridge,
+                           *,
+                           default: Optional[TioJsonConfig] = None,
+                           backward: bool = False) -> TioJsonConfig
 ```
 
 Interactively create one TableIO JSON endpoint configuration.
@@ -1745,6 +1750,13 @@ optional values stay omitted so TableIO can use backend defaults later.
   file or CREATE for an output file. This controls which formats and
   implementations can be offered.
 - `ui_bridge` - Bridge between the wizard and the user interface.
+- `default` - Default values to pre-fill the wizard. This can be what the
+  what a configuration file already contains, what the user already
+  answered before going back in an enclosing wizard, or what the
+  application wants to suggest as a starting point.
+- `backward` - When True, the wizard starts at the last question instead of
+  the first. This will be set to True when the user asked to go back
+  from a later question in an enclosing wizard.
 
 **Raises**:
 
@@ -1830,3 +1842,4 @@ Return a Textual bridge for a terminal, else a console bridge.
 
   A Textual bridge when Textual is installed and both streams are
   a terminal, otherwise a console bridge.
+

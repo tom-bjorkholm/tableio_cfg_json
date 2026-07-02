@@ -100,7 +100,8 @@ def _str_spec(default: Optional[str]) -> ConfigSpec:
 def test_modern_default() -> None:
     """The wizard passes concrete defaults to modern bridges."""
     bridge = _ModernBridge([''])
-    value = wizard_module._ask_text_member_value(_int_spec('72'), bridge, None)
+    value = wizard_module._ask_text_member_value(_int_spec('72'), bridge, None,
+                                                 None)
     assert value == 72
     assert bridge.calls == [('line_length:\nLine length.\nType: '
                              'Optional[int]\nPress Enter to use the '
@@ -110,7 +111,8 @@ def test_modern_default() -> None:
 def test_kwargs_default() -> None:
     """The wizard recognizes bridges that accept arbitrary keywords."""
     bridge = _KwBridge([''])
-    value = wizard_module._ask_text_member_value(_int_spec('64'), bridge, None)
+    value = wizard_module._ask_text_member_value(_int_spec('64'), bridge, None,
+                                                 None)
     assert value == 64
     assert bridge.calls[0][2] == '64'
 
@@ -120,7 +122,7 @@ def test_old_default_warns() -> None:
     bridge = _OldBridge([''])
     with pytest.warns(DeprecationWarning, match='_OldBridge.*default keyword'):
         value = wizard_module._ask_text_member_value(_int_spec('80'), bridge,
-                                                     None)
+                                                     None, None)
     assert value == 80
     assert bridge.calls[0][0].endswith('Press Enter to use the default. [80]')
 
@@ -129,7 +131,7 @@ def test_bad_default_skipped() -> None:
     """Unparseable integer default text is not passed as a default."""
     bridge = _ModernBridge([''])
     assert wizard_module._ask_text_member_value(_int_spec('automatic'), bridge,
-                                                None) is None
+                                                None, None) is None
     assert bridge.calls[0][2] is None
 
 
@@ -137,14 +139,16 @@ def test_none_description_skipped() -> None:
     """None-means descriptions are not treated as concrete strings."""
     bridge = _ModernBridge([''])
     spec = _str_spec('None means backend default.')
-    assert wizard_module._ask_text_member_value(spec, bridge, None) is None
+    assert wizard_module._ask_text_member_value(spec, bridge, None,
+                                                None) is None
     assert bridge.calls[0][2] is None
 
 
 def test_invalid_retry_keeps_default() -> None:
     """A retry keeps passing the default and shows the parse error."""
     bridge = _ModernBridge(['bad', ''])
-    value = wizard_module._ask_text_member_value(_int_spec('40'), bridge, None)
+    value = wizard_module._ask_text_member_value(_int_spec('40'), bridge, None,
+                                                 None)
     assert value == 40
     assert bridge.calls[1][1] is not None
     assert bridge.calls[1][2] == '40'

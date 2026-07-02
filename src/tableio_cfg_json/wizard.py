@@ -50,7 +50,9 @@ class _Step:
 
 
 def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
-                           ui_bridge: WizardUiBridge) -> TioJsonConfig:
+                           ui_bridge: WizardUiBridge, *,
+                           default: Optional[TioJsonConfig] = None,
+                           backward: bool = False) -> TioJsonConfig:
     """Interactively create one TableIO JSON endpoint configuration.
 
     Use this function when an application wants to ask a user which TableIO
@@ -79,6 +81,13 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
             file or CREATE for an output file. This controls which formats and
             implementations can be offered.
         ui_bridge: Bridge between the wizard and the user interface.
+        default: Default values to pre-fill the wizard. This can be what the
+            what a configuration file already contains, what the user already
+            answered before going back in an enclosing wizard, or what the
+            application wants to suggest as a starting point.
+        backward: When True, the wizard starts at the last question instead of
+            the first. This will be set to True when the user asked to go back
+            from a later question in an enclosing wizard.
     Raises:
         EOFError: Scripted input ends before all required answers are read.
         TableIOFactoryNoCapabilityMatch: No registered backend matches the
@@ -93,46 +102,59 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
     stderr_file = ui_bridge.error_file()
     match_caps = add_access_capabilities(file_access, capabilities,
                                          error_file=stderr_file)
+    data = _default_data(default, stderr_file)
     run = _WizardRun(bridge=ui_bridge, caps=capabilities,
                      file_access=file_access, match_caps=match_caps,
-                     stderr=stderr_file, data={})
-    return _drive(run)
+                     stderr=stderr_file, data=data)
+    return _drive(run, backward)
 
 
-def _drive(run: _WizardRun) -> TioJsonConfig:
+def _default_data(default: Optional[TioJsonConfig],
+                  stderr_file: TextIO) -> dict[str, object]:
+    """Return compact JSON data copied from a default config."""
+    if default is None:
+        return {}
+    data = json.loads(default.as_json_string(stderr_file=stderr_file))
+    assert isinstance(data, dict)
+    return data
+
+
+def _drive(run: _WizardRun, backward: bool) -> TioJsonConfig:
     """Run the endpoint steps until the configuration validates.
 
-    Back steps to the previous question, restoring the data from before
-    it. Cancel-level returns to the first step, the format question that
-    opened the later option questions, and discards the answers given
-    after it. Raised at the format question it propagates out, so the
-    application can handle the level enclosing this endpoint.
+    Back steps to the previous question and keeps the previous answers
+    available as defaults. Cancel-level returns to the first step, the
+    format question that opened the later option questions, and discards
+    dependent option values. Raised at the format question it propagates
+    out, so the application can handle the level enclosing this endpoint.
     """
-    history: list[dict[str, object]] = []
-    index = 0
+    index = _start_index(run, backward)
     while True:
         steps = _build_steps(run)
         if index >= len(steps):
             return _config_from_data(run.data, run.caps, run.file_access,
                                      run.stderr)
-        before = deepcopy(run.data)
         try:
             _run_step(run, steps[index])
         except WizardBack:
             if index == 0:
                 raise
             index -= 1
-            run.data = history.pop()
             continue
         except WizardCancelLevel:
             if index == 0:
                 raise
-            run.data = deepcopy(history[0])
-            history = []
+            _clear_after_format(run.data)
             index = 0
             continue
-        history.append(before)
         index += 1
+
+
+def _start_index(run: _WizardRun, backward: bool) -> int:
+    """Return the first step index for the requested direction."""
+    if not backward:
+        return 0
+    return max(0, len(_build_steps(run)) - 1)
 
 
 def _build_steps(run: _WizardRun) -> list[_Step]:
@@ -197,7 +219,11 @@ def _run_step(run: _WizardRun, step: _Step) -> None:
 
 def _run_format_step(run: _WizardRun) -> None:
     """Ask for the format and store it in the wizard data."""
-    run.data['format_name'] = _ask_format(run.match_caps, run.bridge)
+    old = run.data.get('format_name')
+    new = _ask_format(run.match_caps, run.bridge, old)
+    if old != new:
+        run.data.clear()
+    run.data['format_name'] = new
 
 
 def _run_impl_step(run: _WizardRun) -> None:
@@ -205,11 +231,22 @@ def _run_impl_step(run: _WizardRun) -> None:
     format_name = run.data['format_name']
     assert isinstance(format_name, str)
     impl_names = _impl_names(format_name, run.match_caps)
-    implementation = _ask_implementation(impl_names, run.bridge)
+    old = run.data.get('implementation')
+    implementation = _ask_implementation(impl_names, run.bridge, old)
+    if old != implementation:
+        _clear_after_format(run.data)
     if implementation is None:
         run.data.pop('implementation', None)
     else:
         run.data['implementation'] = implementation
+
+
+def _clear_after_format(data: dict[str, object]) -> None:
+    """Keep the selected format and discard dependent option values."""
+    format_name = data.get('format_name')
+    data.clear()
+    if isinstance(format_name, str):
+        data['format_name'] = format_name
 
 
 def _run_section_step(run: _WizardRun, section: str,
@@ -324,11 +361,16 @@ def _commit(data: dict[str, object], new_data: dict[str, object],
     return None
 
 
-def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge) -> str:
+def _ask_format(capabilities: Capabilities, ui_bridge: WizardUiBridge,
+                default: object) -> str:
     """Ask the user to select one format that matches the endpoint."""
     format_names = list_registered_tableio(capabilities=capabilities)
+    default_name = default if isinstance(default, str) else None
+    if default_name not in format_names:
+        default_name = None
     return ui_bridge.ask_choice('Select TableIO format:',
-                                choices=tuple(format_names))
+                                choices=tuple(format_names),
+                                default=default_name)
 
 
 def _impl_names(format_name: str, capabilities: Capabilities
@@ -339,14 +381,17 @@ def _impl_names(format_name: str, capabilities: Capabilities
     return tuple(impl_names)
 
 
-def _ask_implementation(impl_names: Sequence[str],
-                        ui_bridge: WizardUiBridge) -> Optional[str]:
+def _ask_implementation(impl_names: Sequence[str], ui_bridge: WizardUiBridge,
+                        default: object) -> Optional[str]:
     """Ask for an implementation only when TableIO exposes a choice."""
     if len(impl_names) < 2:
         return None
     choices = (_AUTO_IMPL,) + tuple(impl_names)
+    default_name = default if isinstance(default, str) else _AUTO_IMPL
+    if default_name not in choices:
+        default_name = _AUTO_IMPL
     chosen = ui_bridge.ask_choice('Select implementation:', choices=choices,
-                                  default=_AUTO_IMPL)
+                                  default=default_name)
     return None if chosen == _AUTO_IMPL else chosen
 
 
@@ -374,7 +419,8 @@ def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
     """Ask for one optional member and keep retrying until it validates."""
     re_ask_reason = None
     while True:
-        value = _ask_member_value(spec, ui_bridge, re_ask_reason)
+        current = _get_json_member(data, spec.name)
+        value = _ask_member_value(spec, ui_bridge, re_ask_reason, current)
         if value is None:
             return
         new_data = deepcopy(data)
@@ -385,23 +431,28 @@ def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
 
 
 def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                      re_ask_reason: Optional[str]) -> Optional[object]:
+                      re_ask_reason: Optional[str],
+                      current: object) -> Optional[object]:
     """Ask for one optional value and convert simple scalar types."""
     if spec.choices is not None:
         real = tuple(str(choice) for choice in spec.choices)
         choices = (_AUTO_MEMBER,) + real
+        default = str(current) if current is not None else _AUTO_MEMBER
+        if default not in choices:
+            default = _AUTO_MEMBER
         chosen = ui_bridge.ask_choice(f'Select value for {spec.name}:',
-                                      choices=choices, default=_AUTO_MEMBER,
+                                      choices=choices, default=default,
                                       re_ask_reason=re_ask_reason)
         return None if chosen == _AUTO_MEMBER else chosen
-    return _ask_text_member_value(spec, ui_bridge, re_ask_reason)
+    return _ask_text_member_value(spec, ui_bridge, re_ask_reason, current)
 
 
 def _ask_text_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                           re_ask_reason: Optional[str]) -> Optional[object]:
+                           re_ask_reason: Optional[str],
+                           current: object) -> Optional[object]:
     """Ask for one free-text optional value."""
     question = _member_question(spec)
-    default = _member_default(spec)
+    default = str(current) if current is not None else _member_default(spec)
     while True:
         answer = _ask_text_default(ui_bridge, question, re_ask_reason, default)
         if answer is None:
@@ -485,6 +536,17 @@ def _set_json_member(data: dict[str, object], member_name: str,
     if not isinstance(section, dict):
         raise ValueError(f'{section_name} is not a JSON object.')
     section[child_name] = value
+
+
+def _get_json_member(data: dict[str, object], member_name: str) -> object:
+    """Return a top-level or dotted member from JSON data, or None."""
+    if '.' not in member_name:
+        return data.get(member_name)
+    section_name, child_name = member_name.split('.', maxsplit=1)
+    section = data.get(section_name)
+    if not isinstance(section, dict):
+        return None
+    return section.get(child_name)
 
 
 def _config_from_data(data: dict[str, object], capabilities: Capabilities,

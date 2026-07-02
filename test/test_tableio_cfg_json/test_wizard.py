@@ -539,12 +539,12 @@ def test_back_first_question() -> None:
 
 
 def test_back_prev_step() -> None:
-    """Back from a section's first cell re-asks the previous question."""
+    """Back from a later step keeps the previous answer as default."""
     answers: list[str | int | BaseException] = [
         _format_index('CSV', FileAccess.CREATE), 'utf-8', WizardBack(),
         '', '', '', '', '', '', '']
     config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
-    assert config.character_encoding is None
+    assert config.character_encoding == 'utf-8'
     assert config.csv is None
 
 
@@ -852,7 +852,7 @@ def test_scalar_commit_retry() -> None:
 def test_ask_impl_single() -> None:
     """A single implementation needs no question and returns None."""
     bridge = _ScriptedBridge([])
-    assert wizard_module._ask_implementation(('only',), bridge) is None
+    assert wizard_module._ask_implementation(('only',), bridge, None) is None
 
 
 with warnings.catch_warnings():
