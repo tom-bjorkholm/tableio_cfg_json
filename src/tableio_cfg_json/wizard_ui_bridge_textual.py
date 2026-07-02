@@ -20,23 +20,26 @@ corrupt the Textual display.
 # MIT License
 
 from __future__ import annotations
+import os
 from io import StringIO
+from pathlib import Path
 from typing import ClassVar, Iterator, Optional, Sequence, TypeVar
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import BindingType
 from textual.containers import Grid, VerticalScroll
 from textual.widget import Widget
-from textual.widgets import Button, Footer, Input, OptionList, Select, \
-    SelectionList, Static
+from textual.widgets import Button, DirectoryTree, Footer, Input, OptionList, \
+    Select, SelectionList, Static
 from textual.widgets.selection_list import Selection
-from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
-    TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
-    WizardNavigation, WizardUiBridge, _check_text_args, _multi_count_error, \
-    _text_answer
+from tableio_cfg_json.wizard_ui_bridge import PathAskOptions, PartialCheck, \
+    TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
+    WizardNavigation, WizardPathKind, WizardUiBridge, _check_text_args, \
+    _multi_count_error, _path_answer, _text_answer
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 _T = TypeVar('_T')
+_PATH_INPUT_ID = 'path_input'
 
 
 class _NavApp(App[_T]):
@@ -104,6 +107,100 @@ class _TextApp(_NavApp[str]):
     def _entered(self, event: Input.Submitted) -> None:
         """Exit returning the entered text, empty when nothing typed."""
         self.exit(event.value)
+
+
+def _start_dir(default: Optional[Path]) -> Path:
+    """Return the directory tree root for a path question."""
+    if default is None:
+        return Path.cwd()
+    try:
+        if default.exists() and default.is_dir():
+            return default
+        parent = default.parent
+        if parent.exists() and parent.is_dir():
+            return parent
+    except OSError:
+        pass
+    return Path.cwd()
+
+
+def _start_value(value: Optional[str], default: Optional[Path]) -> str:
+    """Return the initial path input text."""
+    if value is not None:
+        return value
+    return '' if default is None else str(default)
+
+
+def _new_child_prefix(path: Path) -> str:
+    """Return path text ready for appending a child name."""
+    text = str(path)
+    return text if text.endswith(os.sep) else text + os.sep
+
+
+def _selection_text(path: Path, is_dir: bool, kind: WizardPathKind) -> str:
+    """Return the input text to use for a selected path."""
+    if is_dir and kind in (WizardPathKind.EXISTING_FILE,
+                           WizardPathKind.NON_EXISTING_FILE,
+                           WizardPathKind.FILE,
+                           WizardPathKind.NON_EXISTING_DIR):
+        return _new_child_prefix(path)
+    return str(path)
+
+
+class _PathApp(_NavApp[str]):
+    """Path screen with a filesystem tree and editable path input."""
+
+    BINDINGS: ClassVar[list[BindingType]] = [('ctrl+s', 'submit', 'Submit')]
+
+    def __init__(self, question: str, messages: list[str],
+                 options: PathAskOptions, value: Optional[str]) -> None:
+        """Store prompt, path options and initial input state."""
+        super().__init__()
+        self._question = question
+        self._messages = messages
+        self._options = options
+        self._start = _start_dir(options.default)
+        self._value = _start_value(value, options.default)
+
+    def compose(self) -> ComposeResult:
+        """Lay out the header, directory tree, path input and footer."""
+        yield from _header_widgets(self._messages, self._question)
+        yield DirectoryTree(self._start)
+        yield Input(value=self._value, id=_PATH_INPUT_ID)
+        yield Button('Submit', id='submit')
+        yield Footer()
+
+    @on(DirectoryTree.FileSelected)
+    def _file_selected(self, event: DirectoryTree.FileSelected) -> None:
+        """Use the selected file as the editable input value."""
+        self._set_path(event.path, is_dir=False)
+
+    @on(DirectoryTree.DirectorySelected)
+    def _dir_selected(self, event: DirectoryTree.DirectorySelected) -> None:
+        """Use the selected directory as value or editable prefix."""
+        self._set_path(event.path, is_dir=True)
+
+    @on(Input.Submitted)
+    def _entered(self, event: Input.Submitted) -> None:
+        """Submit the entered path when Return is pressed in the input."""
+        self.exit(event.value)
+
+    @on(Button.Pressed, '#submit')
+    def _submit_clicked(self, _event: Button.Pressed) -> None:
+        """Submit the current input when the button is pressed."""
+        self.action_submit()
+
+    def action_submit(self) -> None:
+        """Exit returning the current path input."""
+        self.exit(self.query_one(f'#{_PATH_INPUT_ID}', Input).value)
+
+    def _set_path(self, path: Path, is_dir: bool) -> None:
+        """Set the input from a tree selection and move focus there."""
+        value = _selection_text(path, is_dir, self._options.kind)
+        path_input = self.query_one(f'#{_PATH_INPUT_ID}', Input)
+        path_input.value = value
+        path_input.cursor_position = len(value)
+        path_input.focus()
 
 
 class _ChoiceApp(_NavApp[int]):
@@ -444,6 +541,20 @@ class WizardUiBridgeTextual(WizardUiBridge):
         value = '' if default is None else default
         text = self._run(_TextApp(question, messages, value, sensitive))
         return _text_answer(text, nullable, default)
+
+    def ask_path(self, question: str, re_ask_reason: Optional[str] = None, *,
+                 options: Optional[PathAskOptions] = None) -> Optional[Path]:
+        """Ask for a path with a directory tree and editable path input."""
+        path_options = PathAskOptions() if options is None else options
+        reason = re_ask_reason
+        value: Optional[str] = None
+        while True:
+            messages = self._collect(reason)
+            text = self._run(_PathApp(question, messages, path_options, value))
+            done, path, reason = _path_answer(text, path_options)
+            if done:
+                return path
+            value = text
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:

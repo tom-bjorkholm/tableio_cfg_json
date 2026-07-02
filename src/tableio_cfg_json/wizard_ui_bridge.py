@@ -180,13 +180,12 @@ class WizardUiBridge:
     the wizard to use a console text user interface or a graphical user
     interface.
 
-    A concrete bridge implements the typed ask methods, ask_text(),
-    ask_choice(), ask_multi(), ask_yes_no() and ask_table(), together
-    with show(). It may override ask_path() for a native file or
-    directory picker; otherwise the base implementation asks for text
-    and validates the path. The low-level ask() is deprecated: it warns
-    when called and when a bridge overrides it. As a temporary migration
-    aid the base class implements the typed methods in terms of the
+    A concrete bridge implements ask_text(), ask_choice(), ask_multi(),
+    ask_yes_no(), ask_table() and show(). It may override ask_path() for
+    a native file or directory picker; otherwise the base implementation
+    asks for text and validates the path. The low-level ask() is
+    deprecated: it warns when called and when a bridge overrides it. As a
+    temporary migration aid the base class implements typed methods via the
     deprecated ask(), so a bridge that still overrides ask() keeps
     working while it is adjusted; each fallback warns that the typed
     method should be overridden instead. These fallbacks are temporary
@@ -291,16 +290,11 @@ class WizardUiBridge:
                 nullable: bool = False, min_value: Optional[int] = None,
                 max_value: Optional[int] = None,
                 default: Optional[int] = None) -> Optional[int]:
-        """Ask a question for an integer and return the entered integer.
+        """Ask for an integer, optionally within inclusive bounds.
 
-        The method asks the user for an integer value (optionally
-        within a range) and returns it. The range is inclusive.
-        If the answer is invalid, the method re-asks the question
-        internally, until a valid answer is entered.
-
-        This method is implemented by the base class using ask_text(),
-        but a derived bridge can override it to implement something
-        that is more efficient or more user-friendly.
+        The base implementation uses ask_text() and re-asks until the
+        answer is empty when allowed or parses as an integer in range. A
+        derived bridge may override it with a direct numeric control.
 
         Args:
             question: The question to ask the user.
@@ -350,8 +344,7 @@ class WizardUiBridge:
 
         A derived bridge may override this method to provide a native file
         or directory picker. The base implementation is permanent and
-        asks for a text path through ask_text(), then validates the answer
-        according to options.
+        asks for text through ask_text(), then validates the answer.
 
         Args:
             question: The question to ask the user.
@@ -372,14 +365,8 @@ class WizardUiBridge:
         while True:
             text = self.ask_text(question, reason, path_options.nullable,
                                  default=default_text)
-            if text is None:
-                return None
-            if text == '':
-                reason = _PATH_REQUIRED
-                continue
-            path = Path(text)
-            reason = _path_error(path, path_options.kind)
-            if reason is None:
+            done, path, reason = _path_answer(text, path_options)
+            if done:
                 return path
 
     def ask_yes_no(self, question: str, default: bool,
@@ -623,6 +610,22 @@ def _text_answer(text: str, nullable: bool,
     if text == '' and nullable:
         return None
     return text
+
+
+def _path_answer(text: Optional[str], options: PathAskOptions
+                 ) -> tuple[bool, Optional[Path], Optional[str]]:
+    """Return whether a path answer is final, its value, and retry reason."""
+    if text is None:
+        return (True, None, None)
+    if text == '' and options.default is not None:
+        return (True, options.default, None)
+    if text == '' and options.nullable:
+        return (True, None, None)
+    if text == '':
+        return (False, None, _PATH_REQUIRED)
+    path = Path(text)
+    reason = _path_error(path, options.kind)
+    return (reason is None, path if reason is None else None, reason)
 
 
 def _path_error(path: Path, kind: WizardPathKind) -> Optional[str]:

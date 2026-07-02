@@ -90,6 +90,7 @@
   * [\_check\_text\_args](#tableio_cfg_json.wizard_ui_bridge._check_text_args)
   * [\_question\_with\_default](#tableio_cfg_json.wizard_ui_bridge._question_with_default)
   * [\_text\_answer](#tableio_cfg_json.wizard_ui_bridge._text_answer)
+  * [\_path\_answer](#tableio_cfg_json.wizard_ui_bridge._path_answer)
   * [\_path\_error](#tableio_cfg_json.wizard_ui_bridge._path_error)
   * [\_path\_exists](#tableio_cfg_json.wizard_ui_bridge._path_exists)
   * [\_path\_must\_exist](#tableio_cfg_json.wizard_ui_bridge._path_must_exist)
@@ -131,6 +132,19 @@
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp.compose)
     * [\_entered](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp._entered)
+  * [\_start\_dir](#tableio_cfg_json.wizard_ui_bridge_textual._start_dir)
+  * [\_start\_value](#tableio_cfg_json.wizard_ui_bridge_textual._start_value)
+  * [\_new\_child\_prefix](#tableio_cfg_json.wizard_ui_bridge_textual._new_child_prefix)
+  * [\_selection\_text](#tableio_cfg_json.wizard_ui_bridge_textual._selection_text)
+  * [\_PathApp](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp)
+    * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp.__init__)
+    * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp.compose)
+    * [\_file\_selected](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._file_selected)
+    * [\_dir\_selected](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._dir_selected)
+    * [\_entered](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._entered)
+    * [\_submit\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._submit_clicked)
+    * [action\_submit](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp.action_submit)
+    * [\_set\_path](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._set_path)
   * [\_ChoiceApp](#tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp.compose)
@@ -170,6 +184,7 @@
   * [WizardUiBridgeTextual](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.__init__)
     * [ask\_text](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_text)
+    * [ask\_path](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_path)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
@@ -1941,13 +1956,12 @@ the user interface. Provide concrete classes of this bridge to allow
 the wizard to use a console text user interface or a graphical user
 interface.
 
-A concrete bridge implements the typed ask methods, ask_text(),
-ask_choice(), ask_multi(), ask_yes_no() and ask_table(), together
-with show(). It may override ask_path() for a native file or
-directory picker; otherwise the base implementation asks for text
-and validates the path. The low-level ask() is deprecated: it warns
-when called and when a bridge overrides it. As a temporary migration
-aid the base class implements the typed methods in terms of the
+A concrete bridge implements ask_text(), ask_choice(), ask_multi(),
+ask_yes_no(), ask_table() and show(). It may override ask_path() for
+a native file or directory picker; otherwise the base implementation
+asks for text and validates the path. The low-level ask() is
+deprecated: it warns when called and when a bridge overrides it. As a
+temporary migration aid the base class implements typed methods via the
 deprecated ask(), so a bridge that still overrides ask() keeps
 working while it is adjusted; each fallback warns that the typed
 method should be overridden instead. These fallbacks are temporary
@@ -2068,16 +2082,11 @@ def ask_int(question: str,
             default: Optional[int] = None) -> Optional[int]
 ```
 
-Ask a question for an integer and return the entered integer.
+Ask for an integer, optionally within inclusive bounds.
 
-The method asks the user for an integer value (optionally
-within a range) and returns it. The range is inclusive.
-If the answer is invalid, the method re-asks the question
-internally, until a valid answer is entered.
-
-This method is implemented by the base class using ask_text(),
-but a derived bridge can override it to implement something
-that is more efficient or more user-friendly.
+The base implementation uses ask_text() and re-asks until the
+answer is empty when allowed or parses as an integer in range. A
+derived bridge may override it with a direct numeric control.
 
 **Arguments**:
 
@@ -2121,8 +2130,7 @@ Ask a question for a path and return the accepted path.
 
 A derived bridge may override this method to provide a native file
 or directory picker. The base implementation is permanent and
-asks for a text path through ask_text(), then validates the answer
-according to options.
+asks for text through ask_text(), then validates the answer.
 
 **Arguments**:
 
@@ -2431,6 +2439,18 @@ def _text_answer(text: str, nullable: bool,
 ```
 
 Return the public text answer for raw text from a bridge.
+
+<a id="tableio_cfg_json.wizard_ui_bridge._path_answer"></a>
+
+#### \_path\_answer
+
+```python
+def _path_answer(
+        text: Optional[str],
+        options: PathAskOptions) -> tuple[bool, Optional[Path], Optional[str]]
+```
+
+Return whether a path answer is final, its value, and retry reason.
 
 <a id="tableio_cfg_json.wizard_ui_bridge._path_error"></a>
 
@@ -2927,6 +2947,141 @@ def _entered(event: Input.Submitted) -> None
 
 Exit returning the entered text, empty when nothing typed.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._start_dir"></a>
+
+#### \_start\_dir
+
+```python
+def _start_dir(default: Optional[Path]) -> Path
+```
+
+Return the directory tree root for a path question.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._start_value"></a>
+
+#### \_start\_value
+
+```python
+def _start_value(value: Optional[str], default: Optional[Path]) -> str
+```
+
+Return the initial path input text.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._new_child_prefix"></a>
+
+#### \_new\_child\_prefix
+
+```python
+def _new_child_prefix(path: Path) -> str
+```
+
+Return path text ready for appending a child name.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._selection_text"></a>
+
+#### \_selection\_text
+
+```python
+def _selection_text(path: Path, is_dir: bool, kind: WizardPathKind) -> str
+```
+
+Return the input text to use for a selected path.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp"></a>
+
+## \_PathApp Objects
+
+```python
+class _PathApp(_NavApp[str])
+```
+
+Path screen with a filesystem tree and editable path input.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(question: str, messages: list[str], options: PathAskOptions,
+             value: Optional[str]) -> None
+```
+
+Store prompt, path options and initial input state.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Lay out the header, directory tree, path input and footer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._file_selected"></a>
+
+#### \_file\_selected
+
+```python
+@on(DirectoryTree.FileSelected)
+def _file_selected(event: DirectoryTree.FileSelected) -> None
+```
+
+Use the selected file as the editable input value.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._dir_selected"></a>
+
+#### \_dir\_selected
+
+```python
+@on(DirectoryTree.DirectorySelected)
+def _dir_selected(event: DirectoryTree.DirectorySelected) -> None
+```
+
+Use the selected directory as value or editable prefix.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._entered"></a>
+
+#### \_entered
+
+```python
+@on(Input.Submitted)
+def _entered(event: Input.Submitted) -> None
+```
+
+Submit the entered path when Return is pressed in the input.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._submit_clicked"></a>
+
+#### \_submit\_clicked
+
+```python
+@on(Button.Pressed, '#submit')
+def _submit_clicked(_event: Button.Pressed) -> None
+```
+
+Submit the current input when the button is pressed.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp.action_submit"></a>
+
+#### action\_submit
+
+```python
+def action_submit() -> None
+```
+
+Exit returning the current path input.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._set_path"></a>
+
+#### \_set\_path
+
+```python
+def _set_path(path: Path, is_dir: bool) -> None
+```
+
+Set the input from a tree selection and move focus there.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp"></a>
 
 ## \_ChoiceApp Objects
@@ -3364,6 +3519,19 @@ def ask_text(question: str,
 ```
 
 Ask for free text; see WizardUiBridge.ask_text.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_path"></a>
+
+#### ask\_path
+
+```python
+def ask_path(question: str,
+             re_ask_reason: Optional[str] = None,
+             *,
+             options: Optional[PathAskOptions] = None) -> Optional[Path]
+```
+
+Ask for a path with a directory tree and editable path input.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no"></a>
 

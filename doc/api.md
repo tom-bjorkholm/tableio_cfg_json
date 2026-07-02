@@ -49,6 +49,7 @@
   * [WizardUiBridgeTextual](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.__init__)
     * [ask\_text](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_text)
+    * [ask\_path](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_path)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
@@ -966,13 +967,12 @@ the user interface. Provide concrete classes of this bridge to allow
 the wizard to use a console text user interface or a graphical user
 interface.
 
-A concrete bridge implements the typed ask methods, ask_text(),
-ask_choice(), ask_multi(), ask_yes_no() and ask_table(), together
-with show(). It may override ask_path() for a native file or
-directory picker; otherwise the base implementation asks for text
-and validates the path. The low-level ask() is deprecated: it warns
-when called and when a bridge overrides it. As a temporary migration
-aid the base class implements the typed methods in terms of the
+A concrete bridge implements ask_text(), ask_choice(), ask_multi(),
+ask_yes_no(), ask_table() and show(). It may override ask_path() for
+a native file or directory picker; otherwise the base implementation
+asks for text and validates the path. The low-level ask() is
+deprecated: it warns when called and when a bridge overrides it. As a
+temporary migration aid the base class implements typed methods via the
 deprecated ask(), so a bridge that still overrides ask() keeps
 working while it is adjusted; each fallback warns that the typed
 method should be overridden instead. These fallbacks are temporary
@@ -1083,16 +1083,11 @@ def ask_int(question: str,
             default: Optional[int] = None) -> Optional[int]
 ```
 
-Ask a question for an integer and return the entered integer.
+Ask for an integer, optionally within inclusive bounds.
 
-The method asks the user for an integer value (optionally
-within a range) and returns it. The range is inclusive.
-If the answer is invalid, the method re-asks the question
-internally, until a valid answer is entered.
-
-This method is implemented by the base class using ask_text(),
-but a derived bridge can override it to implement something
-that is more efficient or more user-friendly.
+The base implementation uses ask_text() and re-asks until the
+answer is empty when allowed or parses as an integer in range. A
+derived bridge may override it with a direct numeric control.
 
 **Arguments**:
 
@@ -1136,8 +1131,7 @@ Ask a question for a path and return the accepted path.
 
 A derived bridge may override this method to provide a native file
 or directory picker. The base implementation is permanent and
-asks for a text path through ask_text(), then validates the answer
-according to options.
+asks for text through ask_text(), then validates the answer.
 
 **Arguments**:
 
@@ -1464,6 +1458,19 @@ def ask_text(question: str,
 ```
 
 Ask for free text; see WizardUiBridge.ask_text.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_path"></a>
+
+#### ask\_path
+
+```python
+def ask_path(question: str,
+             re_ask_reason: Optional[str] = None,
+             *,
+             options: Optional[PathAskOptions] = None) -> Optional[Path]
+```
+
+Ask for a path with a directory tree and editable path input.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_yes_no"></a>
 

@@ -7,14 +7,18 @@
 # pylint: disable=protected-access
 
 import asyncio
+import os
+from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import pytest
 
-from tableio_cfg_json import TableCell, TableColumn, WizardAbort, \
-    WizardBack, WizardCancelLevel, WizardNavigation, WizardUiBridgeTextual
+from tableio_cfg_json import PathAskOptions, TableCell, TableColumn, \
+    WizardAbort, WizardBack, WizardCancelLevel, WizardNavigation, \
+    WizardPathKind, WizardUiBridgeTextual
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
-    _NavApp, _TableApp, _TextApp, _default_index, _parse_cell_id, _preselected
+    _NavApp, _PathApp, _TableApp, _TextApp, _default_index, _parse_cell_id, \
+    _preselected, _selection_text
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 
@@ -100,6 +104,47 @@ def test_text_abort_quit() -> None:
     assert app.nav is None
 
 
+def test_path_submit(tmp_path: Path) -> None:
+    """The path screen submits the editable path input."""
+    path = tmp_path / 'config.json'
+    app = _PathApp('q', [], PathAskOptions(), str(path))
+    driven = drive(app, ['ctrl+s'])
+    assert driven.return_value == str(path)
+
+
+def test_path_default(tmp_path: Path) -> None:
+    """The path screen starts from the default path."""
+    path = tmp_path / 'config.json'
+    options = PathAskOptions(default=path)
+    app = _PathApp('q', [], options, None)
+    assert app._start == tmp_path
+    assert app._value == str(path)
+
+
+@pytest.mark.parametrize('kind', [
+    WizardPathKind.EXISTING_FILE,
+    WizardPathKind.NON_EXISTING_FILE,
+    WizardPathKind.FILE,
+    WizardPathKind.NON_EXISTING_DIR,
+    WizardPathKind.EXISTING_DIR,
+    WizardPathKind.DIR])
+def test_path_select_dir(tmp_path: Path, kind: WizardPathKind) -> None:
+    """Directory selection becomes a value or child-name prefix."""
+    path = tmp_path / 'selected'
+    text = _selection_text(path, is_dir=True, kind=kind)
+    if kind in (WizardPathKind.EXISTING_DIR, WizardPathKind.DIR):
+        assert text == str(path)
+    else:
+        assert text == str(path) + os.sep
+
+
+def test_path_select_file(tmp_path: Path) -> None:
+    """File selection becomes the exact selected path."""
+    path = tmp_path / 'chosen.json'
+    assert _selection_text(path, is_dir=False,
+                           kind=WizardPathKind.FILE) == str(path)
+
+
 def test_choice_index() -> None:
     """The choice screen returns the index of the picked option."""
     app = drive(_ChoiceApp('q', ['a', 'b', 'c'], None, []), ['enter'])
@@ -170,6 +215,46 @@ def test_text_secret_default() -> None:
     bridge = _CannedBridge(['secret'])
     with pytest.raises(ValueError, match='default'):
         bridge.ask_text('q', default='secret', sensitive=True)
+
+
+def test_ask_path_value(tmp_path: Path) -> None:
+    """ask_path() returns the validated path from the path screen."""
+    path = tmp_path / 'config.json'
+    path.write_text('{}', encoding='utf-8')
+    options = PathAskOptions(kind=WizardPathKind.EXISTING_FILE)
+    assert _CannedBridge([str(path)]).ask_path('q', options=options) == path
+
+
+def test_ask_path_nullable() -> None:
+    """ask_path() maps an empty nullable answer to None."""
+    options = PathAskOptions(nullable=True)
+    assert _CannedBridge(['']).ask_path('q', options=options) is None
+
+
+def test_ask_path_retry(tmp_path: Path) -> None:
+    """ask_path() re-asks with the invalid text still editable."""
+    path = tmp_path / 'config.json'
+    path.write_text('{}', encoding='utf-8')
+    options = PathAskOptions(kind=WizardPathKind.EXISTING_FILE)
+    bridge = _CannedBridge([str(tmp_path / 'missing.json'), str(path)])
+    assert bridge.ask_path('q', options=options) == path
+    first = bridge.launched[0]
+    second = bridge.launched[1]
+    assert isinstance(first, _PathApp) and isinstance(second, _PathApp)
+    assert second._messages == ['Path does not exist.']
+    assert second._value.endswith('missing.json')
+
+
+def test_ask_path_default(tmp_path: Path) -> None:
+    """ask_path() starts from and returns a default path."""
+    path = tmp_path / 'config.json'
+    path.write_text('{}', encoding='utf-8')
+    options = PathAskOptions(kind=WizardPathKind.EXISTING_FILE, default=path)
+    bridge = _CannedBridge([''])
+    assert bridge.ask_path('q', options=options) == path
+    app = bridge.launched[0]
+    assert isinstance(app, _PathApp)
+    assert app._value == str(path)
 
 
 def test_dep_ask_dispatch() -> None:
