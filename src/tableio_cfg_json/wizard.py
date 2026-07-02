@@ -7,10 +7,12 @@ larger config-as-json configuration class.
 """
 
 import json
+import inspect
+import warnings
 from copy import deepcopy
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import Literal, Optional, Sequence, TextIO
+from typing import Callable, Literal, Optional, Sequence, TextIO
 
 from config_as_json import ConfigBadJson, InvalidConfiguration
 from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
@@ -399,8 +401,9 @@ def _ask_text_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
                            re_ask_reason: Optional[str]) -> Optional[object]:
     """Ask for one free-text optional value."""
     question = _member_question(spec)
+    default = _member_default(spec)
     while True:
-        answer = ui_bridge.ask_text(question, re_ask_reason, nullable=True)
+        answer = _ask_text_default(ui_bridge, question, re_ask_reason, default)
         if answer is None:
             return None
         try:
@@ -414,6 +417,49 @@ def _parse_member_value(spec: ConfigSpec, answer: str) -> object:
     if spec.value_type == 'Optional[int]':
         return int(answer)
     return answer
+
+
+def _member_default(spec: ConfigSpec) -> Optional[str]:
+    """Return a concrete default text value for one spec, if available."""
+    if spec.default_text is None:
+        return None
+    if spec.default_text.strip().lower().startswith('none means '):
+        return None
+    try:
+        _parse_member_value(spec, spec.default_text)
+    except ValueError:
+        return None
+    return spec.default_text
+
+
+def _ask_text_default(ui_bridge: WizardUiBridge, question: str,
+                      re_ask_reason: Optional[str],
+                      default: Optional[str]) -> Optional[str]:
+    """Ask nullable text, passing default when the bridge accepts it."""
+    if default is None:
+        return ui_bridge.ask_text(question, re_ask_reason, nullable=True)
+    if _accepts_default(ui_bridge.ask_text):
+        return ui_bridge.ask_text(question, re_ask_reason, nullable=True,
+                                  default=default)
+    bridge_name = type(ui_bridge).__name__
+    warnings.warn(
+        f'{bridge_name}.ask_text() should accept the default keyword '
+        'argument. Folding the default into the question text is '
+        'deprecated.',
+        DeprecationWarning, stacklevel=3)
+    answer = ui_bridge.ask_text(f'{question} [{default}]', re_ask_reason,
+                                nullable=True)
+    return default if answer is None else answer
+
+
+def _accepts_default(method: Callable[..., object]) -> bool:
+    """Return whether method accepts a default keyword argument."""
+    try:
+        params = inspect.signature(method).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(param.kind == inspect.Parameter.VAR_KEYWORD
+               or param.name == 'default' for param in params)
 
 
 def _member_question(spec: ConfigSpec) -> str:
