@@ -10,11 +10,13 @@ level or abandon the whole configuration.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+import getpass
 from typing import Optional, Sequence, TextIO
 
 from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
     TableColumn, WizardAbort, WizardBack, WizardCancelLevel, WizardUiBridge, \
-    _ask_many, _ask_one, _ask_yes_no, _int_text, _run_table
+    _ask_many, _ask_one, _ask_yes_no, _check_text_args, _int_text, \
+    _question_with_default, _run_table, _text_answer
 from tableio_cfg_json.wizard_ui_bridge_table import _run_variable_table
 
 _BACK = ':b'
@@ -39,12 +41,17 @@ class WizardUiBridgeConsole(WizardUiBridge):
         self.stdin_file = stdin_file
         self.stderr_file = stderr_file
 
+    # pylint: disable-next=too-many-arguments
     def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False) -> Optional[str]:
+                 nullable: bool = False, *, default: Optional[str] = None,
+                 sensitive: bool = False) -> Optional[str]:
         """Ask for free text on the console; see WizardUiBridge.ask_text."""
-        self._emit_question(question, re_ask_reason, [])
-        text = self._read_answer(question)
-        return None if (nullable and text == '') else text
+        _check_text_args(default, sensitive)
+        prompt = _question_with_default(question, default)
+        self._emit_question(prompt, re_ask_reason, [])
+        text = self._read_sensitive(prompt) if sensitive \
+            else self._read_answer(prompt)
+        return _text_answer(text, nullable, default)
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:
@@ -129,6 +136,14 @@ class WizardUiBridgeConsole(WizardUiBridge):
         if answer == '':
             raise EOFError(f'No answer supplied for {question}.')
         text = answer.rstrip('\n')
+        _raise_for_navigation(text)
+        return text
+
+    def _read_sensitive(self, question: str) -> str:
+        """Read sensitive text, avoiding echo on a real terminal."""
+        if not self.stdin_file.isatty():
+            return self._read_answer(question)
+        text = getpass.getpass('', stream=self.stdout_file)
         _raise_for_navigation(text)
         return text
 

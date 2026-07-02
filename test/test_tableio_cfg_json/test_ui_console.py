@@ -224,6 +224,56 @@ def test_var_min_only() -> None:
     assert result == [['a']]
 
 
+def test_text_default() -> None:
+    """An empty console text answer selects the shown default."""
+    out_file = StringIO()
+    bridge = WizardUiBridgeConsole(out_file, StringIO('\n'), StringIO())
+    assert bridge.ask_text('Name?', default='Tom') == 'Tom'
+    assert 'Name? [Tom]' in out_file.getvalue()
+
+
+def test_text_default_overridden() -> None:
+    """An explicit console text answer overrides the default."""
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO('Ada\n'), StringIO())
+    assert bridge.ask_text('Name?', default='Tom') == 'Ada'
+
+
+def test_text_nullable() -> None:
+    """An empty nullable text answer with no default returns None."""
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO('\n'), StringIO())
+    assert bridge.ask_text('Name?', nullable=True) is None
+
+
+def test_text_sensitive_default() -> None:
+    """Sensitive text questions reject defaults."""
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO('\n'), StringIO())
+    with pytest.raises(ValueError, match='default'):
+        bridge.ask_text('Password?', default='secret', sensitive=True)
+
+
+def test_text_sensitive_scripted() -> None:
+    """Scripted sensitive text is read without being printed."""
+    out_file = StringIO()
+    bridge = WizardUiBridgeConsole(out_file, StringIO('secret\n'), StringIO())
+    assert bridge.ask_text('Password?', sensitive=True) == 'secret'
+    assert 'secret' not in out_file.getvalue()
+
+
+def test_text_sensitive_nav() -> None:
+    """A navigation token also works at a sensitive text question."""
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO(':q\n'), StringIO())
+    with pytest.raises(WizardAbort):
+        bridge.ask_text('Password?', sensitive=True)
+
+
+def test_int_default() -> None:
+    """The inherited integer question uses console text defaults."""
+    out_file = StringIO()
+    bridge = WizardUiBridgeConsole(out_file, StringIO('\n'), StringIO())
+    assert bridge.ask_int('Count?', default=7) == 7
+    assert 'Count? [7]' in out_file.getvalue()
+
+
 @pytest.mark.parametrize('answer, default, expected', [
     ('1', False, True), ('2', True, False), ('', True, True),
     ('', False, False), ('yes', False, True), ('no', True, False),
