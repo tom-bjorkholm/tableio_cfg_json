@@ -8,16 +8,12 @@ console and graphical bridges derive from WizardUiBridge.
 
 An application that drives the wizard is responsible for implementing
 the typed ask methods of its bridge, together with show(). The typed
-methods are ask_text() for free text, ask_choice() for one choice,
-ask_multi() for several choices, ask_yes_no() for a boolean and
-ask_table() for a table. The low-level ask() is deprecated: it warns
-when called and when a bridge overrides it. To give application bridge
-authors time to migrate, the base class keeps temporary fallback
-implementations of the typed methods written in terms of ask(), so a
-bridge that still overrides ask() keeps working while it is adjusted to
-implement the typed methods directly. These fallbacks are a temporary
-compatibility aid that warns on use and will be withdrawn once bridges
-implement the typed methods directly.
+methods are ask_text(), ask_choice(), ask_multi(), ask_yes_no(),
+ask_table() and ask_path(). The low-level ask() is deprecated: it warns
+when called and when a bridge overrides it. The base class keeps
+temporary fallback implementations of the typed methods written in terms
+of ask(), so a bridge that still overrides ask() keeps working while it
+is adjusted to implement the typed methods directly.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -26,7 +22,9 @@ implement the typed methods directly.
 import sys
 import warnings
 from dataclasses import dataclass
+from enum import Enum, auto
 from io import StringIO
+from pathlib import Path
 from typing import Callable, Optional, Sequence, TextIO
 from config_as_json import InvalidConfiguration, string_best_match
 
@@ -52,6 +50,7 @@ one so the console bridge and the deprecated base fallback share code.
 _ERASE_TOKEN = ':e'  # empties an editable cell in the ask_table fallback
 _CHOICE_ERROR = 'Please enter one of the listed choices.'
 _INT_ERROR = 'Please enter an integer.'
+_PATH_REQUIRED = 'Please enter a path.'
 
 
 class WizardNavigation(Exception):
@@ -104,6 +103,26 @@ class WizardAbort(WizardNavigation):
     The wizard does not catch it; it propagates out of the wizard call so
     the application can stop the configuration session.
     """
+
+
+class WizardPathKind(Enum):
+    """Expected path type and existence for a path question."""
+
+    EXISTING_FILE = auto()
+    NON_EXISTING_FILE = auto()
+    FILE = auto()
+    EXISTING_DIR = auto()
+    NON_EXISTING_DIR = auto()
+    DIR = auto()
+
+
+@dataclass(frozen=True)
+class PathAskOptions:
+    """Options for a path question."""
+
+    kind: WizardPathKind = WizardPathKind.FILE
+    nullable: bool = False
+    default: Optional[Path] = None
 
 
 @dataclass(frozen=True)
@@ -163,15 +182,17 @@ class WizardUiBridge:
 
     A concrete bridge implements the typed ask methods, ask_text(),
     ask_choice(), ask_multi(), ask_yes_no() and ask_table(), together
-    with show(). The low-level ask() is deprecated: it warns when called
-    and when a bridge overrides it. As a temporary migration aid the base
-    class implements the typed methods in terms of the deprecated ask(),
-    so a bridge that still overrides ask() keeps working while it is
-    adjusted; each fallback warns that the typed method should be
-    overridden instead. These fallbacks are temporary and will be
-    withdrawn once bridges implement the typed methods directly. Any ask
-    method may raise a WizardNavigation subclass to request back,
-    cancel-level or abort instead of returning an answer.
+    with show(). It may override ask_path() for a native file or
+    directory picker; otherwise the base implementation asks for text
+    and validates the path. The low-level ask() is deprecated: it warns
+    when called and when a bridge overrides it. As a temporary migration
+    aid the base class implements the typed methods in terms of the
+    deprecated ask(), so a bridge that still overrides ask() keeps
+    working while it is adjusted; each fallback warns that the typed
+    method should be overridden instead. These fallbacks are temporary
+    and will be withdrawn once bridges implement the typed methods
+    directly. Any ask method may raise a WizardNavigation subclass to
+    request back, cancel-level or abort instead of returning an answer.
     """
 
     def __init_subclass__(cls, **kwargs: object) -> None:
@@ -221,38 +242,55 @@ class WizardUiBridge:
                                re_ask_reason=re_ask_reason)
 
     def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False) -> Optional[str]:
+                 nullable: bool = False, *, default: Optional[str] = None,
+                 sensitive: bool = False) -> Optional[str]:
         """Ask a free-text question and return the entered text.
 
         The application is responsible for implementing this method with
         a real text-entry control. As a temporary migration aid the base
         class provides a fallback in terms of the deprecated ask(), so a
-        bridge that still overrides ask() keeps working.
+        bridge that still overrides ask() keeps working for non-sensitive
+        questions.
 
         Args:
             question: The question to ask the user.
             re_ask_reason: The reason for re-asking the question, for
                            instance that the user's answer was invalid.
-            nullable: When True an empty answer is reported as None, so
-                      the caller can treat it as a request to use the
-                      default. When False an empty answer is the empty
-                      string.
+            nullable: When True an empty answer with no default is
+                      reported as None. When False an empty answer with
+                      no default is the empty string.
+            default: The value returned by an empty answer, or None for
+                     no default.
+            sensitive: True when the bridge must avoid echoing the
+                       entered text, such as for passwords. A default is
+                       not allowed for a sensitive question.
 
         Returns:
-            The entered text, or None for an empty answer when nullable.
+            The entered text, default for an empty answer with a default,
+            or None for an empty answer when nullable.
         Raises:
+            ValueError: default is given together with sensitive.
+            NotImplementedError: The deprecated ask() fallback is used
+                                 for sensitive input.
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
             WizardAbort: The user abandoned the whole configuration.
         """
+        _check_text_args(default, sensitive)
+        if sensitive:
+            raise NotImplementedError('ask_text() sensitive input not '
+                                      'implemented')
         self._guard_fallback('ask_text')
-        answer = self.ask(question, re_ask_reason)
+        prompt = _question_with_default(question, default)
+        answer = self.ask(prompt, re_ask_reason)
         text = answer if isinstance(answer, str) else str(answer)
-        return None if (nullable and text == '') else text
+        return _text_answer(text, nullable, default)
 
+    # pylint: disable-next=too-many-arguments
     def ask_int(self, question: str, re_ask_reason: Optional[str] = None, *,
                 nullable: bool = False, min_value: Optional[int] = None,
-                max_value: Optional[int] = None) -> Optional[int]:
+                max_value: Optional[int] = None,
+                default: Optional[int] = None) -> Optional[int]:
         """Ask a question for an integer and return the entered integer.
 
         The method asks the user for an integer value (optionally
@@ -276,9 +314,12 @@ class WizardUiBridge:
                        The min value is inclusive.
             max_value: The maximum allowed value, or None for no upper bound.
                        The max value is inclusive.
+            default: The value returned by an empty answer, or None for
+                     no default.
 
         Returns:
-            The entered integer, or None for an empty answer when nullable.
+            The entered integer, default for an empty answer with a
+            default, or None for an empty answer when nullable.
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
@@ -286,9 +327,13 @@ class WizardUiBridge:
         """
         assert (min_value is None or max_value is None
                 or min_value <= max_value)
+        assert default is None or not _out_of_range(
+            default, min_value, max_value)
         reason = re_ask_reason
+        default_text = None if default is None else str(default)
         while True:
-            text = self.ask_text(question, reason, nullable)
+            text = self.ask_text(question, reason, nullable,
+                                 default=default_text)
             if text is None:
                 return None
             value = _int_text(text)
@@ -298,6 +343,44 @@ class WizardUiBridge:
                 reason = _range_error(min_value, max_value)
             else:
                 return value
+
+    def ask_path(self, question: str, re_ask_reason: Optional[str] = None, *,
+                 options: Optional[PathAskOptions] = None) -> Optional[Path]:
+        """Ask a question for a path and return the accepted path.
+
+        A derived bridge may override this method to provide a native file
+        or directory picker. The base implementation is permanent and
+        asks for a text path through ask_text(), then validates the answer
+        according to options.
+
+        Args:
+            question: The question to ask the user.
+            re_ask_reason: The reason for re-asking the question.
+            options: Path options. None only rejects existing directories.
+
+        Returns:
+            The accepted path, a default path, or None when nullable.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+        """
+        path_options = PathAskOptions() if options is None else options
+        reason = re_ask_reason
+        default = path_options.default
+        default_text = None if default is None else str(default)
+        while True:
+            text = self.ask_text(question, reason, path_options.nullable,
+                                 default=default_text)
+            if text is None:
+                return None
+            if text == '':
+                reason = _PATH_REQUIRED
+                continue
+            path = Path(text)
+            reason = _path_error(path, path_options.kind)
+            if reason is None:
+                return path
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:
@@ -517,6 +600,74 @@ class WizardUiBridge:
             message: The message to show the user.
         """
         raise NotImplementedError('show() not implemented')
+
+
+def _check_text_args(default: Optional[str], sensitive: bool) -> None:
+    """Raise when text-question arguments are inconsistent."""
+    if sensitive and default is not None:
+        raise ValueError('default is not allowed for sensitive input')
+
+
+def _question_with_default(question: str, default: Optional[str]) -> str:
+    """Return question with a bracketed default when one is given."""
+    if default is None:
+        return question
+    return f'{question} [{default}]'
+
+
+def _text_answer(text: str, nullable: bool,
+                 default: Optional[str]) -> Optional[str]:
+    """Return the public text answer for raw text from a bridge."""
+    if text == '' and default is not None:
+        return default
+    if text == '' and nullable:
+        return None
+    return text
+
+
+def _path_error(path: Path, kind: WizardPathKind) -> Optional[str]:
+    """Return the validation error for path, or None when accepted."""
+    exists, error = _path_exists(path)
+    if error is not None:
+        return error
+    if _path_must_not_exist(kind) and exists:
+        return 'Path already exists.'
+    if _path_must_exist(kind) and not exists:
+        return 'Path does not exist.'
+    if exists and _path_must_be_file(kind) and not path.is_file():
+        return 'Path is not a file.'
+    if exists and _path_must_be_dir(kind) and not path.is_dir():
+        return 'Path is not a directory.'
+    return None
+
+
+def _path_exists(path: Path) -> tuple[bool, Optional[str]]:
+    """Return whether path exists, or an error for an unusable path."""
+    try:
+        return (path.exists(), None)
+    except OSError as error:
+        return (False, f'Invalid path: {error}.')
+
+
+def _path_must_exist(kind: WizardPathKind) -> bool:
+    """Return whether kind requires an existing path."""
+    return kind in (WizardPathKind.EXISTING_FILE, WizardPathKind.EXISTING_DIR)
+
+
+def _path_must_not_exist(kind: WizardPathKind) -> bool:
+    """Return whether kind requires a path that does not exist."""
+    return kind in (
+        WizardPathKind.NON_EXISTING_FILE, WizardPathKind.NON_EXISTING_DIR)
+
+
+def _path_must_be_file(kind: WizardPathKind) -> bool:
+    """Return whether kind rejects existing directories."""
+    return kind in (WizardPathKind.EXISTING_FILE, WizardPathKind.FILE)
+
+
+def _path_must_be_dir(kind: WizardPathKind) -> bool:
+    """Return whether kind rejects existing files."""
+    return kind in (WizardPathKind.EXISTING_DIR, WizardPathKind.DIR)
 
 
 def _interpret_yes_no(answer: str | int, default: bool) -> Optional[bool]:

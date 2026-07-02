@@ -66,11 +66,16 @@ class _ScriptedBridge(WizardUiBridge):
         return read
 
     def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False) -> Optional[str]:
+                 nullable: bool = False, *, default: Optional[str] = None,
+                 sensitive: bool = False) -> Optional[str]:
         """Return the next scripted answer as text."""
+        if sensitive and default is not None:
+            raise ValueError('default is not allowed for sensitive input')
         self.calls.append((question, re_ask_reason, None))
         answer = self._next()
         text = answer if isinstance(answer, str) else str(answer)
+        if text == '' and default is not None:
+            return default
         return None if (nullable and text == '') else text
 
     def ask_choice(self, question: str, *, choices: Sequence[str],
@@ -787,8 +792,10 @@ class _TableBridge(WizardUiBridge):
         return choices[0] if default is None else default
 
     def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False) -> Optional[str]:
+                 nullable: bool = False, *, default: Optional[str] = None,
+                 sensitive: bool = False) -> Optional[str]:
         """Skip every scalar member with an empty answer."""
+        _ = (question, re_ask_reason, default, sensitive)
         return None if nullable else ''
 
     # pylint: disable-next=too-many-arguments
