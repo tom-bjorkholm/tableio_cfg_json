@@ -32,7 +32,8 @@ from textual.widgets import Button, Footer, Input, OptionList, Select, \
 from textual.widgets.selection_list import Selection
 from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
     TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
-    WizardNavigation, WizardUiBridge, _multi_count_error
+    WizardNavigation, WizardUiBridge, _check_text_args, _multi_count_error, \
+    _text_answer
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 _T = TypeVar('_T')
@@ -84,16 +85,19 @@ def _header_widgets(messages: list[str], question: str) -> Iterator[Static]:
 class _TextApp(_NavApp[str]):
     """Free-text screen returning the string the user typed."""
 
-    def __init__(self, question: str, messages: list[str]) -> None:
-        """Store the prompt and any buffered messages."""
+    def __init__(self, question: str, messages: list[str], value: str = '',
+                 password: bool = False) -> None:
+        """Store the prompt, buffered messages and input settings."""
         super().__init__()
         self._question = question
         self._messages = messages
+        self._value = value
+        self._password = password
 
     def compose(self) -> ComposeResult:
         """Lay out the header, the input field and the footer."""
         yield from _header_widgets(self._messages, self._question)
-        yield Input()
+        yield Input(value=self._value, password=self._password)
         yield Footer()
 
     @on(Input.Submitted)
@@ -430,12 +434,16 @@ class WizardUiBridgeTextual(WizardUiBridge):
         self._error_buffer = StringIO()
         self._pending: list[str] = []
 
+    # pylint: disable-next=too-many-arguments
     def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False) -> Optional[str]:
+                 nullable: bool = False, *, default: Optional[str] = None,
+                 sensitive: bool = False) -> Optional[str]:
         """Ask for free text; see WizardUiBridge.ask_text."""
+        _check_text_args(default, sensitive)
         messages = self._collect(re_ask_reason)
-        text = self._run(_TextApp(question, messages))
-        return None if (nullable and text == '') else text
+        value = '' if default is None else default
+        text = self._run(_TextApp(question, messages, value, sensitive))
+        return _text_answer(text, nullable, default)
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:

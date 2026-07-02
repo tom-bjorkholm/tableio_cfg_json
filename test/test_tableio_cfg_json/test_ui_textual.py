@@ -73,6 +73,12 @@ def test_text_empty() -> None:
     assert app.return_value == ''
 
 
+def test_text_prefilled() -> None:
+    """The text screen starts with the given value."""
+    app = drive(_TextApp('q', [], 'ready'), ['enter'])
+    assert app.return_value == 'ready'
+
+
 def test_text_back_nav() -> None:
     """ctrl+b records a back request and exits with no value."""
     app = drive(_TextApp('q', []), ['ctrl+b'])
@@ -133,6 +139,37 @@ def test_ask_text() -> None:
     """ask_text() returns the typed string."""
     bridge = _CannedBridge(['typed'])
     assert bridge.ask_text('q') == 'typed'
+
+
+def test_ask_text_default() -> None:
+    """ask_text() pre-fills and returns default for an empty answer."""
+    bridge = _CannedBridge([''])
+    assert bridge.ask_text('q', default='ready') == 'ready'
+    app = bridge.launched[0]
+    assert isinstance(app, _TextApp)
+    assert app._value == 'ready'
+
+
+def test_ask_text_nullable() -> None:
+    """An empty nullable text answer with no default returns None."""
+    bridge = _CannedBridge([''])
+    assert bridge.ask_text('q', nullable=True) is None
+
+
+def test_ask_text_sensitive() -> None:
+    """Sensitive text uses password input mode."""
+    bridge = _CannedBridge(['secret'])
+    assert bridge.ask_text('q', sensitive=True) == 'secret'
+    app = bridge.launched[0]
+    assert isinstance(app, _TextApp)
+    assert app._password is True
+
+
+def test_text_secret_default() -> None:
+    """Sensitive text questions reject defaults."""
+    bridge = _CannedBridge(['secret'])
+    with pytest.raises(ValueError, match='default'):
+        bridge.ask_text('q', default='secret', sensitive=True)
 
 
 def test_dep_ask_dispatch() -> None:

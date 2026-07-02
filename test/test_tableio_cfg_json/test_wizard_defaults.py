@@ -48,8 +48,7 @@ class _KwBridge(WizardUiBridge):
         self.calls: list[tuple[str, Optional[str], Optional[str]]] = []
 
     def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False, **kwargs: object
-                 ) -> Optional[str]:
+                 nullable: bool = False, **kwargs: object) -> Optional[str]:
         """Return scripted text, accepting default through kwargs."""
         default_value = kwargs.get('default')
         assert default_value is None or isinstance(default_value, str)
@@ -89,21 +88,19 @@ class _OldBridge(WizardUiBridge):
 
 def _int_spec(default: Optional[str]) -> ConfigSpec:
     """Return an integer config spec with an optional default text."""
-    return ConfigSpec('line_length', 'Line length.', 'Optional[int]',
-                      default)
+    return ConfigSpec('line_length', 'Line length.', 'Optional[int]', default)
 
 
 def _str_spec(default: Optional[str]) -> ConfigSpec:
     """Return a string config spec with an optional default text."""
-    return ConfigSpec('encoding', 'Character encoding.', 'Optional[str]',
-                      default)
+    desc = 'Character encoding.'
+    return ConfigSpec('encoding', desc, 'Optional[str]', default)
 
 
 def test_modern_default() -> None:
     """The wizard passes concrete defaults to modern bridges."""
     bridge = _ModernBridge([''])
-    value = wizard_module._ask_text_member_value(_int_spec('72'), bridge,
-                                                 None)
+    value = wizard_module._ask_text_member_value(_int_spec('72'), bridge, None)
     assert value == 72
     assert bridge.calls == [('line_length:\nLine length.\nType: '
                              'Optional[int]\nPress Enter to use the '
@@ -113,8 +110,7 @@ def test_modern_default() -> None:
 def test_kwargs_default() -> None:
     """The wizard recognizes bridges that accept arbitrary keywords."""
     bridge = _KwBridge([''])
-    value = wizard_module._ask_text_member_value(_int_spec('64'), bridge,
-                                                 None)
+    value = wizard_module._ask_text_member_value(_int_spec('64'), bridge, None)
     assert value == 64
     assert bridge.calls[0][2] == '64'
 
@@ -122,8 +118,7 @@ def test_kwargs_default() -> None:
 def test_old_default_warns() -> None:
     """Old bridges get a warning and a bracketed prompt fallback."""
     bridge = _OldBridge([''])
-    with pytest.warns(DeprecationWarning,
-                      match='_OldBridge.*default keyword'):
+    with pytest.warns(DeprecationWarning, match='_OldBridge.*default keyword'):
         value = wizard_module._ask_text_member_value(_int_spec('80'), bridge,
                                                      None)
     assert value == 80
@@ -149,8 +144,7 @@ def test_none_description_skipped() -> None:
 def test_invalid_retry_keeps_default() -> None:
     """A retry keeps passing the default and shows the parse error."""
     bridge = _ModernBridge(['bad', ''])
-    value = wizard_module._ask_text_member_value(_int_spec('40'), bridge,
-                                                 None)
+    value = wizard_module._ask_text_member_value(_int_spec('40'), bridge, None)
     assert value == 40
     assert bridge.calls[1][1] is not None
     assert bridge.calls[1][2] == '40'

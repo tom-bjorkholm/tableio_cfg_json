@@ -327,8 +327,8 @@ class WizardUiBridge:
         """
         assert (min_value is None or max_value is None
                 or min_value <= max_value)
-        assert default is None or not _out_of_range(
-            default, min_value, max_value)
+        assert default is None or not _out_of_range(default, min_value,
+                                                    max_value)
         reason = re_ask_reason
         default_text = None if default is None else str(default)
         while True:

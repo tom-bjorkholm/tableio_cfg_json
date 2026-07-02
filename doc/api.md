@@ -30,12 +30,15 @@
   * [WizardBack](#tableio_cfg_json.wizard_ui_bridge.WizardBack)
   * [WizardCancelLevel](#tableio_cfg_json.wizard_ui_bridge.WizardCancelLevel)
   * [WizardAbort](#tableio_cfg_json.wizard_ui_bridge.WizardAbort)
+  * [WizardPathKind](#tableio_cfg_json.wizard_ui_bridge.WizardPathKind)
+  * [PathAskOptions](#tableio_cfg_json.wizard_ui_bridge.PathAskOptions)
   * [TableColumn](#tableio_cfg_json.wizard_ui_bridge.TableColumn)
   * [TableCell](#tableio_cfg_json.wizard_ui_bridge.TableCell)
   * [WizardUiBridge](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge)
     * [ask](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask)
     * [ask\_text](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_text)
     * [ask\_int](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_int)
+    * [ask\_path](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_path)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_yes_no)
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi)
@@ -796,16 +799,12 @@ console and graphical bridges derive from WizardUiBridge.
 
 An application that drives the wizard is responsible for implementing
 the typed ask methods of its bridge, together with show(). The typed
-methods are ask_text() for free text, ask_choice() for one choice,
-ask_multi() for several choices, ask_yes_no() for a boolean and
-ask_table() for a table. The low-level ask() is deprecated: it warns
-when called and when a bridge overrides it. To give application bridge
-authors time to migrate, the base class keeps temporary fallback
-implementations of the typed methods written in terms of ask(), so a
-bridge that still overrides ask() keeps working while it is adjusted to
-implement the typed methods directly. These fallbacks are a temporary
-compatibility aid that warns on use and will be withdrawn once bridges
-implement the typed methods directly.
+methods are ask_text(), ask_choice(), ask_multi(), ask_yes_no(),
+ask_table() and ask_path(). The low-level ask() is deprecated: it warns
+when called and when a bridge overrides it. The base class keeps
+temporary fallback implementations of the typed methods written in terms
+of ask(), so a bridge that still overrides ask() keeps working while it
+is adjusted to implement the typed methods directly.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardNavigation"></a>
 
@@ -879,6 +878,27 @@ A bridge raises this when the user abandons configuration entirely.
 The wizard does not catch it; it propagates out of the wizard call so
 the application can stop the configuration session.
 
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardPathKind"></a>
+
+## WizardPathKind Objects
+
+```python
+class WizardPathKind(Enum)
+```
+
+Expected path type and existence for a path question.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.PathAskOptions"></a>
+
+## PathAskOptions Objects
+
+```python
+@dataclass(frozen=True)
+class PathAskOptions()
+```
+
+Options for a path question.
+
 <a id="tableio_cfg_json.wizard_ui_bridge.TableColumn"></a>
 
 ## TableColumn Objects
@@ -948,15 +968,17 @@ interface.
 
 A concrete bridge implements the typed ask methods, ask_text(),
 ask_choice(), ask_multi(), ask_yes_no() and ask_table(), together
-with show(). The low-level ask() is deprecated: it warns when called
-and when a bridge overrides it. As a temporary migration aid the base
-class implements the typed methods in terms of the deprecated ask(),
-so a bridge that still overrides ask() keeps working while it is
-adjusted; each fallback warns that the typed method should be
-overridden instead. These fallbacks are temporary and will be
-withdrawn once bridges implement the typed methods directly. Any ask
-method may raise a WizardNavigation subclass to request back,
-cancel-level or abort instead of returning an answer.
+with show(). It may override ask_path() for a native file or
+directory picker; otherwise the base implementation asks for text
+and validates the path. The low-level ask() is deprecated: it warns
+when called and when a bridge overrides it. As a temporary migration
+aid the base class implements the typed methods in terms of the
+deprecated ask(), so a bridge that still overrides ask() keeps
+working while it is adjusted; each fallback warns that the typed
+method should be overridden instead. These fallbacks are temporary
+and will be withdrawn once bridges implement the typed methods
+directly. Any ask method may raise a WizardNavigation subclass to
+request back, cancel-level or abort instead of returning an answer.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask"></a>
 
@@ -1004,7 +1026,10 @@ methods.
 ```python
 def ask_text(question: str,
              re_ask_reason: Optional[str] = None,
-             nullable: bool = False) -> Optional[str]
+             nullable: bool = False,
+             *,
+             default: Optional[str] = None,
+             sensitive: bool = False) -> Optional[str]
 ```
 
 Ask a free-text question and return the entered text.
@@ -1012,25 +1037,34 @@ Ask a free-text question and return the entered text.
 The application is responsible for implementing this method with
 a real text-entry control. As a temporary migration aid the base
 class provides a fallback in terms of the deprecated ask(), so a
-bridge that still overrides ask() keeps working.
+bridge that still overrides ask() keeps working for non-sensitive
+questions.
 
 **Arguments**:
 
 - `question` - The question to ask the user.
 - `re_ask_reason` - The reason for re-asking the question, for
   instance that the user's answer was invalid.
-- `nullable` - When True an empty answer is reported as None, so
-  the caller can treat it as a request to use the
-  default. When False an empty answer is the empty
-  string.
+- `nullable` - When True an empty answer with no default is
+  reported as None. When False an empty answer with
+  no default is the empty string.
+- `default` - The value returned by an empty answer, or None for
+  no default.
+- `sensitive` - True when the bridge must avoid echoing the
+  entered text, such as for passwords. A default is
+  not allowed for a sensitive question.
   
 
 **Returns**:
 
-  The entered text, or None for an empty answer when nullable.
+  The entered text, default for an empty answer with a default,
+  or None for an empty answer when nullable.
 
 **Raises**:
 
+- `ValueError` - default is given together with sensitive.
+- `NotImplementedError` - The deprecated ask() fallback is used
+  for sensitive input.
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
@@ -1045,7 +1079,8 @@ def ask_int(question: str,
             *,
             nullable: bool = False,
             min_value: Optional[int] = None,
-            max_value: Optional[int] = None) -> Optional[int]
+            max_value: Optional[int] = None,
+            default: Optional[int] = None) -> Optional[int]
 ```
 
 Ask a question for an integer and return the entered integer.
@@ -1072,11 +1107,48 @@ that is more efficient or more user-friendly.
   The min value is inclusive.
 - `max_value` - The maximum allowed value, or None for no upper bound.
   The max value is inclusive.
+- `default` - The value returned by an empty answer, or None for
+  no default.
+
+**Returns**:
+
+  The entered integer, default for an empty answer with a
+  default, or None for an empty answer when nullable.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_path"></a>
+
+#### ask\_path
+
+```python
+def ask_path(question: str,
+             re_ask_reason: Optional[str] = None,
+             *,
+             options: Optional[PathAskOptions] = None) -> Optional[Path]
+```
+
+Ask a question for a path and return the accepted path.
+
+A derived bridge may override this method to provide a native file
+or directory picker. The base implementation is permanent and
+asks for a text path through ask_text(), then validates the answer
+according to options.
+
+**Arguments**:
+
+- `question` - The question to ask the user.
+- `re_ask_reason` - The reason for re-asking the question.
+- `options` - Path options. None only rejects existing directories.
   
 
 **Returns**:
 
-  The entered integer, or None for an empty answer when nullable.
+  The accepted path, a default path, or None when nullable.
 
 **Raises**:
 
@@ -1385,7 +1457,10 @@ Start with an empty diagnostics buffer and message list.
 ```python
 def ask_text(question: str,
              re_ask_reason: Optional[str] = None,
-             nullable: bool = False) -> Optional[str]
+             nullable: bool = False,
+             *,
+             default: Optional[str] = None,
+             sensitive: bool = False) -> Optional[str]
 ```
 
 Ask for free text; see WizardUiBridge.ask_text.
@@ -1517,7 +1592,10 @@ Initialize the bridge.
 ```python
 def ask_text(question: str,
              re_ask_reason: Optional[str] = None,
-             nullable: bool = False) -> Optional[str]
+             nullable: bool = False,
+             *,
+             default: Optional[str] = None,
+             sensitive: bool = False) -> Optional[str]
 ```
 
 Ask for free text on the console; see WizardUiBridge.ask_text.
@@ -1745,4 +1823,3 @@ Return a Textual bridge for a terminal, else a console bridge.
 
   A Textual bridge when Textual is installed and both streams are
   a terminal, otherwise a console bridge.
-

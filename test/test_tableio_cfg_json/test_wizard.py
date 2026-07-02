@@ -35,11 +35,7 @@ class _ScriptedBridge(WizardUiBridge):
     """
 
     def __init__(self, answers: Sequence[str | int | BaseException]) -> None:
-        """Initialize the scripted bridge.
-
-        Args:
-            answers: Raw answers returned in order to the ask methods.
-        """
+        """Store raw answers returned in order to the ask methods."""
         self.answers: list[str | int | BaseException] = list(answers)
         self.calls: list[
             tuple[str, Optional[str], Optional[tuple[str, ...]]]] = []

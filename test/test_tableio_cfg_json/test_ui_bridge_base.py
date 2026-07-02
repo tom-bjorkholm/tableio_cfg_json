@@ -10,7 +10,8 @@ from typing import Optional, Sequence
 
 import pytest
 
-from tableio_cfg_json import WizardUiBridge
+from tableio_cfg_json import PathAskOptions as PublicPathAskOptions, \
+    WizardPathKind as PublicPathKind, WizardUiBridge
 from tableio_cfg_json.wizard_ui_bridge import PathAskOptions, WizardPathKind
 
 
@@ -24,9 +25,10 @@ class _TextBridge(WizardUiBridge):
 
     def _next(self) -> str | int:
         """Return the next scripted answer, raising scripted exceptions."""
-        if not self.answers:
-            raise EOFError('No scripted answer left.')
-        answer = self.answers.pop(0)
+        try:
+            answer = self.answers.pop(0)
+        except IndexError as error:
+            raise EOFError('No scripted answer left.') from error
         if isinstance(answer, BaseException):
             raise answer
         return answer
@@ -38,15 +40,26 @@ class _TextBridge(WizardUiBridge):
         if sensitive and default is not None:
             raise ValueError('default is not allowed for sensitive input')
         self.calls.append((question, re_ask_reason))
-        answer = self._next()
-        text = answer if isinstance(answer, str) else str(answer)
-        if text == '' and default is not None:
-            return default
-        return None if (nullable and text == '') else text
+        return _scripted_text(self._next(), nullable, default)
 
     def show(self, message: str) -> None:
         """Ignore shown messages."""
         _ = message
+
+
+def _scripted_text(answer: str | int, nullable: bool,
+                   default: Optional[str]) -> Optional[str]:
+    """Return ask_text semantics for one scripted raw answer."""
+    text = answer if isinstance(answer, str) else str(answer)
+    if text == '' and default is not None:
+        return default
+    return None if (nullable and text == '') else text
+
+
+def test_path_api_exported() -> None:
+    """The package root exports the path question API."""
+    assert PublicPathAskOptions is PathAskOptions
+    assert PublicPathKind is WizardPathKind
 
 
 with warnings.catch_warnings():
@@ -63,7 +76,10 @@ with warnings.catch_warnings():
                 choices: Optional[Sequence[str]] = None) -> str | int:
             """Return the next scripted raw answer."""
             _ = (question, re_ask_reason, choices)
-            return self.answers.pop(0)
+            try:
+                return self.answers.pop(0)
+            except IndexError as error:
+                raise EOFError('No scripted answer left.') from error
 
         def show(self, message: str) -> None:
             """Ignore shown messages."""
