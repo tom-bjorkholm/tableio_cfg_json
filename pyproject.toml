@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tableio-cfg-json"
-version = "0.7.1"
+version = "0.8"
 authors = [
   { name="Tom Björkholm", email="klausuler_linnet0q@icloud.com" },
 ]
@@ -29,4 +29,4 @@ dynamic = ["dependencies"]
 
 [project.urls]
 "Source code" = "https://github.com/tom-bjorkholm/tableio_cfg_json"
-
+"Documentation" = "https://github.com/tom-bjorkholm/tableio_cfg_json/tree/master/doc"
