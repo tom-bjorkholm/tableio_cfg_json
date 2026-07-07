@@ -32,19 +32,19 @@ thing.
 
 The example source files are:
 
-- [`e01_create_config.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e01_create_config.py)
+- [`e01_create_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e01_create_config.py)
   writes a JSON configuration file and a plain text syntax guide for that
   file.
-- [`e02_write_table.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e02_write_table.py)
+- [`e02_write_table.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e02_write_table.py)
   reads a write-capable JSON config and writes a small table with the columns
   `Capital`, `Country` and `Continent`.
-- [`e03_read_table.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e03_read_table.py)
+- [`e03_read_table.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e03_read_table.py)
   reads a read-capable JSON config and prints an existing table as
   tab-separated text.
-- [`e04_create_custom_config.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e04_create_custom_config.py)
+- [`e04_create_custom_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e04_create_custom_config.py)
   starts from the same kind of default config as `e01_create_config.py`, then
   stores a few explicit non-default values.
-- [`e10_edit_config_wizard.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e10_edit_config_wizard.py)
+- [`e10_edit_config_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e10_edit_config_wizard.py)
   edits one write-capable JSON config by passing the previous config back to
   `tio_json_config_wizard()` as defaults. Its enclosing confirmation question
   can send the user back into the TableIO wizard.
@@ -228,14 +228,14 @@ also prints a text description of the configuration options.
 
 The example source files are:
 
-- [`e05_split_cities_wizard.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e05_split_cities_wizard.py)
+- [`e05_split_cities_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e05_split_cities_wizard.py)
   asks questions and writes the larger JSON application configuration. It
   calls `tio_json_config_wizard()` once for the input endpoint and once for
   each output endpoint.
-- [`e06_split_cities.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e06_split_cities.py)
+- [`e06_split_cities.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e06_split_cities.py)
   reads the larger JSON configuration, reads a city table as dictionaries,
   and writes two independently configured output tables.
-- [`e07_split_cities_textual.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e07_split_cities_textual.py)
+- [`e07_split_cities_textual.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e07_split_cities_textual.py)
   does exactly what `e05_split_cities_wizard.py` does, but builds its bridge
   with `make_text_ui_bridge()` instead of hard-coding the console bridge. In a
   real terminal that gives a full-screen Textual interface with selectable
@@ -243,7 +243,7 @@ The example source files are:
   to the console bridge, so the program stays scriptable. It reuses all of
   e05's question, config and guide logic unchanged, so the only difference is
   the one line that builds the bridge.
-- [`e08_rename_wizard.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e08_rename_wizard.py)
+- [`e08_rename_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e08_rename_wizard.py)
   builds on e05 and e07. It asks the same questions and adds, for each output,
   a variable-row table that maps input columns to the column names written in
   that output file. It also adds a `--ui {auto,console,textual}` switch that
@@ -252,7 +252,7 @@ The example source files are:
   rows: in a terminal the Textual bridge offers Add row and Remove row
   buttons, and on the console the row-menu editor offers `:+` to add a row and
   `:- N` to delete row N.
-- [`e09_split_cities_rename.py`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/e09_split_cities_rename.py)
+- [`e09_split_cities_rename.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e09_split_cities_rename.py)
   builds on e06. It reads the configuration written by e08 and splits the city
   table the same way, but renames each output's columns independently using
   the two mappings `less_output_names` and `not_less_output_names`.
@@ -299,7 +299,7 @@ is configuration composition.
 
 The repository includes a sample input file:
 
-- [`example/data/cities_input.csv`](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/data/cities_input.csv)
+- [`example/data/cities_input.csv`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/data/cities_input.csv)
 
 It contains three continents, five countries per continent, and two cities per
 country. You can use that file to test the walkthrough, or create your own CSV

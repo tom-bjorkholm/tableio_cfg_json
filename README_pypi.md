@@ -103,7 +103,7 @@ sections such as `csv`, `html` and `latex`. Compact output omits unset
 optional values, while template-style output can include all current default
 options.
 
-Please see the [teaching examples](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/README.md) for a more
+Please see the [teaching examples](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/README.md) for a more
 thorough introduction.
 
 ## Main entry points
@@ -171,13 +171,13 @@ The teaching examples show both styles.
 
 ## Documentation
 
-- Teaching examples and walkthroughs: [example/src/example/README.md](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/example/src/example/README.md)
+- Teaching examples and walkthroughs: [example/src/example/README.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/README.md)
 
-- Public API notes: [doc/api.md](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/doc/api.md)
+- Public API notes: [doc/api.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/doc/api.md)
 
-- Protected/internal API notes: [doc/protected_api.md](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/src/master/doc/protected_api.md)
+- Protected/internal API notes: [doc/protected_api.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/doc/protected_api.md)
 
-- Source repository: [tableio_cfg_json](https://bitbucket.org/tom-bjorkholm/tableio_cfg_json/)
+- Source repository: [tableio_cfg_json](https://github.com/tom-bjorkholm/tableio_cfg_json/)
 
 ## License
 

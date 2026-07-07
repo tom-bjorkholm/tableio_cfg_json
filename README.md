@@ -26,8 +26,7 @@ useful for maintainers who want to see intended API usage in context.
 This repository uses submodules. Clone it with:
 
 ```sh
-git clone --recurse-submodules \
-  git@bitbucket.org:tom-bjorkholm/tableio_cfg_json
+git clone --recurse-submodules git@github.com:tom-bjorkholm/tableio_cfg_json
 ```
 
 If you already cloned without submodules, initialize them with:

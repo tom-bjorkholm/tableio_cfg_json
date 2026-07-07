@@ -28,5 +28,5 @@ classifiers = [
 dynamic = ["dependencies"]
 
 [project.urls]
-"Source code" = "https://bitbucket.org/tom-bjorkholm/tableio_cfg_json"
+"Source code" = "https://github.com/tom-bjorkholm/tableio_cfg_json"
 
