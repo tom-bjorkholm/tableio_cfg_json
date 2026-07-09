@@ -12,11 +12,12 @@ level or abandon the whole configuration.
 
 import getpass
 from typing import Optional, Sequence, TextIO
-
-from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
-    TableColumn, WizardAbort, WizardBack, WizardCancelLevel, WizardUiBridge, \
-    _ask_many, _ask_one, _ask_yes_no, _check_text_args, _int_text, \
-    _question_with_default, _run_table, _text_answer
+from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
+    WizardBack, WizardCancelLevel, WizardAbort, TableColumn, TableCell
+from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
+from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
+    text_answer, ask_yes_no, ask_one, ask_many, run_table, int_text, \
+    question_with_default
 from tableio_cfg_json.wizard_ui_bridge_table import _run_variable_table
 
 _BACK = ':b'
@@ -46,12 +47,12 @@ class WizardUiBridgeConsole(WizardUiBridge):
                  nullable: bool = False, *, default: Optional[str] = None,
                  sensitive: bool = False) -> Optional[str]:
         """Ask for free text on the console; see WizardUiBridge.ask_text."""
-        _check_text_args(default, sensitive)
-        prompt = _question_with_default(question, default)
+        check_text_args(default, sensitive)
+        prompt = question_with_default(question, default)
         self._emit_question(prompt, re_ask_reason, [])
         text = self._read_sensitive(prompt) if sensitive \
             else self._read_answer(prompt)
-        return _text_answer(text, nullable, default)
+        return text_answer(text, nullable, default)
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:
@@ -61,7 +62,7 @@ class WizardUiBridgeConsole(WizardUiBridge):
             menu_lines = _menu_lines(('yes', 'no'), marked=marked)
             self._emit_question(question, reason, menu_lines)
             return _to_index(self._read_answer(question))
-        return _ask_yes_no(reader, default, re_ask_reason)
+        return ask_yes_no(reader, default, re_ask_reason)
 
     # pylint: disable-next=too-many-arguments
     def ask_table(self, columns: Sequence[TableColumn],
@@ -80,8 +81,8 @@ class WizardUiBridgeConsole(WizardUiBridge):
             return _run_variable_table(self._ask_raw, self.show, columns,
                                        cells, question, re_ask_reason,
                                        partial_check, min_rows, max_rows)
-        return _run_table(self._ask_raw, self.show, columns, cells, question,
-                          re_ask_reason, partial_check)
+        return run_table(self._ask_raw, self.show, columns, cells, question,
+                         re_ask_reason, partial_check)
 
     def _ask_raw(self, question: str, re_ask_reason: Optional[str] = None,
                  choices: Optional[Sequence[str]] = None) -> str | int:
@@ -103,7 +104,7 @@ class WizardUiBridgeConsole(WizardUiBridge):
         def reader(reason: Optional[str]) -> str | int:
             self._emit_question(question, reason, _menu_lines(choices, marked))
             return _to_index(self._read_answer(question))
-        return _ask_one(reader, choices, default, re_ask_reason)
+        return ask_one(reader, choices, default, re_ask_reason)
 
     # pylint: disable-next=too-many-arguments
     def ask_multi(self, question: str, *, choices: Sequence[str],
@@ -115,8 +116,8 @@ class WizardUiBridgeConsole(WizardUiBridge):
             self._emit_question(_multi_question(question), reason,
                                 _menu_lines(choices, default))
             return self._read_answer(question)
-        return _ask_many(reader, choices, default, min_select, max_select,
-                         re_ask_reason, one_based=True)
+        return ask_many(reader, choices, default, min_select, max_select,
+                        re_ask_reason, one_based=True)
 
     def _emit_question(self, question: str, re_ask_reason: Optional[str],
                        lines: Sequence[str]) -> None:
@@ -174,7 +175,7 @@ def _raise_for_navigation(text: str) -> None:
 
 def _to_index(text: str) -> str | int:
     """Map a numeric menu answer to a 0-based index, else keep the text."""
-    index = _int_text(text)
+    index = int_text(text)
     return text if index is None else index - 1
 
 

@@ -19,9 +19,11 @@ from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio, tio_config_specs
 from tableio_cfg_json.config import TioJsonConfig
-from tableio_cfg_json.wizard_ui_bridge import PartialCheck, TableCell, \
-    TableColumn, WizardBack, WizardCancelLevel, WizardUiBridge, \
-    _CHOICE_ERROR, _match_token
+from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
+    TableCell, TableColumn, WizardBack, WizardCancelLevel
+from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
+from tableio_cfg_json._wizard_ui_bridge_helpers import CHOICE_ERROR, \
+    match_token
 
 _AUTO_IMPL = 'let TableIO choose (recommended)'
 _AUTO_MEMBER = 'use the default'
@@ -320,9 +322,9 @@ def _resolve_member_value(spec: ConfigSpec, raw: str) -> object:
     """Convert one entered table value to the type TableIO expects."""
     if spec.choices is not None:
         choices = tuple(str(choice) for choice in spec.choices)
-        resolved = _match_token(raw, choices, False)
+        resolved = match_token(raw, choices, False)
         if resolved is None:
-            raise ValueError(_CHOICE_ERROR)
+            raise ValueError(CHOICE_ERROR)
         return resolved
     return _parse_member_value(spec, raw)
 

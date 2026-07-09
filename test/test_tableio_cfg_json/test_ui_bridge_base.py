@@ -12,7 +12,8 @@ import pytest
 
 from tableio_cfg_json import PathAskOptions as PublicPathAskOptions, \
     WizardPathKind as PublicPathKind, WizardUiBridge
-from tableio_cfg_json.wizard_ui_bridge import PathAskOptions, WizardPathKind
+from tableio_cfg_json.wizard_ui_bridge_arg_types import PathAskOptions, \
+    WizardPathKind
 
 
 class _TextBridge(WizardUiBridge):

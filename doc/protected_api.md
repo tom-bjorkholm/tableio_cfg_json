@@ -1,5 +1,42 @@
 # Table of Contents
 
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_helpers](#tableio_cfg_json._wizard_ui_bridge_helpers)
+  * [\_ERASE\_TOKEN](#tableio_cfg_json._wizard_ui_bridge_helpers._ERASE_TOKEN)
+  * [check\_text\_args](#tableio_cfg_json._wizard_ui_bridge_helpers.check_text_args)
+  * [question\_with\_default](#tableio_cfg_json._wizard_ui_bridge_helpers.question_with_default)
+  * [text\_answer](#tableio_cfg_json._wizard_ui_bridge_helpers.text_answer)
+  * [path\_answer](#tableio_cfg_json._wizard_ui_bridge_helpers.path_answer)
+  * [\_path\_error](#tableio_cfg_json._wizard_ui_bridge_helpers._path_error)
+  * [\_path\_exists](#tableio_cfg_json._wizard_ui_bridge_helpers._path_exists)
+  * [\_path\_must\_exist](#tableio_cfg_json._wizard_ui_bridge_helpers._path_must_exist)
+  * [\_path\_must\_not\_exist](#tableio_cfg_json._wizard_ui_bridge_helpers._path_must_not_exist)
+  * [\_path\_must\_be\_file](#tableio_cfg_json._wizard_ui_bridge_helpers._path_must_be_file)
+  * [\_path\_must\_be\_dir](#tableio_cfg_json._wizard_ui_bridge_helpers._path_must_be_dir)
+  * [\_interpret\_yes\_no](#tableio_cfg_json._wizard_ui_bridge_helpers._interpret_yes_no)
+  * [\_yes\_no\_from\_index](#tableio_cfg_json._wizard_ui_bridge_helpers._yes_no_from_index)
+  * [\_yes\_no\_from\_text](#tableio_cfg_json._wizard_ui_bridge_helpers._yes_no_from_text)
+  * [ask\_yes\_no](#tableio_cfg_json._wizard_ui_bridge_helpers.ask_yes_no)
+  * [run\_table](#tableio_cfg_json._wizard_ui_bridge_helpers.run_table)
+  * [\_fill\_table](#tableio_cfg_json._wizard_ui_bridge_helpers._fill_table)
+  * [fill\_cell](#tableio_cfg_json._wizard_ui_bridge_helpers.fill_cell)
+  * [\_cell\_prompt](#tableio_cfg_json._wizard_ui_bridge_helpers._cell_prompt)
+  * [cell\_checker](#tableio_cfg_json._wizard_ui_bridge_helpers.cell_checker)
+  * [\_cell\_value](#tableio_cfg_json._wizard_ui_bridge_helpers._cell_value)
+  * [\_erased\_value](#tableio_cfg_json._wizard_ui_bridge_helpers._erased_value)
+  * [\_indexed\_value](#tableio_cfg_json._wizard_ui_bridge_helpers._indexed_value)
+  * [int\_text](#tableio_cfg_json._wizard_ui_bridge_helpers.int_text)
+  * [out\_of\_range](#tableio_cfg_json._wizard_ui_bridge_helpers.out_of_range)
+  * [range\_error](#tableio_cfg_json._wizard_ui_bridge_helpers.range_error)
+  * [ask\_one](#tableio_cfg_json._wizard_ui_bridge_helpers.ask_one)
+  * [ask\_many](#tableio_cfg_json._wizard_ui_bridge_helpers.ask_many)
+  * [\_resolve\_choice](#tableio_cfg_json._wizard_ui_bridge_helpers._resolve_choice)
+  * [\_resolve\_multi](#tableio_cfg_json._wizard_ui_bridge_helpers._resolve_multi)
+  * [\_multi\_labels](#tableio_cfg_json._wizard_ui_bridge_helpers._multi_labels)
+  * [\_tokens\_to\_labels](#tableio_cfg_json._wizard_ui_bridge_helpers._tokens_to_labels)
+  * [match\_token](#tableio_cfg_json._wizard_ui_bridge_helpers.match_token)
+  * [\_best\_match](#tableio_cfg_json._wizard_ui_bridge_helpers._best_match)
+  * [\_choice\_at\_index](#tableio_cfg_json._wizard_ui_bridge_helpers._choice_at_index)
+  * [multi\_count\_error](#tableio_cfg_json._wizard_ui_bridge_helpers.multi_count_error)
 * [tableio\_cfg\_json.describe](#tableio_cfg_json.describe)
   * [\_DescriptionContext](#tableio_cfg_json.describe._DescriptionContext)
   * [\_wrapped](#tableio_cfg_json.describe._wrapped)
@@ -65,15 +102,6 @@
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
 * [tableio\_cfg\_json.wizard\_ui\_bridge](#tableio_cfg_json.wizard_ui_bridge)
-  * [\_ERASE\_TOKEN](#tableio_cfg_json.wizard_ui_bridge._ERASE_TOKEN)
-  * [WizardNavigation](#tableio_cfg_json.wizard_ui_bridge.WizardNavigation)
-  * [WizardBack](#tableio_cfg_json.wizard_ui_bridge.WizardBack)
-  * [WizardCancelLevel](#tableio_cfg_json.wizard_ui_bridge.WizardCancelLevel)
-  * [WizardAbort](#tableio_cfg_json.wizard_ui_bridge.WizardAbort)
-  * [WizardPathKind](#tableio_cfg_json.wizard_ui_bridge.WizardPathKind)
-  * [PathAskOptions](#tableio_cfg_json.wizard_ui_bridge.PathAskOptions)
-  * [TableColumn](#tableio_cfg_json.wizard_ui_bridge.TableColumn)
-  * [TableCell](#tableio_cfg_json.wizard_ui_bridge.TableCell)
   * [WizardUiBridge](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge)
     * [\_\_init\_subclass\_\_](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.__init_subclass__)
     * [ask](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask)
@@ -87,41 +115,6 @@
     * [\_guard\_fallback](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._guard_fallback)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.show)
-  * [\_check\_text\_args](#tableio_cfg_json.wizard_ui_bridge._check_text_args)
-  * [\_question\_with\_default](#tableio_cfg_json.wizard_ui_bridge._question_with_default)
-  * [\_text\_answer](#tableio_cfg_json.wizard_ui_bridge._text_answer)
-  * [\_path\_answer](#tableio_cfg_json.wizard_ui_bridge._path_answer)
-  * [\_path\_error](#tableio_cfg_json.wizard_ui_bridge._path_error)
-  * [\_path\_exists](#tableio_cfg_json.wizard_ui_bridge._path_exists)
-  * [\_path\_must\_exist](#tableio_cfg_json.wizard_ui_bridge._path_must_exist)
-  * [\_path\_must\_not\_exist](#tableio_cfg_json.wizard_ui_bridge._path_must_not_exist)
-  * [\_path\_must\_be\_file](#tableio_cfg_json.wizard_ui_bridge._path_must_be_file)
-  * [\_path\_must\_be\_dir](#tableio_cfg_json.wizard_ui_bridge._path_must_be_dir)
-  * [\_interpret\_yes\_no](#tableio_cfg_json.wizard_ui_bridge._interpret_yes_no)
-  * [\_yes\_no\_from\_index](#tableio_cfg_json.wizard_ui_bridge._yes_no_from_index)
-  * [\_yes\_no\_from\_text](#tableio_cfg_json.wizard_ui_bridge._yes_no_from_text)
-  * [\_ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge._ask_yes_no)
-  * [\_run\_table](#tableio_cfg_json.wizard_ui_bridge._run_table)
-  * [\_fill\_table](#tableio_cfg_json.wizard_ui_bridge._fill_table)
-  * [\_fill\_cell](#tableio_cfg_json.wizard_ui_bridge._fill_cell)
-  * [\_cell\_prompt](#tableio_cfg_json.wizard_ui_bridge._cell_prompt)
-  * [\_cell\_checker](#tableio_cfg_json.wizard_ui_bridge._cell_checker)
-  * [\_cell\_value](#tableio_cfg_json.wizard_ui_bridge._cell_value)
-  * [\_erased\_value](#tableio_cfg_json.wizard_ui_bridge._erased_value)
-  * [\_indexed\_value](#tableio_cfg_json.wizard_ui_bridge._indexed_value)
-  * [\_int\_text](#tableio_cfg_json.wizard_ui_bridge._int_text)
-  * [\_out\_of\_range](#tableio_cfg_json.wizard_ui_bridge._out_of_range)
-  * [\_range\_error](#tableio_cfg_json.wizard_ui_bridge._range_error)
-  * [\_ask\_one](#tableio_cfg_json.wizard_ui_bridge._ask_one)
-  * [\_ask\_many](#tableio_cfg_json.wizard_ui_bridge._ask_many)
-  * [\_resolve\_choice](#tableio_cfg_json.wizard_ui_bridge._resolve_choice)
-  * [\_resolve\_multi](#tableio_cfg_json.wizard_ui_bridge._resolve_multi)
-  * [\_multi\_labels](#tableio_cfg_json.wizard_ui_bridge._multi_labels)
-  * [\_tokens\_to\_labels](#tableio_cfg_json.wizard_ui_bridge._tokens_to_labels)
-  * [\_match\_token](#tableio_cfg_json.wizard_ui_bridge._match_token)
-  * [\_best\_match](#tableio_cfg_json.wizard_ui_bridge._best_match)
-  * [\_choice\_at\_index](#tableio_cfg_json.wizard_ui_bridge._choice_at_index)
-  * [\_multi\_count\_error](#tableio_cfg_json.wizard_ui_bridge._multi_count_error)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_textual](#tableio_cfg_json.wizard_ui_bridge_textual)
   * [\_NavApp](#tableio_cfg_json.wizard_ui_bridge_textual._NavApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._NavApp.__init__)
@@ -213,6 +206,15 @@
   * [\_to\_index](#tableio_cfg_json.wizard_ui_bridge_console._to_index)
   * [\_menu\_lines](#tableio_cfg_json.wizard_ui_bridge_console._menu_lines)
   * [\_multi\_question](#tableio_cfg_json.wizard_ui_bridge_console._multi_question)
+* [tableio\_cfg\_json.wizard\_ui\_bridge\_arg\_types](#tableio_cfg_json.wizard_ui_bridge_arg_types)
+  * [WizardNavigation](#tableio_cfg_json.wizard_ui_bridge_arg_types.WizardNavigation)
+  * [WizardBack](#tableio_cfg_json.wizard_ui_bridge_arg_types.WizardBack)
+  * [WizardCancelLevel](#tableio_cfg_json.wizard_ui_bridge_arg_types.WizardCancelLevel)
+  * [WizardAbort](#tableio_cfg_json.wizard_ui_bridge_arg_types.WizardAbort)
+  * [WizardPathKind](#tableio_cfg_json.wizard_ui_bridge_arg_types.WizardPathKind)
+  * [PathAskOptions](#tableio_cfg_json.wizard_ui_bridge_arg_types.PathAskOptions)
+  * [TableColumn](#tableio_cfg_json.wizard_ui_bridge_arg_types.TableColumn)
+  * [TableCell](#tableio_cfg_json.wizard_ui_bridge_arg_types.TableCell)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
   * [\_WizardRun](#tableio_cfg_json.wizard._WizardRun)
   * [\_Step](#tableio_cfg_json.wizard._Step)
@@ -275,6 +277,431 @@
   * [UiBridgeType](#tableio_cfg_json.wizard_ui_factory.UiBridgeType)
   * [make\_text\_ui\_bridge](#tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge)
   * [\_is\_tty](#tableio_cfg_json.wizard_ui_factory._is_tty)
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_helpers
+
+Helpers for the WizardUIBridge base class.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._ERASE_TOKEN"></a>
+
+#### \_ERASE\_TOKEN
+
+empties an editable cell in the ask_table fallback
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.check_text_args"></a>
+
+#### check\_text\_args
+
+```python
+def check_text_args(default: Optional[str], sensitive: bool) -> None
+```
+
+Raise when text-question arguments are inconsistent.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.question_with_default"></a>
+
+#### question\_with\_default
+
+```python
+def question_with_default(question: str, default: Optional[str]) -> str
+```
+
+Return question with a bracketed default when one is given.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.text_answer"></a>
+
+#### text\_answer
+
+```python
+def text_answer(text: str, nullable: bool,
+                default: Optional[str]) -> Optional[str]
+```
+
+Return the public text answer for raw text from a bridge.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.path_answer"></a>
+
+#### path\_answer
+
+```python
+def path_answer(
+        text: Optional[str],
+        options: PathAskOptions) -> tuple[bool, Optional[Path], Optional[str]]
+```
+
+Return whether a path answer is final, its value, and retry reason.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._path_error"></a>
+
+#### \_path\_error
+
+```python
+def _path_error(path: Path, kind: WizardPathKind) -> Optional[str]
+```
+
+Return the validation error for path, or None when accepted.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._path_exists"></a>
+
+#### \_path\_exists
+
+```python
+def _path_exists(path: Path) -> tuple[bool, Optional[str]]
+```
+
+Return whether path exists, or an error for an unusable path.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._path_must_exist"></a>
+
+#### \_path\_must\_exist
+
+```python
+def _path_must_exist(kind: WizardPathKind) -> bool
+```
+
+Return whether kind requires an existing path.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._path_must_not_exist"></a>
+
+#### \_path\_must\_not\_exist
+
+```python
+def _path_must_not_exist(kind: WizardPathKind) -> bool
+```
+
+Return whether kind requires a path that does not exist.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._path_must_be_file"></a>
+
+#### \_path\_must\_be\_file
+
+```python
+def _path_must_be_file(kind: WizardPathKind) -> bool
+```
+
+Return whether kind rejects existing directories.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._path_must_be_dir"></a>
+
+#### \_path\_must\_be\_dir
+
+```python
+def _path_must_be_dir(kind: WizardPathKind) -> bool
+```
+
+Return whether kind rejects existing files.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._interpret_yes_no"></a>
+
+#### \_interpret\_yes\_no
+
+```python
+def _interpret_yes_no(answer: str | int, default: bool) -> Optional[bool]
+```
+
+Map a bridge answer to a yes/no boolean, or None to re-ask.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._yes_no_from_index"></a>
+
+#### \_yes\_no\_from\_index
+
+```python
+def _yes_no_from_index(index: int) -> Optional[bool]
+```
+
+Map a 0-based ('yes', 'no') index to a boolean, or None.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._yes_no_from_text"></a>
+
+#### \_yes\_no\_from\_text
+
+```python
+def _yes_no_from_text(text: str) -> Optional[bool]
+```
+
+Map yes/no free text to a boolean, or None when unrecognised.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.ask_yes_no"></a>
+
+#### ask\_yes\_no
+
+```python
+def ask_yes_no(reader: Callable[[Optional[str]], str | int], default: bool,
+               re_ask_reason: Optional[str]) -> bool
+```
+
+Re-ask through reader until a yes/no answer is understood.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.run_table"></a>
+
+#### run\_table
+
+```python
+def run_table(
+        ask: AskReader, show: Callable[[str], None],
+        columns: Sequence[TableColumn], cells: list[list[TableCell]],
+        question: str, re_ask_reason: Optional[str],
+        partial_check: Optional[PartialCheck]) -> list[list[Optional[str]]]
+```
+
+Show one table question and fill its editable cells via ask.
+
+The read-only cells stay fixed and only the editable cells are asked,
+one at a time, through the ask reader. This is the shared core of the
+console table interface and the deprecated base-class table fallback.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._fill_table"></a>
+
+#### \_fill\_table
+
+```python
+def _fill_table(ask: AskReader, columns: Sequence[TableColumn],
+                cells: list[list[TableCell]], table: list[list[Optional[str]]],
+                partial_check: Optional[PartialCheck]) -> None
+```
+
+Fill the editable cells, stepping back one cell on WizardBack.
+
+WizardBack from the first editable cell has no earlier cell to
+return to, so it propagates and the wizard steps to the previous
+question. Cells already filled stay in the table while the user
+moves between cells.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.fill_cell"></a>
+
+#### fill\_cell
+
+```python
+def fill_cell(
+        ask: AskReader, columns: Sequence[TableColumn], row: list[TableCell],
+        col: int, current: Optional[str],
+        check: Callable[[Optional[str]], Optional[str]]) -> Optional[str]
+```
+
+Ask one editable cell until its value is accepted.
+
+**Arguments**:
+
+- `ask` - The ask reader used to read the cell value.
+- `columns` - The table columns, used to build the prompt.
+- `row` - The cells of the row being filled.
+- `col` - The index of the cell being filled.
+- `current` - The cell's current value, kept when the user presses
+  enter and shown in the prompt.
+- `check` - Records a candidate in the table and returns an error
+  message, or None when the candidate is accepted.
+  
+
+**Returns**:
+
+  The accepted cell value, or None for an empty nullable cell.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous cell.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._cell_prompt"></a>
+
+#### \_cell\_prompt
+
+```python
+def _cell_prompt(columns: Sequence[TableColumn], row: list[TableCell],
+                 col_index: int, current: Optional[str]) -> str
+```
+
+Return the console prompt for one editable cell.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.cell_checker"></a>
+
+#### cell\_checker
+
+```python
+def cell_checker(
+    table: list[list[Optional[str]]], position: tuple[int, int],
+    partial_check: Optional[PartialCheck]
+) -> Callable[[Optional[str]], Optional[str]]
+```
+
+Return a per-cell check that records a candidate and validates it.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._cell_value"></a>
+
+#### \_cell\_value
+
+```python
+def _cell_value(answer: str | int, cell: TableCell,
+                current: Optional[str]) -> tuple[bool, Optional[str]]
+```
+
+Map a bridge answer to a cell value and whether it is usable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._erased_value"></a>
+
+#### \_erased\_value
+
+```python
+def _erased_value(cell: TableCell) -> tuple[bool, Optional[str]]
+```
+
+Map an erase request to a cell value and whether it is usable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._indexed_value"></a>
+
+#### \_indexed\_value
+
+```python
+def _indexed_value(index: int, cell: TableCell) -> tuple[bool, Optional[str]]
+```
+
+Map a 0-based choice index to a cell value, or mark it unusable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.int_text"></a>
+
+#### int\_text
+
+```python
+def int_text(text: str) -> Optional[int]
+```
+
+Return an integer from text, or None when text is not an integer.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.out_of_range"></a>
+
+#### out\_of\_range
+
+```python
+def out_of_range(value: int, min_value: Optional[int],
+                 max_value: Optional[int]) -> bool
+```
+
+Return whether value lies outside the inclusive bounds.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.range_error"></a>
+
+#### range\_error
+
+```python
+def range_error(min_value: Optional[int], max_value: Optional[int]) -> str
+```
+
+Return the message shown when an integer is out of range.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.ask_one"></a>
+
+#### ask\_one
+
+```python
+def ask_one(reader: Callable[[Optional[str]],
+                             str | int], choices: Sequence[str],
+            default: Optional[str], re_ask_reason: Optional[str]) -> str
+```
+
+Re-ask through reader until one valid choice is selected.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.ask_many"></a>
+
+#### ask\_many
+
+```python
+def ask_many(reader: Callable[[Optional[str]], str | int],
+             choices: Sequence[str], default: Optional[Sequence[str]],
+             min_select: int, max_select: Optional[int],
+             re_ask_reason: Optional[str], one_based: bool) -> list[str]
+```
+
+Re-ask through reader until a valid set of choices is selected.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._resolve_choice"></a>
+
+#### \_resolve\_choice
+
+```python
+def _resolve_choice(answer: str | int, choices: Sequence[str],
+                    default: Optional[str]) -> Optional[str]
+```
+
+Map a single-choice answer to a choice, or None to re-ask.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._resolve_multi"></a>
+
+#### \_resolve\_multi
+
+```python
+def _resolve_multi(answer: str | int, choices: Sequence[str],
+                   default: Optional[Sequence[str]], min_select: int,
+                   max_select: Optional[int],
+                   one_based: bool) -> tuple[Optional[list[str]], str]
+```
+
+Map a multi-choice answer to choices and an error to re-ask.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._multi_labels"></a>
+
+#### \_multi\_labels
+
+```python
+def _multi_labels(answer: str | int, choices: Sequence[str],
+                  default: Optional[Sequence[str]],
+                  one_based: bool) -> Optional[list[str]]
+```
+
+Map a multi-choice answer to chosen labels, or None to re-ask.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._tokens_to_labels"></a>
+
+#### \_tokens\_to\_labels
+
+```python
+def _tokens_to_labels(text: str, choices: Sequence[str],
+                      one_based: bool) -> Optional[list[str]]
+```
+
+Map a comma-separated answer to labels, or None to re-ask.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.match_token"></a>
+
+#### match\_token
+
+```python
+def match_token(token: str, choices: Sequence[str],
+                one_based: bool) -> Optional[str]
+```
+
+Map one menu index or name to a choice, or None when no match.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._best_match"></a>
+
+#### \_best\_match
+
+```python
+def _best_match(token: str, choices: Sequence[str]) -> Optional[str]
+```
+
+Return the unique best name match for token, or None.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers._choice_at_index"></a>
+
+#### \_choice\_at\_index
+
+```python
+def _choice_at_index(index: int, choices: Sequence[str]) -> Optional[str]
+```
+
+Return the choice at a 0-based index, or None when out of range.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_helpers.multi_count_error"></a>
+
+#### multi\_count\_error
+
+```python
+def multi_count_error(min_select: int, max_select: Optional[int]) -> str
+```
+
+Return the message shown when the selected count is not allowed.
 
 <a id="tableio_cfg_json.describe"></a>
 
@@ -1794,157 +2221,6 @@ temporary fallback implementations of the typed methods written in terms
 of ask(), so a bridge that still overrides ask() keeps working while it
 is adjusted to implement the typed methods directly.
 
-<a id="tableio_cfg_json.wizard_ui_bridge._ERASE_TOKEN"></a>
-
-#### \_ERASE\_TOKEN
-
-empties an editable cell in the ask_table fallback
-
-<a id="tableio_cfg_json.wizard_ui_bridge.WizardNavigation"></a>
-
-## WizardNavigation Objects
-
-```python
-class WizardNavigation(Exception)
-```
-
-Base class for wizard navigation requests raised by a bridge.
-
-A user interface raises a subclass of this exception from an ask
-method when the user wants to move within the wizard instead of
-answering the current question. The wizard keeps these distinct from
-validation errors, so its retry loops never catch them and they
-reach the navigation driver unchanged.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.WizardBack"></a>
-
-## WizardBack Objects
-
-```python
-class WizardBack(WizardNavigation)
-```
-
-Request to return to the previous wizard question.
-
-A bridge raises this when the user chooses "back". The wizard
-restores the data collected before the previous question and asks
-that question again. Raised at the first question of one wizard call
-it has no earlier question within that call, so the wizard lets it
-propagate out to the application. The application can then step back
-in its own outer navigation, for instance to the previous endpoint.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.WizardCancelLevel"></a>
-
-## WizardCancelLevel Objects
-
-```python
-class WizardCancelLevel(WizardNavigation)
-```
-
-Request to leave the current level and change what opened it.
-
-A bridge raises this when the user asks to step out of the current
-configuration level, such as a table of format-specific parameters or
-a group of questions that exist only because of an earlier choice.
-Unlike WizardBack, which moves to the previous question at the same
-level, this asks to return to the question one level out whose answer
-opened the current level, so the user can change that answer. The
-answers collected at the current level are discarded.
-
-Each level's driver catches this from the level it opened and re-asks
-the opening question. When the current level has no enclosing level,
-the outermost driver cannot step out; following this contract it
-re-asks the current question and tells the user there is no outer
-level. Nesting may be arbitrarily deep: each driver either handles the
-request for the level it opened or lets it propagate further out.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.WizardAbort"></a>
-
-## WizardAbort Objects
-
-```python
-class WizardAbort(WizardNavigation)
-```
-
-Request to abandon the whole configuration.
-
-A bridge raises this when the user abandons configuration entirely.
-The wizard does not catch it; it propagates out of the wizard call so
-the application can stop the configuration session.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.WizardPathKind"></a>
-
-## WizardPathKind Objects
-
-```python
-class WizardPathKind(Enum)
-```
-
-Expected path type and existence for a path question.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.PathAskOptions"></a>
-
-## PathAskOptions Objects
-
-```python
-@dataclass(frozen=True)
-class PathAskOptions()
-```
-
-Options for a path question.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.TableColumn"></a>
-
-## TableColumn Objects
-
-```python
-@dataclass(frozen=True)
-class TableColumn()
-```
-
-Header and editability for one whole column of a table question.
-
-A table question describes its columns once. Read-only columns show
-fixed text the user cannot edit, such as a column of parameter names.
-Per-cell values and value constraints are described by TableCell.
-
-**Attributes**:
-
-- `header` - Column heading shown to the user.
-- `read_only` - True when the whole column shows fixed text the user
-  cannot edit.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.TableCell"></a>
-
-## TableCell Objects
-
-```python
-@dataclass(frozen=True)
-class TableCell()
-```
-
-Initial content and value constraints for one table cell.
-
-A table question holds one TableCell per column in each row, so each
-row of an editable column can offer its own finite value set. This
-suits a table whose rows are different parameters that each accept
-different values, such as the format-specific options of a config.
-
-**Attributes**:
-
-- `value` - The initial text shown in the cell. For a read-only column
-  this is the fixed text. For an editable column it is the
-  pre-filled value, or None for an empty cell.
-- `choices` - The finite set of values this cell accepts, or None for
-  free text. A graphical bridge can render choices as a
-  drop-down.
-- `nullable` - True when the user may leave the cell empty, which the
-  table reports as None. False when an empty cell is not
-  interpreted as None: with choices None an empty cell is
-  an empty string the validation may or may not accept,
-  and with choices given an empty editable cell is not yet
-  a valid final value.
-
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge"></a>
 
 ## WizardUiBridge Objects
@@ -2413,419 +2689,6 @@ message to the console.
 **Arguments**:
 
 - `message` - The message to show the user.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._check_text_args"></a>
-
-#### \_check\_text\_args
-
-```python
-def _check_text_args(default: Optional[str], sensitive: bool) -> None
-```
-
-Raise when text-question arguments are inconsistent.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._question_with_default"></a>
-
-#### \_question\_with\_default
-
-```python
-def _question_with_default(question: str, default: Optional[str]) -> str
-```
-
-Return question with a bracketed default when one is given.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._text_answer"></a>
-
-#### \_text\_answer
-
-```python
-def _text_answer(text: str, nullable: bool,
-                 default: Optional[str]) -> Optional[str]
-```
-
-Return the public text answer for raw text from a bridge.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._path_answer"></a>
-
-#### \_path\_answer
-
-```python
-def _path_answer(
-        text: Optional[str],
-        options: PathAskOptions) -> tuple[bool, Optional[Path], Optional[str]]
-```
-
-Return whether a path answer is final, its value, and retry reason.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._path_error"></a>
-
-#### \_path\_error
-
-```python
-def _path_error(path: Path, kind: WizardPathKind) -> Optional[str]
-```
-
-Return the validation error for path, or None when accepted.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._path_exists"></a>
-
-#### \_path\_exists
-
-```python
-def _path_exists(path: Path) -> tuple[bool, Optional[str]]
-```
-
-Return whether path exists, or an error for an unusable path.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._path_must_exist"></a>
-
-#### \_path\_must\_exist
-
-```python
-def _path_must_exist(kind: WizardPathKind) -> bool
-```
-
-Return whether kind requires an existing path.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._path_must_not_exist"></a>
-
-#### \_path\_must\_not\_exist
-
-```python
-def _path_must_not_exist(kind: WizardPathKind) -> bool
-```
-
-Return whether kind requires a path that does not exist.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._path_must_be_file"></a>
-
-#### \_path\_must\_be\_file
-
-```python
-def _path_must_be_file(kind: WizardPathKind) -> bool
-```
-
-Return whether kind rejects existing directories.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._path_must_be_dir"></a>
-
-#### \_path\_must\_be\_dir
-
-```python
-def _path_must_be_dir(kind: WizardPathKind) -> bool
-```
-
-Return whether kind rejects existing files.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._interpret_yes_no"></a>
-
-#### \_interpret\_yes\_no
-
-```python
-def _interpret_yes_no(answer: str | int, default: bool) -> Optional[bool]
-```
-
-Map a bridge answer to a yes/no boolean, or None to re-ask.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._yes_no_from_index"></a>
-
-#### \_yes\_no\_from\_index
-
-```python
-def _yes_no_from_index(index: int) -> Optional[bool]
-```
-
-Map a 0-based ('yes', 'no') index to a boolean, or None.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._yes_no_from_text"></a>
-
-#### \_yes\_no\_from\_text
-
-```python
-def _yes_no_from_text(text: str) -> Optional[bool]
-```
-
-Map yes/no free text to a boolean, or None when unrecognised.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._ask_yes_no"></a>
-
-#### \_ask\_yes\_no
-
-```python
-def _ask_yes_no(reader: Callable[[Optional[str]], str | int], default: bool,
-                re_ask_reason: Optional[str]) -> bool
-```
-
-Re-ask through reader until a yes/no answer is understood.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._run_table"></a>
-
-#### \_run\_table
-
-```python
-def _run_table(
-        ask: AskReader, show: Callable[[str], None],
-        columns: Sequence[TableColumn], cells: list[list[TableCell]],
-        question: str, re_ask_reason: Optional[str],
-        partial_check: Optional[PartialCheck]) -> list[list[Optional[str]]]
-```
-
-Show one table question and fill its editable cells via ask.
-
-The read-only cells stay fixed and only the editable cells are asked,
-one at a time, through the ask reader. This is the shared core of the
-console table interface and the deprecated base-class table fallback.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._fill_table"></a>
-
-#### \_fill\_table
-
-```python
-def _fill_table(ask: AskReader, columns: Sequence[TableColumn],
-                cells: list[list[TableCell]], table: list[list[Optional[str]]],
-                partial_check: Optional[PartialCheck]) -> None
-```
-
-Fill the editable cells, stepping back one cell on WizardBack.
-
-WizardBack from the first editable cell has no earlier cell to
-return to, so it propagates and the wizard steps to the previous
-question. Cells already filled stay in the table while the user
-moves between cells.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._fill_cell"></a>
-
-#### \_fill\_cell
-
-```python
-def _fill_cell(
-        ask: AskReader, columns: Sequence[TableColumn], row: list[TableCell],
-        col: int, current: Optional[str],
-        check: Callable[[Optional[str]], Optional[str]]) -> Optional[str]
-```
-
-Ask one editable cell until its value is accepted.
-
-**Arguments**:
-
-- `ask` - The ask reader used to read the cell value.
-- `columns` - The table columns, used to build the prompt.
-- `row` - The cells of the row being filled.
-- `col` - The index of the cell being filled.
-- `current` - The cell's current value, kept when the user presses
-  enter and shown in the prompt.
-- `check` - Records a candidate in the table and returns an error
-  message, or None when the candidate is accepted.
-  
-
-**Returns**:
-
-  The accepted cell value, or None for an empty nullable cell.
-
-**Raises**:
-
-- `WizardBack` - The user asked to return to the previous cell.
-- `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._cell_prompt"></a>
-
-#### \_cell\_prompt
-
-```python
-def _cell_prompt(columns: Sequence[TableColumn], row: list[TableCell],
-                 col_index: int, current: Optional[str]) -> str
-```
-
-Return the console prompt for one editable cell.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._cell_checker"></a>
-
-#### \_cell\_checker
-
-```python
-def _cell_checker(
-    table: list[list[Optional[str]]], position: tuple[int, int],
-    partial_check: Optional[PartialCheck]
-) -> Callable[[Optional[str]], Optional[str]]
-```
-
-Return a per-cell check that records a candidate and validates it.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._cell_value"></a>
-
-#### \_cell\_value
-
-```python
-def _cell_value(answer: str | int, cell: TableCell,
-                current: Optional[str]) -> tuple[bool, Optional[str]]
-```
-
-Map a bridge answer to a cell value and whether it is usable.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._erased_value"></a>
-
-#### \_erased\_value
-
-```python
-def _erased_value(cell: TableCell) -> tuple[bool, Optional[str]]
-```
-
-Map an erase request to a cell value and whether it is usable.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._indexed_value"></a>
-
-#### \_indexed\_value
-
-```python
-def _indexed_value(index: int, cell: TableCell) -> tuple[bool, Optional[str]]
-```
-
-Map a 0-based choice index to a cell value, or mark it unusable.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._int_text"></a>
-
-#### \_int\_text
-
-```python
-def _int_text(text: str) -> Optional[int]
-```
-
-Return an integer from text, or None when text is not an integer.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._out_of_range"></a>
-
-#### \_out\_of\_range
-
-```python
-def _out_of_range(value: int, min_value: Optional[int],
-                  max_value: Optional[int]) -> bool
-```
-
-Return whether value lies outside the inclusive bounds.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._range_error"></a>
-
-#### \_range\_error
-
-```python
-def _range_error(min_value: Optional[int], max_value: Optional[int]) -> str
-```
-
-Return the message shown when an integer is out of range.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._ask_one"></a>
-
-#### \_ask\_one
-
-```python
-def _ask_one(reader: Callable[[Optional[str]],
-                              str | int], choices: Sequence[str],
-             default: Optional[str], re_ask_reason: Optional[str]) -> str
-```
-
-Re-ask through reader until one valid choice is selected.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._ask_many"></a>
-
-#### \_ask\_many
-
-```python
-def _ask_many(reader: Callable[[Optional[str]], str | int],
-              choices: Sequence[str], default: Optional[Sequence[str]],
-              min_select: int, max_select: Optional[int],
-              re_ask_reason: Optional[str], one_based: bool) -> list[str]
-```
-
-Re-ask through reader until a valid set of choices is selected.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._resolve_choice"></a>
-
-#### \_resolve\_choice
-
-```python
-def _resolve_choice(answer: str | int, choices: Sequence[str],
-                    default: Optional[str]) -> Optional[str]
-```
-
-Map a single-choice answer to a choice, or None to re-ask.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._resolve_multi"></a>
-
-#### \_resolve\_multi
-
-```python
-def _resolve_multi(answer: str | int, choices: Sequence[str],
-                   default: Optional[Sequence[str]], min_select: int,
-                   max_select: Optional[int],
-                   one_based: bool) -> tuple[Optional[list[str]], str]
-```
-
-Map a multi-choice answer to choices and an error to re-ask.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._multi_labels"></a>
-
-#### \_multi\_labels
-
-```python
-def _multi_labels(answer: str | int, choices: Sequence[str],
-                  default: Optional[Sequence[str]],
-                  one_based: bool) -> Optional[list[str]]
-```
-
-Map a multi-choice answer to chosen labels, or None to re-ask.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._tokens_to_labels"></a>
-
-#### \_tokens\_to\_labels
-
-```python
-def _tokens_to_labels(text: str, choices: Sequence[str],
-                      one_based: bool) -> Optional[list[str]]
-```
-
-Map a comma-separated answer to labels, or None to re-ask.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._match_token"></a>
-
-#### \_match\_token
-
-```python
-def _match_token(token: str, choices: Sequence[str],
-                 one_based: bool) -> Optional[str]
-```
-
-Map one menu index or name to a choice, or None when no match.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._best_match"></a>
-
-#### \_best\_match
-
-```python
-def _best_match(token: str, choices: Sequence[str]) -> Optional[str]
-```
-
-Return the unique best name match for token, or None.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._choice_at_index"></a>
-
-#### \_choice\_at\_index
-
-```python
-def _choice_at_index(index: int, choices: Sequence[str]) -> Optional[str]
-```
-
-Return the choice at a 0-based index, or None when out of range.
-
-<a id="tableio_cfg_json.wizard_ui_bridge._multi_count_error"></a>
-
-#### \_multi\_count\_error
-
-```python
-def _multi_count_error(min_select: int, max_select: Optional[int]) -> str
-```
-
-Return the message shown when the selected count is not allowed.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual"></a>
 
@@ -3895,6 +3758,157 @@ def _multi_question(question: str) -> str
 ```
 
 Return the multi-choice question with an entry hint appended.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types"></a>
+
+# tableio\_cfg\_json.wizard\_ui\_bridge\_arg\_types
+
+Types used as arguments to the WizardUIBridge class.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.WizardNavigation"></a>
+
+## WizardNavigation Objects
+
+```python
+class WizardNavigation(Exception)
+```
+
+Base class for wizard navigation requests raised by a bridge.
+
+A user interface raises a subclass of this exception from an ask
+method when the user wants to move within the wizard instead of
+answering the current question. The wizard keeps these distinct from
+validation errors, so its retry loops never catch them and they
+reach the navigation driver unchanged.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.WizardBack"></a>
+
+## WizardBack Objects
+
+```python
+class WizardBack(WizardNavigation)
+```
+
+Request to return to the previous wizard question.
+
+A bridge raises this when the user chooses "back". The wizard
+restores the data collected before the previous question and asks
+that question again. Raised at the first question of one wizard call
+it has no earlier question within that call, so the wizard lets it
+propagate out to the application. The application can then step back
+in its own outer navigation, for instance to the previous endpoint.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.WizardCancelLevel"></a>
+
+## WizardCancelLevel Objects
+
+```python
+class WizardCancelLevel(WizardNavigation)
+```
+
+Request to leave the current level and change what opened it.
+
+A bridge raises this when the user asks to step out of the current
+configuration level, such as a table of format-specific parameters or
+a group of questions that exist only because of an earlier choice.
+Unlike WizardBack, which moves to the previous question at the same
+level, this asks to return to the question one level out whose answer
+opened the current level, so the user can change that answer. The
+answers collected at the current level are discarded.
+
+Each level's driver catches this from the level it opened and re-asks
+the opening question. When the current level has no enclosing level,
+the outermost driver cannot step out; following this contract it
+re-asks the current question and tells the user there is no outer
+level. Nesting may be arbitrarily deep: each driver either handles the
+request for the level it opened or lets it propagate further out.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.WizardAbort"></a>
+
+## WizardAbort Objects
+
+```python
+class WizardAbort(WizardNavigation)
+```
+
+Request to abandon the whole configuration.
+
+A bridge raises this when the user abandons configuration entirely.
+The wizard does not catch it; it propagates out of the wizard call so
+the application can stop the configuration session.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.WizardPathKind"></a>
+
+## WizardPathKind Objects
+
+```python
+class WizardPathKind(Enum)
+```
+
+Expected path type and existence for a path question.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.PathAskOptions"></a>
+
+## PathAskOptions Objects
+
+```python
+@dataclass(frozen=True)
+class PathAskOptions()
+```
+
+Options for a path question.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.TableColumn"></a>
+
+## TableColumn Objects
+
+```python
+@dataclass(frozen=True)
+class TableColumn()
+```
+
+Header and editability for one whole column of a table question.
+
+A table question describes its columns once. Read-only columns show
+fixed text the user cannot edit, such as a column of parameter names.
+Per-cell values and value constraints are described by TableCell.
+
+**Attributes**:
+
+- `header` - Column heading shown to the user.
+- `read_only` - True when the whole column shows fixed text the user
+  cannot edit.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.TableCell"></a>
+
+## TableCell Objects
+
+```python
+@dataclass(frozen=True)
+class TableCell()
+```
+
+Initial content and value constraints for one table cell.
+
+A table question holds one TableCell per column in each row, so each
+row of an editable column can offer its own finite value set. This
+suits a table whose rows are different parameters that each accept
+different values, such as the format-specific options of a config.
+
+**Attributes**:
+
+- `value` - The initial text shown in the cell. For a read-only column
+  this is the fixed text. For an editable column it is the
+  pre-filled value, or None for an empty cell.
+- `choices` - The finite set of values this cell accepts, or None for
+  free text. A graphical bridge can render choices as a
+  drop-down.
+- `nullable` - True when the user may leave the cell empty, which the
+  table reports as None. False when an empty cell is not
+  interpreted as None: with choices None an empty cell is
+  an empty string the validation may or may not accept,
+  and with choices given an empty editable cell is not yet
+  a valid final value.
 
 <a id="tableio_cfg_json.wizard"></a>
 

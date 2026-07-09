@@ -19,9 +19,10 @@ from tableio import Capabilities, CsvDialect, FileAccess, \
 from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
     WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard, \
     TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
-    PartialCheck
-from tableio_cfg_json.wizard_ui_bridge import _ask_many, _ask_one, \
-    _ask_yes_no, _run_table, _INT_ERROR, WizardNavigation
+    PartialCheck, WizardNavigation
+from tableio_cfg_json.wizard_ui_bridge import _INT_ERROR
+from tableio_cfg_json._wizard_ui_bridge_helpers import ask_many, ask_one, \
+    ask_yes_no, run_table
 import tableio_cfg_json.wizard as wizard_module
 
 
@@ -78,8 +79,8 @@ class _ScriptedBridge(WizardUiBridge):
                    default: Optional[str] = None,
                    re_ask_reason: Optional[str] = None) -> str:
         """Pick one scripted choice; see WizardUiBridge.ask_choice."""
-        return _ask_one(self._reader(question, choices), choices, default,
-                        re_ask_reason)
+        return ask_one(self._reader(question, choices), choices, default,
+                       re_ask_reason)
 
     # pylint: disable-next=too-many-arguments
     def ask_multi(self, question: str, *, choices: Sequence[str],
@@ -87,15 +88,14 @@ class _ScriptedBridge(WizardUiBridge):
                   max_select: Optional[int] = None,
                   re_ask_reason: Optional[str] = None) -> list[str]:
         """Pick several scripted choices; see WizardUiBridge.ask_multi."""
-        return _ask_many(self._reader(question, choices), choices, default,
-                         min_select, max_select, re_ask_reason,
-                         one_based=False)
+        return ask_many(self._reader(question, choices), choices, default,
+                        min_select, max_select, re_ask_reason, one_based=False)
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:
         """Answer a scripted yes/no question; see ask_yes_no."""
-        return _ask_yes_no(self._reader(question, ('yes', 'no')), default,
-                           re_ask_reason)
+        return ask_yes_no(self._reader(question, ('yes', 'no')), default,
+                          re_ask_reason)
 
     # pylint: disable-next=too-many-arguments
     def ask_table(self, columns: Sequence[TableColumn],
@@ -106,8 +106,8 @@ class _ScriptedBridge(WizardUiBridge):
                   max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
         """Fill a table from scripted answers; see ask_table."""
         _ = (min_rows, max_rows)
-        return _run_table(self._cell_reader, self.show, columns, cells,
-                          question, re_ask_reason, partial_check)
+        return run_table(self._cell_reader, self.show, columns, cells,
+                         question, re_ask_reason, partial_check)
 
     def _cell_reader(self, prompt: str, re_ask_reason: Optional[str] = None,
                      choices: Optional[Sequence[str]] = None) -> str | int:

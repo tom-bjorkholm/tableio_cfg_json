@@ -19,8 +19,10 @@ and per-cell navigation behave identically.
 # MIT License
 
 from typing import Callable, Optional, Sequence, TypeVar
-from tableio_cfg_json.wizard_ui_bridge import AskReader, PartialCheck, \
-    TableCell, TableColumn, WizardBack, _cell_checker, _fill_cell, _int_text
+from tableio_cfg_json.wizard_ui_bridge_arg_types import AskReader, \
+    PartialCheck, TableCell, TableColumn, WizardBack
+from tableio_cfg_json._wizard_ui_bridge_helpers import cell_checker, \
+    fill_cell, int_text
 
 _ADD_ROW = ':+'  # appends a row in the variable-row console table editor
 _DEL_ROW = ':-'  # deletes a row in the variable-row console table editor
@@ -121,7 +123,7 @@ class _VarTable:
 
     def _delete(self, arg: str) -> None:
         """Delete the row named by a one-based number, down to min_rows."""
-        index = _int_text(arg.strip())
+        index = int_text(arg.strip())
         if index is None or not 1 <= index <= len(self._rows):
             self.reason = 'Type :- followed by a row number to delete.'
             return
@@ -135,7 +137,7 @@ class _VarTable:
 
     def _edit(self, ask: AskReader, token: str) -> None:
         """Edit the row named by a one-based number."""
-        index = _int_text(token)
+        index = int_text(token)
         if index is None or not 1 <= index <= len(self._rows):
             self.reason = _BAD_MENU
             return
@@ -158,9 +160,9 @@ class _VarTable:
 
     def _fill_one(self, ask: AskReader, row: int, col: int) -> None:
         """Ask one editable cell and store its accepted value."""
-        check = _cell_checker(self.table, (row, col), self._check)
-        self.table[row][col] = _fill_cell(ask, self._columns, self._rows[row],
-                                          col, self.table[row][col], check)
+        check = cell_checker(self.table, (row, col), self._check)
+        self.table[row][col] = fill_cell(ask, self._columns, self._rows[row],
+                                         col, self.table[row][col], check)
 
     def _editable(self, row: int, col: int) -> bool:
         """Return whether one cell can be edited in the console table."""

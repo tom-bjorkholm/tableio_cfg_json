@@ -32,10 +32,12 @@ from textual.widget import Widget
 from textual.widgets import Button, DirectoryTree, Footer, Input, OptionList, \
     Select, SelectionList, Static
 from textual.widgets.selection_list import Selection
-from tableio_cfg_json.wizard_ui_bridge import PathAskOptions, PartialCheck, \
-    TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
-    WizardNavigation, WizardPathKind, WizardUiBridge, _check_text_args, \
-    _multi_count_error, _path_answer, _text_answer
+from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
+from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
+    multi_count_error, path_answer, text_answer
+from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
+    WizardNavigation, WizardBack, WizardCancelLevel, \
+    WizardAbort, WizardPathKind, PathAskOptions, TableColumn, TableCell
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 _T = TypeVar('_T')
@@ -276,7 +278,7 @@ class _MultiApp(_NavApp[list[int]]):
         if self._count_ok(len(chosen)):
             self.exit(chosen)
             return
-        message = _multi_count_error(self._min_select, self._max_select)
+        message = multi_count_error(self._min_select, self._max_select)
         self.query_one('#multi_error', Static).update(message)
 
     def _count_ok(self, count: int) -> bool:
@@ -536,11 +538,11 @@ class WizardUiBridgeTextual(WizardUiBridge):
                  nullable: bool = False, *, default: Optional[str] = None,
                  sensitive: bool = False) -> Optional[str]:
         """Ask for free text; see WizardUiBridge.ask_text."""
-        _check_text_args(default, sensitive)
+        check_text_args(default, sensitive)
         messages = self._collect(re_ask_reason)
         value = '' if default is None else default
         text = self._run(_TextApp(question, messages, value, sensitive))
-        return _text_answer(text, nullable, default)
+        return text_answer(text, nullable, default)
 
     def ask_path(self, question: str, re_ask_reason: Optional[str] = None, *,
                  options: Optional[PathAskOptions] = None) -> Optional[Path]:
@@ -551,7 +553,7 @@ class WizardUiBridgeTextual(WizardUiBridge):
         while True:
             messages = self._collect(reason)
             text = self._run(_PathApp(question, messages, path_options, value))
-            done, path, reason = _path_answer(text, path_options)
+            done, path, reason = path_answer(text, path_options)
             if done:
                 return path
             value = text
