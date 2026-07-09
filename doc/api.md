@@ -51,6 +51,7 @@
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi)
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table)
+    * [ask\_form](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_form)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.show)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_textual](#tableio_cfg_json.wizard_ui_bridge_textual)
@@ -85,6 +86,21 @@
   * [TableCell](#tableio_cfg_json.wizard_ui_bridge_arg_types.TableCell)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
+* [tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs](#tableio_cfg_json.wizard_ui_bridge_form_defs)
+  * [FieldKind](#tableio_cfg_json.wizard_ui_bridge_form_defs.FieldKind)
+  * [AskFieldCommon](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskFieldCommon)
+  * [AskTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTextField)
+  * [AskIntField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskIntField)
+  * [AskPathField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskPathField)
+  * [AskYesNoField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskYesNoField)
+  * [AskChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskChoiceField)
+  * [AskMultiChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskMultiChoiceField)
+  * [AnswerTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField)
+  * [AnswerIntField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerIntField)
+  * [AnswerPathField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerPathField)
+  * [AnswerYesNoField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerYesNoField)
+  * [AnswerChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerChoiceField)
+  * [AnswerMultiChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerMultiChoiceField)
 * [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
   * [UiBridgeType](#tableio_cfg_json.wizard_ui_factory.UiBridgeType)
   * [make\_text\_ui\_bridge](#tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge)
@@ -1441,6 +1457,59 @@ still validates the final table.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
 
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_form"></a>
+
+#### ask\_form
+
+```python
+def ask_form(
+        long_question: str,
+        ask_fields: AskFields,
+        *,
+        re_ask_reason: Optional[str] = None,
+        partial_validator: Optional[PartialFormValidator] = None
+) -> AnswerFields
+```
+
+Ask the user to fill in a form and return the answers.
+
+The bridge shows a form whose fields are described by ask_fields.
+The application or library may override this method to provide
+a better user interface than the base implementation, which uses
+the ask_text(), ask_int(), ask_yes_no(), ask_path(), ask_choice()
+and ask_multi() methods.
+
+Any serious application or library using GUI, textual, curses or
+web interfaces should override this method to provide a better
+user experience than the base implementation. The base implementation
+is suitable for a console text interface that cannot run textual
+curses of GUI interfaces, but it is not suitable for a GUI,
+textual, curses or web interface.
+
+In a GUI implementation the ask_form is typically implemented with
+a dialog or a form window with question and re_ask_reason shown
+above a grid with 2 columns. The left column is typically a label
+with the field's short question, and the right column is typically
+an input widget for the user's answer.
+
+See wizard_ui_bridge_form_defs.py for the AskFields, and the
+description of how each field type is typically implemented in a GUI
+or textual interface.
+
+**Arguments**:
+
+- `long_question` - The main question or instruction to the user,
+  typically shown above the form. It may be long
+  string that the UI bridge is responsible for
+  wrapping and displaying nicely.
+- `ask_fields` - Description of each field in the form.
+- `re_ask_reason` - The reason for re-asking, for instance how a
+  value failed validation.
+- `partial_validator` - Optional callback for early per-field
+  feedback. It receives the current answers
+  and the changed field index, and returns an
+  accepted flag and an error message.
+
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file"></a>
 
 #### error\_file
@@ -1997,6 +2066,302 @@ optional values stay omitted so TableIO can use backend defaults later.
 **Returns**:
 
   A validated TableIO JSON config for the one endpoint.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs"></a>
+
+# tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs
+
+Definitions of types for wizard UI bridge forms.
+
+Wizard UI bridge forms are used when a number of questions should preferably
+be asked on a single form (in a GUI, textual or curses implementation).
+For a good user experience the user should see all questions at the same time,
+and the user should be able to fill in the answers in any order, and change
+them before submitting the form.
+
+In a GUI, curses or textual implementation, the form is typically displayed
+in a single window, in something like a grid layout, with 2 columns and
+2 - 10 rows. The left column contains the questions, and the right column
+contains the input fields. Above the grid there is typically a longer question
+or instruction, that explains to the user what the form is about. Below the
+grid there are typically buttons for submitting the form, canceling the form,
+and possibly for going back to a previous form step in a multi-step wizard.
+
+This file defines the data types used to describe the questions and answers of
+a form, and the validation callback function that is used to validate the
+answers of a partly filled form.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.FieldKind"></a>
+
+## FieldKind Objects
+
+```python
+class FieldKind(Enum)
+```
+
+Kinds of fields in a form.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskFieldCommon"></a>
+
+## AskFieldCommon Objects
+
+```python
+@dataclass
+class AskFieldCommon()
+```
+
+Common attributes of a field in a form.
+
+**Attributes**:
+
+- `kind` - The kind of the field.
+- `short_question` - A short question to be displayed to the user.
+  In a GUI implementation this is typically displayed
+  as a label in a left column next to the input field.
+- `help_text` - Optional help text to be displayed to the user. Could be
+  used as tooltip text in a GUI implementation, or as a
+  popup message in a in response to a help button click
+  or similar user action.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskTextField"></a>
+
+## AskTextField Objects
+
+```python
+@dataclass
+class AskTextField(AskFieldCommon)
+```
+
+A text field in a form.
+
+**Attributes**:
+
+- `nullable` - When True an empty answer with no default is reported
+  as None. When False an empty answer with no default is
+  the empty string.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `sensitive` - True when the bridge must avoid echoing the entered text,
+  such as for passwords. A default is not allowed for a
+  sensitive question.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskIntField"></a>
+
+## AskIntField Objects
+
+```python
+@dataclass
+class AskIntField(AskFieldCommon)
+```
+
+An integer field in a form.
+
+**Attributes**:
+
+- `nullable` - When True an empty answer with no default is reported
+  as None. When False an empty answer with no default will
+  be re-asked until the user fills in a valid integer.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `min_value` - The minimum allowed value, or None for no minimum.
+- `max_value` - The maximum allowed value, or None for no maximum.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskPathField"></a>
+
+## AskPathField Objects
+
+```python
+@dataclass
+class AskPathField(AskFieldCommon)
+```
+
+A path field in a form.
+
+In a GUI implementation this is typically displayed as a text input field
+with a button next to it that opens a file/directory chooser dialog.
+
+**Attributes**:
+
+- `path_options` - Options for how the path question is asked, including
+  whether the path must exist, whether it must be a file
+  or a directory.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskYesNoField"></a>
+
+## AskYesNoField Objects
+
+```python
+@dataclass
+class AskYesNoField(AskFieldCommon)
+```
+
+A yes/no field in a form.
+
+In a GUI implementation this is typically displayed as a checkbox or a
+toggle button.
+
+**Attributes**:
+
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskChoiceField"></a>
+
+## AskChoiceField Objects
+
+```python
+@dataclass
+class AskChoiceField(AskFieldCommon)
+```
+
+A choice field in a form.
+
+In a GUI implementation this is typically displayed as a dropdown list
+or a set of radio buttons.
+
+**Attributes**:
+
+- `choices` - The allowed choices for the answer.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskMultiChoiceField"></a>
+
+## AskMultiChoiceField Objects
+
+```python
+@dataclass
+class AskMultiChoiceField(AskFieldCommon)
+```
+
+A multi-choice field in a form.
+
+In a GUI implementation this is typically displayed as a list of checkboxes
+or a list of items with multiple selection enabled.
+
+**Attributes**:
+
+- `choices` - The allowed choices for the answer.
+- `default` - The values returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `min_select` - The minimum number of choices that must be selected.
+- `max_select` - The maximum number of choices that can be selected,
+  or None for no maximum.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField"></a>
+
+## AnswerTextField Objects
+
+```python
+@dataclass
+class AnswerTextField()
+```
+
+An answer to a text field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerIntField"></a>
+
+## AnswerIntField Objects
+
+```python
+@dataclass
+class AnswerIntField()
+```
+
+An answer to an integer field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerPathField"></a>
+
+## AnswerPathField Objects
+
+```python
+@dataclass
+class AnswerPathField()
+```
+
+An answer to a path field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerYesNoField"></a>
+
+## AnswerYesNoField Objects
+
+```python
+@dataclass
+class AnswerYesNoField()
+```
+
+An answer to a yes/no field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerChoiceField"></a>
+
+## AnswerChoiceField Objects
+
+```python
+@dataclass
+class AnswerChoiceField()
+```
+
+An answer to a choice field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerMultiChoiceField"></a>
+
+## AnswerMultiChoiceField Objects
+
+```python
+@dataclass
+class AnswerMultiChoiceField()
+```
+
+An answer to a multi-choice field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The values of the answer.
 
 <a id="tableio_cfg_json.wizard_ui_factory"></a>
 

@@ -11,7 +11,6 @@ from config_as_json import InvalidConfiguration, string_best_match
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
     AskReader, WizardBack, WizardPathKind, PathAskOptions, TableColumn, \
     TableCell
-# from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
 
 
 _ERASE_TOKEN = ':e'  # empties an editable cell in the ask_table fallback

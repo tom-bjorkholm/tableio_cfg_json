@@ -28,6 +28,8 @@ from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
 from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     text_answer, question_with_default, ask_yes_no, ask_one, \
     ask_many, run_table, int_text, out_of_range, range_error, path_answer
+from tableio_cfg_json.wizard_ui_bridge_form_defs import AskFields, \
+    AnswerFields, PartialFormValidator
 
 
 _INT_ERROR = 'Please enter an integer.'
@@ -414,6 +416,53 @@ class WizardUiBridge:
         _ = (min_rows, max_rows)  # the fallback fills the fixed rows in cells
         return run_table(self.ask, self.show, columns, cells, question,
                          re_ask_reason, partial_check)
+
+    def ask_form(self, long_question: str, ask_fields: AskFields, *,
+                 re_ask_reason: Optional[str] = None,
+                 partial_validator: Optional[PartialFormValidator] = None) \
+            -> AnswerFields:
+        """Ask the user to fill in a form and return the answers.
+
+        The bridge shows a form whose fields are described by ask_fields.
+        The application or library may override this method to provide
+        a better user interface than the base implementation, which uses
+        the ask_text(), ask_int(), ask_yes_no(), ask_path(), ask_choice()
+        and ask_multi() methods.
+
+        Any serious application or library using GUI, textual, curses or
+        web interfaces should override this method to provide a better
+        user experience than the base implementation. The base implementation
+        is suitable for a console text interface that cannot run textual
+        curses of GUI interfaces, but it is not suitable for a GUI,
+        textual, curses or web interface.
+
+        In a GUI implementation the ask_form is typically implemented with
+        a dialog or a form window with question and re_ask_reason shown
+        above a grid with 2 columns. The left column is typically a label
+        with the field's short question, and the right column is typically
+        an input widget for the user's answer.
+
+        See wizard_ui_bridge_form_defs.py for the AskFields, and the
+        description of how each field type is typically implemented in a GUI
+        or textual interface.
+
+        Args:
+            long_question: The main question or instruction to the user,
+                           typically shown above the form. It may be long
+                           string that the UI bridge is responsible for
+                           wrapping and displaying nicely.
+            ask_fields: Description of each field in the form.
+            re_ask_reason: The reason for re-asking, for instance how a
+                           value failed validation.
+            partial_validator: Optional callback for early per-field
+                               feedback. It receives the current answers
+                               and the changed field index, and returns an
+                               accepted flag and an error message.
+        """
+        self._guard_fallback('ask_form')
+        # to be implemented
+        ret: AnswerFields = []  # placeholder return value
+        return ret
 
     def _guard_fallback(self, method_name: str) -> None:
         """Guard a deprecated fallback and warn that it is temporary.
