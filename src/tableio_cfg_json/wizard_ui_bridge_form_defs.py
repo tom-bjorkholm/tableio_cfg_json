@@ -22,7 +22,7 @@ answers of a partly filled form.
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Optional, Sequence, Union
+from typing import Callable, NamedTuple, Optional, Sequence, Union
 from pathlib import Path
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PathAskOptions
 
@@ -298,12 +298,37 @@ type AnswerFields = Sequence[AnswerField]
    It holds one AnswerField for each row in a form.
    """
 
-type PartialFormValidator = Callable[[AnswerFields, int], tuple[bool, str]]
+
+class PartFormValidationResult(NamedTuple):
+    """Result of validating a partly filled form.
+
+    Attributes:
+        is_valid: True when the form is valid, False when it is not valid.
+        message: A message to be displayed to the user, explaining why the
+                 form is not valid. Empty string when the form is valid.
+        disable_row_idxs: A tuple of row indexes that should be disabled in the
+                          form, because what has been filled in so far makes
+                          these rows irrelevant. For example if ouput format
+                          is set to some binary format, then the row(s) that
+                          ask for character encoding can be disabled, because
+                          they are irrelevant for the chosen output format.
+                          Actually disabling these rows is not strictly
+                          necessary, but it is a good user experience to do so.
+    """
+
+    is_valid: bool
+    message: str
+    disable_row_idxs: tuple[int, ...] = ()
+
+
+type PartialFormValidator = Callable[[AnswerFields, int],
+                                     PartFormValidationResult]
 """Callback for early per-row feedback while a form is filled.
 
    The callback receives the current state of the form as AnswerFields,
-   and the index of the row being validated.
-   It returns a tuple of (is_valid, message), where is_valid is a boolean
-   indicating whether the row is valid, and message is a string with
-   feedback for the user.
+   and the index of the row most recently filled in.
+   It returns a PartFormValidationResult, which indicates whether the form is
+   valid, and if not valid, a message to be displayed to the user, and a tuple
+   of row indexes that should be disabled in the form because they are
+   irrelevant given the current state of the form.
 """

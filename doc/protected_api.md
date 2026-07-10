@@ -290,6 +290,7 @@
   * [AnswerYesNoField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerYesNoField)
   * [AnswerChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerChoiceField)
   * [AnswerMultiChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerMultiChoiceField)
+  * [PartFormValidationResult](#tableio_cfg_json.wizard_ui_bridge_form_defs.PartFormValidationResult)
 * [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
   * [UiBridgeType](#tableio_cfg_json.wizard_ui_factory.UiBridgeType)
   * [make\_text\_ui\_bridge](#tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge)
@@ -4977,6 +4978,30 @@ An answer to a multi-choice field in a form.
 - `asking` - How the question was asked, including the question text, help
   text, and other attributes of the question.
 - `value` - The values of the answer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.PartFormValidationResult"></a>
+
+## PartFormValidationResult Objects
+
+```python
+class PartFormValidationResult(NamedTuple)
+```
+
+Result of validating a partly filled form.
+
+**Attributes**:
+
+- `is_valid` - True when the form is valid, False when it is not valid.
+- `message` - A message to be displayed to the user, explaining why the
+  form is not valid. Empty string when the form is valid.
+- `disable_row_idxs` - A tuple of row indexes that should be disabled in the
+  form, because what has been filled in so far makes
+  these rows irrelevant. For example if ouput format
+  is set to some binary format, then the row(s) that
+  ask for character encoding can be disabled, because
+  they are irrelevant for the chosen output format.
+  Actually disabling these rows is not strictly
+  necessary, but it is a good user experience to do so.
 
 <a id="tableio_cfg_json.wizard_ui_factory"></a>
 
