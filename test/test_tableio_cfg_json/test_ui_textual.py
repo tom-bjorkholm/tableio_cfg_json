@@ -13,12 +13,15 @@ from typing import Any, Optional, Sequence
 
 import pytest
 
-from tableio_cfg_json import PathAskOptions, TableCell, TableColumn, \
+from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
+    AskMultiChoiceField, AskTextField, AskYesNoField, AnswerTextField, \
+    PartialFormValidator, PathAskOptions, TableCell, TableColumn, \
     WizardAbort, WizardBack, WizardCancelLevel, WizardNavigation, \
     WizardPathKind, WizardUiBridgeTextual
-from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _MultiApp, \
-    _NavApp, _PathApp, _TableApp, _TextApp, _default_index, _parse_cell_id, \
-    _preselected, _selection_text
+from tableio_cfg_json.wizard_ui_bridge_form_defs import AnswerField
+from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _FormApp, \
+    _MultiApp, _NavApp, _PathApp, _TableApp, _TextApp, _default_index, \
+    _field_index, _parse_cell_id, _preselected, _selection_text
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 
@@ -656,3 +659,155 @@ def test_add_past_max() -> None:
             await pilot.pause()
             return len(app._rows)
     assert asyncio.run(scenario()) == 2
+
+
+def _sample_form() -> list[AskField]:
+    """Return one field of each kind for the form screen tests."""
+    return [
+        AskTextField('Name', None, default='Tom'),
+        AskIntField('Age', None, default=30),
+        AskYesNoField('Sub?', None, True),
+        AskChoiceField('Color', None, choices=('red', 'green', 'blue'),
+                       default='green'),
+        AskMultiChoiceField('Tags', None, choices=('a', 'b', 'c'),
+                            default=('a',))]
+
+
+def _submitted(app: _NavApp[Any]) -> list[AnswerField]:
+    """Return the answers a submitted form produced, asserting success."""
+    result = app.return_value
+    assert isinstance(result, list)
+    return result
+
+
+def test_form_defaults() -> None:
+    """Submitting a form unchanged returns each field's default."""
+    driven = drive(_FormApp('H', _sample_form(), [], None), ['#submit'])
+    assert [answer.value for answer in _submitted(driven)] == \
+        ['Tom', 30, True, 'green', ['a']]
+
+
+def test_form_text_typed() -> None:
+    """A text field returns the characters typed into it."""
+    fields: list[AskField] = [AskTextField('Name', None)]
+    driven = drive(_FormApp('H', fields, [], None), ['h', 'i', '#submit'])
+    assert _submitted(driven)[0].value == 'hi'
+
+
+def test_form_yesno_toggle() -> None:
+    """Toggling the check box flips the yes/no answer."""
+    fields: list[AskField] = [AskYesNoField('Sub?', None, False)]
+    driven = drive(_FormApp('H', fields, [], None), ['space', '#submit'])
+    assert _submitted(driven)[0].value is True
+
+
+def test_form_choice_pick() -> None:
+    """Picking a drop-down option returns that choice."""
+    fields: list[AskField] = [
+        AskChoiceField('C', None, choices=('x', 'y', 'z'))]
+    driven = drive(_FormApp('H', fields, [], None),
+                   ['enter', 'down', 'enter', 'ctrl+s'])
+    assert _submitted(driven)[0].value == 'x'
+
+
+def test_form_multi_select() -> None:
+    """A multi-choice field returns the selected values in order."""
+    fields: list[AskField] = [
+        AskMultiChoiceField('T', None, choices=('a', 'b', 'c'))]
+    driven = drive(_FormApp('H', fields, [], None),
+                   ['space', 'down', 'down', 'space', 'ctrl+s'])
+    assert _submitted(driven)[0].value == ['a', 'c']
+
+
+def test_form_blank_choice() -> None:
+    """A choice with no default left blank refuses to submit."""
+    fields: list[AskField] = [AskChoiceField('C', None, choices=('x', 'y'))]
+    driven = drive(_FormApp('H', fields, [], None), ['#submit'])
+    assert driven.return_value is None
+
+
+def test_form_int_range() -> None:
+    """An integer outside the field bounds refuses to submit."""
+    fields: list[AskField] = [
+        AskIntField('N', None, min_value=1, max_value=5)]
+    driven = drive(_FormApp('H', fields, [], None), ['9', '#submit'])
+    assert driven.return_value is None
+
+
+def test_form_multi_min() -> None:
+    """A multi-choice below its minimum count refuses to submit."""
+    fields: list[AskField] = [
+        AskMultiChoiceField('T', None, choices=('a', 'b'), min_select=1)]
+    driven = drive(_FormApp('H', fields, [], None), ['#submit'])
+    assert driven.return_value is None
+
+
+def test_form_partial_disable(toggle_fields: list[AskField],
+                              toggle_validator: PartialFormValidator) -> None:
+    """A disabled row's widgets are disabled and skip validation."""
+    app = _FormApp('H', toggle_fields, [], toggle_validator)
+
+    async def scenario() -> bool:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0').focus()
+            await pilot.press('space')
+            await pilot.pause()
+            disabled = app.query_one('#field_1').disabled
+            await pilot.click('#submit')
+            return disabled
+    assert asyncio.run(scenario()) is True
+    assert _submitted(app)[1].value is None
+
+
+def test_form_help_tooltip() -> None:
+    """A field's help text becomes the tooltip of its widget and label."""
+    fields: list[AskField] = [AskTextField('Name', 'your full name')]
+    app = _FormApp('H', fields, [], None)
+
+    async def scenario() -> tuple[object, object]:
+        async with app.run_test():
+            return (app.query_one('#field_0').tooltip,
+                    app.query_one('#label_0').tooltip)
+    assert asyncio.run(scenario()) == ('your full name', 'your full name')
+
+
+def test_form_nav_back() -> None:
+    """ctrl+b on the form records a back request and exits."""
+    fields: list[AskField] = [AskTextField('Name', None)]
+    driven = drive(_FormApp('H', fields, [], None), ['ctrl+b'])
+    assert driven.return_value is None
+    assert driven.nav is WizardBack
+
+
+def test_ask_form_canned() -> None:
+    """ask_form returns the answers produced by the form screen."""
+    field = AskTextField('Name', None)
+    answers = [AnswerTextField(field, 'typed')]
+    bridge = _CannedBridge([answers])
+    assert bridge.ask_form('H', [field]) == answers
+
+
+def test_ask_form_nav() -> None:
+    """ask_form re-raises a navigation request from the screen."""
+    bridge = _CannedBridge([WizardCancelLevel])
+    with pytest.raises(WizardCancelLevel):
+        bridge.ask_form('H', [AskTextField('Name', None)])
+
+
+def test_ask_form_messages() -> None:
+    """A re-ask reason and a shown message reach the form header."""
+    field = AskTextField('Name', None)
+    bridge = _CannedBridge([[AnswerTextField(field, 'x')]])
+    bridge.show('note')
+    bridge.ask_form('H', [field], re_ask_reason='bad value')
+    app = bridge.launched[0]
+    assert isinstance(app, _FormApp)
+    assert 'note' in app._messages
+    assert 'bad value' in app._messages
+
+
+def test_field_index() -> None:
+    """A field id parses to its index; other ids parse to None."""
+    assert _field_index('field_4') == 4
+    assert _field_index(None) is None
+    assert _field_index('label_2') is None

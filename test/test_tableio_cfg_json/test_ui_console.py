@@ -14,7 +14,9 @@ from typing import Optional, Sequence
 
 import pytest
 
-from tableio_cfg_json import PartialCheck, TableCell, TableColumn, \
+from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
+    AskMultiChoiceField, AskTextField, AskYesNoField, PartialFormValidator, \
+    PartialCheck, TableCell, TableColumn, \
     WizardAbort, WizardBack, WizardCancelLevel, WizardUiBridgeConsole
 
 
@@ -305,3 +307,53 @@ def test_yes_no_nav(token: str, error: type[BaseException]) -> None:
                                    StringIO())
     with pytest.raises(error):
         bridge.ask_yes_no('OK?', True)
+
+
+def _console(lines: str) -> tuple[WizardUiBridgeConsole, StringIO]:
+    """Return a console bridge scripted with lines and its output stream."""
+    out_file = StringIO()
+    bridge = WizardUiBridgeConsole(out_file, StringIO(lines), StringIO())
+    return bridge, out_file
+
+
+def _sample_form() -> list[AskField]:
+    """Return one field of each kind for the console form tests."""
+    return [AskTextField('Name', None),
+            AskIntField('Age', None, default=30),
+            AskYesNoField('Subscribe?', None, True),
+            AskChoiceField('Color', None, choices=('red', 'green', 'blue')),
+            AskMultiChoiceField('Tags', None, choices=('a', 'b', 'c'))]
+
+
+def test_console_all_kinds() -> None:
+    """The base ask_form drives every console typed question in order."""
+    bridge, out_file = _console('Tom\n\n\ngreen\na,c\n')
+    answers = bridge.ask_form('Please fill in', _sample_form())
+    assert [answer.value for answer in answers] == \
+        ['Tom', 30, True, 'green', ['a', 'c']]
+    assert 'Please fill in' in out_file.getvalue()
+
+
+def test_console_disable(toggle_fields: list[AskField],
+                         toggle_validator: PartialFormValidator) -> None:
+    """A disabled console field is skipped and keeps its start value."""
+    bridge, _ = _console('2\n')
+    answers = bridge.ask_form('H', toggle_fields,
+                              partial_validator=toggle_validator)
+    assert answers[0].value is False
+    assert answers[1].value is None
+
+
+def test_console_back() -> None:
+    """A back request at a console form field re-asks the previous field."""
+    fields = [AskTextField('A', None), AskTextField('B', None)]
+    bridge, _ = _console('x\n:b\ny\nz\n')
+    answers = bridge.ask_form('H', fields)
+    assert [answer.value for answer in answers] == ['y', 'z']
+
+
+def test_console_back_first() -> None:
+    """A back request at the first console form field propagates out."""
+    bridge, _ = _console(':b\n')
+    with pytest.raises(WizardBack):
+        bridge.ask_form('H', [AskTextField('A', None)])

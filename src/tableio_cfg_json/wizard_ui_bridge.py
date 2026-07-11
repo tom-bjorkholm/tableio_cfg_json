@@ -24,12 +24,16 @@ import warnings
 from pathlib import Path
 from typing import Optional, Sequence, TextIO
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
-    PathAskOptions, TableColumn, TableCell
+    PathAskOptions, TableColumn, TableCell, WizardBack
 from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     text_answer, question_with_default, ask_yes_no, ask_one, \
     ask_many, run_table, int_text, out_of_range, range_error, path_answer
-from tableio_cfg_json.wizard_ui_bridge_form_defs import AskFields, \
-    AnswerFields, PartialFormValidator
+from tableio_cfg_json._wizard_ui_bridge_form import initial_answer
+from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
+    AnswerField, AnswerFields, PartialFormValidator, AskTextField, \
+    AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
+    AskMultiChoiceField, AnswerTextField, AnswerIntField, AnswerPathField, \
+    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField
 
 
 _INT_ERROR = 'Please enter an integer.'
@@ -424,27 +428,31 @@ class WizardUiBridge:
         """Ask the user to fill in a form and return the answers.
 
         The bridge shows a form whose fields are described by ask_fields.
-        The application or library may override this method to provide
-        a better user interface than the base implementation, which uses
-        the ask_text(), ask_int(), ask_yes_no(), ask_path(), ask_choice()
-        and ask_multi() methods.
+        The base implementation is permanent and suitable for a console
+        text interface: it shows long_question, then asks each field in
+        turn with the typed ask methods ask_text(), ask_int(),
+        ask_yes_no(), ask_path(), ask_choice() and ask_multi(), and
+        returns one AnswerField per field in the same order.
 
         Any serious application or library using GUI, textual, curses or
-        web interfaces should override this method to provide a better
-        user experience than the base implementation. The base implementation
-        is suitable for a console text interface that cannot run textual
-        curses of GUI interfaces, but it is not suitable for a GUI,
-        textual, curses or web interface.
-
-        In a GUI implementation the ask_form is typically implemented with
-        a dialog or a form window with question and re_ask_reason shown
-        above a grid with 2 columns. The left column is typically a label
-        with the field's short question, and the right column is typically
-        an input widget for the user's answer.
+        web interfaces should override this method to show the whole form
+        at once, so the user sees every question together and answers them
+        in any order. In such an implementation ask_form is typically a
+        dialog or form window with long_question and re_ask_reason shown
+        above a grid with two columns: the left column a label with the
+        field's short question, and the right column an input widget.
 
         See wizard_ui_bridge_form_defs.py for the AskFields, and the
         description of how each field type is typically implemented in a GUI
         or textual interface.
+
+        When partial_validator is given, the base implementation calls it
+        after each field is answered, passing the current answers and the
+        index of the field just answered. It shows the returned message and
+        skips asking the fields listed in disable_row_idxs, filling them
+        with their default or not-yet-answered value instead. WizardBack
+        steps to the previous asked field; from the first field it
+        propagates so the wizard steps to the previous question.
 
         Args:
             long_question: The main question or instruction to the user,
@@ -456,13 +464,87 @@ class WizardUiBridge:
                            value failed validation.
             partial_validator: Optional callback for early per-field
                                feedback. It receives the current answers
-                               and the changed field index, and returns an
-                               accepted flag and an error message.
+                               and the changed field index, and returns a
+                               PartFormValidationResult.
+
+        Returns:
+            One AnswerField per AskField, in the order of ask_fields.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
         """
-        self._guard_fallback('ask_form')
-        # to be implemented
-        ret: AnswerFields = []  # placeholder return value
-        return ret
+        self.show(long_question)
+        if re_ask_reason is not None:
+            self.show(re_ask_reason)
+        answers = [initial_answer(field) for field in ask_fields]
+        self._fill_form(ask_fields, answers, partial_validator)
+        return answers
+
+    def _fill_form(self, ask_fields: AskFields, answers: list[AnswerField],
+                   validator: Optional[PartialFormValidator]) -> None:
+        """Ask each enabled field in turn, stepping back on WizardBack."""
+        disabled: set[int] = set()
+        position = 0
+        while position < len(ask_fields):
+            if position in disabled:
+                position += 1
+                continue
+            try:
+                answers[position] = self._ask_field(ask_fields[position])
+            except WizardBack:
+                position = self._prev_field(position, disabled)
+                continue
+            disabled = self._form_feedback(answers, position, validator)
+            position += 1
+
+    @staticmethod
+    def _prev_field(position: int, disabled: set[int]) -> int:
+        """Return the previous enabled field index, or re-raise WizardBack."""
+        prev = position - 1
+        while prev >= 0 and prev in disabled:
+            prev -= 1
+        if prev < 0:
+            raise WizardBack()
+        return prev
+
+    def _form_feedback(self, answers: list[AnswerField], position: int,
+                       validator: Optional[PartialFormValidator]) -> set[int]:
+        """Run the validator, show its message, return the disabled rows."""
+        if validator is None:
+            return set()
+        result = validator(answers, position)
+        if not result.is_valid and result.message:
+            self.show(result.message)
+        return set(result.disable_row_idxs)
+
+    def _ask_field(self, field: AskField) -> AnswerField:
+        """Ask one form field with the matching typed ask method."""
+        if field.help_text is not None:
+            self.show(field.help_text)
+        if isinstance(field, AskTextField):
+            return AnswerTextField(field, self.ask_text(
+                field.short_question, nullable=field.nullable,
+                default=field.default, sensitive=field.sensitive))
+        if isinstance(field, AskIntField):
+            return AnswerIntField(field, self.ask_int(
+                field.short_question, nullable=field.nullable,
+                min_value=field.min_value, max_value=field.max_value,
+                default=field.default))
+        if isinstance(field, AskPathField):
+            return AnswerPathField(field, self.ask_path(
+                field.short_question, options=field.path_options))
+        if isinstance(field, AskYesNoField):
+            return AnswerYesNoField(field, self.ask_yes_no(
+                field.short_question, field.default))
+        if isinstance(field, AskChoiceField):
+            return AnswerChoiceField(field, self.ask_choice(
+                field.short_question, choices=field.choices,
+                default=field.default))
+        assert isinstance(field, AskMultiChoiceField)
+        return AnswerMultiChoiceField(field, self.ask_multi(
+            field.short_question, choices=field.choices, default=field.default,
+            min_select=field.min_select, max_select=field.max_select))
 
     def _guard_fallback(self, method_name: str) -> None:
         """Guard a deprecated fallback and warn that it is temporary.

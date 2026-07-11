@@ -29,19 +29,28 @@ from textual.app import App, ComposeResult
 from textual.binding import BindingType
 from textual.containers import Grid, VerticalScroll
 from textual.widget import Widget
-from textual.widgets import Button, DirectoryTree, Footer, Input, OptionList, \
-    Select, SelectionList, Static
+from textual.widgets import Button, Checkbox, DirectoryTree, Footer, Input, \
+    OptionList, Select, SelectionList, Static
 from textual.widgets.selection_list import Selection
 from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
 from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
-    multi_count_error, path_answer, text_answer
+    int_text, multi_count_error, out_of_range, path_answer, range_error, \
+    text_answer
+from tableio_cfg_json._wizard_ui_bridge_form import initial_answer
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
     WizardNavigation, WizardBack, WizardCancelLevel, \
     WizardAbort, WizardPathKind, PathAskOptions, TableColumn, TableCell
+from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
+    AnswerField, AnswerFields, PartialFormValidator, AskTextField, \
+    AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
+    AskMultiChoiceField, AnswerTextField, AnswerIntField, AnswerPathField, \
+    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 _T = TypeVar('_T')
 _PATH_INPUT_ID = 'path_input'
+_INT_ERROR = 'Please enter an integer.'
+_CHOICE_REQUIRED = 'Please choose a value.'
 
 
 class _NavApp(App[_T]):
@@ -514,6 +523,275 @@ class _TableApp(_NavApp[list[list[Optional[str]]]]):
         return text
 
 
+def _choice_select(field: AskChoiceField, widget_id: str) -> Select[str]:
+    """Return a drop-down for a choice field, blank when no default."""
+    options = [(choice, choice) for choice in field.choices]
+    if field.default is not None and field.default in field.choices:
+        return Select(options, value=field.default, allow_blank=False,
+                      id=widget_id)
+    return Select(options, allow_blank=True, id=widget_id)
+
+
+def _multi_selection(field: AskMultiChoiceField,
+                     widget_id: str) -> SelectionList[int]:
+    """Return a check-box list for a multi-choice field."""
+    chosen = set(_preselected(field.choices, field.default))
+    selections = [Selection(choice, index, index in chosen)
+                  for index, choice in enumerate(field.choices)]
+    return SelectionList[int](*selections, id=widget_id)
+
+
+def _make_field_widget(field: AskField, index: int) -> Widget:
+    """Return the input widget shown for one form field."""
+    widget_id = f'field_{index}'
+    if isinstance(field, AskTextField):
+        value = '' if field.default is None else field.default
+        return Input(value=value, password=field.sensitive, id=widget_id)
+    if isinstance(field, AskIntField):
+        value = '' if field.default is None else str(field.default)
+        return Input(value=value, id=widget_id)
+    if isinstance(field, AskPathField):
+        default = field.path_options.default
+        return Input(value='' if default is None else str(default),
+                     id=widget_id)
+    if isinstance(field, AskYesNoField):
+        return Checkbox(value=field.default, id=widget_id)
+    if isinstance(field, AskChoiceField):
+        return _choice_select(field, widget_id)
+    assert isinstance(field, AskMultiChoiceField)
+    return _multi_selection(field, widget_id)
+
+
+def _field_index(widget_id: Optional[str]) -> Optional[int]:
+    """Return the field index encoded in a field widget id."""
+    if widget_id is None or not widget_id.startswith('field_'):
+        return None
+    return int(widget_id.split('_')[1])
+
+
+def _multi_error(count: int, field: AskMultiChoiceField) -> Optional[str]:
+    """Return the multi-choice count error, or None when acceptable."""
+    too_few = count < field.min_select
+    too_many = field.max_select is not None and count > field.max_select
+    if too_few or too_many:
+        return multi_count_error(field.min_select, field.max_select)
+    return None
+
+
+# pylint: disable-next=too-many-instance-attributes
+class _FormApp(_NavApp[list[AnswerField]]):
+    """One screen showing every form field in a two-column grid.
+
+    The left column of each row is a label with the field's short
+    question and the right column an input widget chosen by the field
+    type: a text input, a spin-free integer input, a path input, a
+    check box, a drop-down or a check-box list. A partial validator, when
+    given, runs after each change to show advisory feedback and to enable
+    or disable rows. On submit each enabled field is validated, so the
+    returned answers are complete and a choice with no default is always
+    answered.
+    """
+
+    BINDINGS: ClassVar[list[BindingType]] = [('ctrl+s', 'submit', 'Submit')]
+    CSS = '#form_grid { height: auto; }'
+
+    def __init__(self, question: str, fields: list[AskField],
+                 messages: list[str],
+                 validator: Optional[PartialFormValidator]) -> None:
+        """Store the prompt, fields, buffered messages and validator."""
+        super().__init__()
+        self._question = question
+        self._fields = fields
+        self._messages = messages
+        self._validator = validator
+        self._answers = [initial_answer(field) for field in fields]
+        self._disabled: set[int] = set()
+        self._last_changed = 0
+        self._form_ready = False
+
+    def compose(self) -> ComposeResult:
+        """Lay out the header, the field grid, submit and footer."""
+        yield from _header_widgets(self._messages, self._question)
+        with VerticalScroll(id='form_scroll'), Grid(id='form_grid'):
+            yield from self._field_widgets()
+        yield Button('Submit', id='submit')
+        yield Static('', id='form_status')
+        yield Footer()
+
+    def _field_widgets(self) -> Iterator[Widget]:
+        """Yield a label and an input widget for each field."""
+        for index, field in enumerate(self._fields):
+            label = Static(field.short_question, id=f'label_{index}')
+            widget = _make_field_widget(field, index)
+            if field.help_text is not None:
+                label.tooltip = field.help_text
+                widget.tooltip = field.help_text
+            yield label
+            yield widget
+
+    def on_mount(self) -> None:
+        """Size the grid, keep the scroll unfocused, focus the first field."""
+        self.query_one('#form_scroll').can_focus = False
+        self.query_one('#form_grid', Grid).styles.grid_size_columns = 2
+        if self._fields:
+            self.query_one('#field_0').focus()
+        self._form_ready = True
+
+    @on(Input.Changed)
+    def _input_changed(self, event: Input.Changed) -> None:
+        """React to a text, integer or path field change."""
+        self._changed(event.input.id)
+
+    @on(Select.Changed)
+    def _select_changed(self, event: Select.Changed) -> None:
+        """React to a choice drop-down change."""
+        self._changed(event.select.id)
+
+    @on(Checkbox.Changed)
+    def _checkbox_changed(self, event: Checkbox.Changed) -> None:
+        """React to a yes/no check-box change."""
+        self._changed(event.checkbox.id)
+
+    @on(SelectionList.SelectedChanged)
+    def _multi_changed(self, event: SelectionList.SelectedChanged[int]
+                       ) -> None:
+        """React to a multi-choice selection change."""
+        self._changed(event.control.id)
+
+    def _changed(self, widget_id: Optional[str]) -> None:
+        """Update the changed answer and run the partial validator."""
+        if not self._form_ready:
+            return
+        index = _field_index(widget_id)
+        if index is None:
+            return
+        self._last_changed = index
+        self._answers[index] = self._read_field(index)
+        self._run_validator(index)
+
+    def _run_validator(self, index: int) -> None:
+        """Show advisory feedback and apply the disabled rows."""
+        if self._validator is None:
+            return
+        result = self._validator(self._answers, index)
+        self._apply_disabled(result.disable_row_idxs)
+        self._set_status('' if result.is_valid else result.message)
+
+    def _apply_disabled(self, disable_row_idxs: tuple[int, ...]) -> None:
+        """Enable or disable each row to match the validator result."""
+        self._disabled = set(disable_row_idxs)
+        for index in range(len(self._fields)):
+            off = index in self._disabled
+            self.query_one(f'#field_{index}').disabled = off
+            self.query_one(f'#label_{index}').disabled = off
+
+    @on(Button.Pressed, '#submit')
+    def _submit_clicked(self, _event: Button.Pressed) -> None:
+        """Submit the form when the submit button is pressed."""
+        self.action_submit()
+
+    def action_submit(self) -> None:
+        """Validate every enabled field and exit with the answers."""
+        for index in range(len(self._fields)):
+            self._answers[index] = self._read_field(index)
+        error = self._first_error()
+        if error is not None:
+            self._set_status(error)
+            return
+        if not self._validator_accepts():
+            return
+        self.exit(list(self._answers))
+
+    def _validator_accepts(self) -> bool:
+        """Return whether the partial validator accepts the whole form."""
+        if self._validator is None:
+            return True
+        result = self._validator(self._answers, self._last_changed)
+        self._apply_disabled(result.disable_row_idxs)
+        if not result.is_valid:
+            self._set_status(result.message)
+        return result.is_valid
+
+    def _first_error(self) -> Optional[str]:
+        """Return the first enabled field's validation error, or None."""
+        for index, field in enumerate(self._fields):
+            if index in self._disabled:
+                continue
+            error = self._field_error(index, field)
+            if error is not None:
+                return error
+        return None
+
+    def _set_status(self, message: str) -> None:
+        """Show a status message below the form."""
+        self.query_one('#form_status', Static).update(message)
+
+    def _read_field(self, index: int) -> AnswerField:
+        """Return the current answer of one field read from its widget."""
+        field = self._fields[index]
+        widget_id = f'#field_{index}'
+        if isinstance(field, AskTextField):
+            text = self.query_one(widget_id, Input).value
+            answer = text_answer(text, field.nullable, field.default)
+            return AnswerTextField(field, answer)
+        if isinstance(field, AskIntField):
+            return AnswerIntField(field, self._int_value(widget_id, field))
+        if isinstance(field, AskPathField):
+            text = self.query_one(widget_id, Input).value
+            _, path, _ = path_answer(text, field.path_options)
+            return AnswerPathField(field, path)
+        if isinstance(field, AskYesNoField):
+            checked = self.query_one(widget_id, Checkbox).value
+            return AnswerYesNoField(field, bool(checked))
+        if isinstance(field, AskChoiceField):
+            select = self.query_one(widget_id, Select)
+            value = None if select.is_blank() else str(select.value)
+            return AnswerChoiceField(field, value)
+        assert isinstance(field, AskMultiChoiceField)
+        selection = self.query_one(widget_id, SelectionList)
+        chosen = sorted(selection.selected)
+        values = [field.choices[i] for i in chosen]
+        return AnswerMultiChoiceField(field, values)
+
+    def _int_value(self, widget_id: str, field: AskIntField) -> Optional[int]:
+        """Return the integer value of a field, or None when unparsed."""
+        text = self.query_one(widget_id, Input).value
+        if text == '':
+            return field.default
+        return int_text(text)
+
+    def _field_error(self, index: int, field: AskField) -> Optional[str]:
+        """Return one field's own validation error, or None when valid."""
+        widget_id = f'#field_{index}'
+        if isinstance(field, AskIntField):
+            return self._int_error(widget_id, field)
+        if isinstance(field, AskPathField):
+            text = self.query_one(widget_id, Input).value
+            done, _, reason = path_answer(text, field.path_options)
+            return None if done else reason
+        if isinstance(field, AskChoiceField):
+            blank = self.query_one(widget_id, Select).is_blank()
+            return _CHOICE_REQUIRED if blank else None
+        if isinstance(field, AskMultiChoiceField):
+            count = len(self.query_one(widget_id, SelectionList).selected)
+            return _multi_error(count, field)
+        return None
+
+    def _int_error(self, widget_id: str, field: AskIntField) -> Optional[str]:
+        """Return the integer field's validation error, or None."""
+        text = self.query_one(widget_id, Input).value
+        if text == '':
+            if field.nullable or field.default is not None:
+                return None
+            return _INT_ERROR
+        value = int_text(text)
+        if value is None:
+            return _INT_ERROR
+        if out_of_range(value, field.min_value, field.max_value):
+            return range_error(field.min_value, field.max_value)
+        return None
+
+
 class WizardUiBridgeTextual(WizardUiBridge):
     """Bridge between the wizard and a Textual terminal interface.
 
@@ -600,6 +878,15 @@ class WizardUiBridgeTextual(WizardUiBridge):
         messages = self._collect(re_ask_reason)
         return self._run(_TableApp(columns, cells, question, messages,
                                    partial_check, min_rows, max_rows))
+
+    def ask_form(self, long_question: str, ask_fields: AskFields, *,
+                 re_ask_reason: Optional[str] = None,
+                 partial_validator: Optional[PartialFormValidator] = None) \
+            -> AnswerFields:
+        """Ask the user to fill a whole form on one screen; see ask_form."""
+        messages = self._collect(re_ask_reason)
+        return self._run(_FormApp(long_question, list(ask_fields), messages,
+                                  partial_validator))
 
     def _run(self, app: _NavApp[_T]) -> _T:
         """Run one screen and translate its outcome.

@@ -21,29 +21,20 @@ answers of a partly filled form.
 """
 
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import Callable, NamedTuple, Optional, Sequence, Union
 from pathlib import Path
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PathAskOptions
-
-
-class FieldKind(Enum):
-    """Kinds of fields in a form."""
-
-    TEXT = auto()
-    INT = auto()
-    PATH = auto()
-    YES_NO = auto()
-    CHOICE = auto()
-    MULTI_CHOICE = auto()
 
 
 @dataclass
 class AskFieldCommon:
     """Common attributes of a field in a form.
 
+    Each concrete field is one of the Ask*Field subclasses, so its Python
+    type already tells the bridge which kind of input to show. There is no
+    separate kind attribute to keep in sync.
+
     Attributes:
-        kind: The kind of the field.
         short_question: A short question to be displayed to the user.
                         In a GUI implementation this is typically displayed
                         as a label in a left column next to the input field.
@@ -53,7 +44,6 @@ class AskFieldCommon:
                    or similar user action.
     """
 
-    kind: FieldKind
     short_question: str
     help_text: Optional[str]
 
@@ -105,6 +95,17 @@ class AskIntField(AskFieldCommon):
     default: Optional[int] = None
     min_value: Optional[int] = None
     max_value: Optional[int] = None
+
+    def __post_init__(self) -> None:
+        """Check that the integer bounds and default agree."""
+        if (self.min_value is not None and self.max_value is not None
+                and self.min_value > self.max_value):
+            raise ValueError('min_value must not exceed max_value')
+        if self.default is not None and (
+                (self.min_value is not None and self.default < self.min_value)
+                or (self.max_value is not None
+                    and self.default > self.max_value)):
+            raise ValueError('default is out of the allowed range')
 
 
 @dataclass
@@ -261,11 +262,17 @@ class AnswerChoiceField:
     Attributes:
         asking: How the question was asked, including the question text, help
                 text, and other attributes of the question.
-        value: The value of the answer.
+        value: The chosen value, one of the choices. It is None only to
+               tell a partial validator that a choice with no default has
+               not been answered yet. A bridge never returns None as a final
+               choice answer: it makes sure a choice with no default is
+               answered before the form is submitted for final validation,
+               unless the choice is disabled by a partial validator because
+               it is irrelevant given the current state of the form.
     """
 
     asking: AskChoiceField
-    value: str
+    value: Optional[str]
 
 
 @dataclass

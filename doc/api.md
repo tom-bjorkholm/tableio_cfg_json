@@ -16,6 +16,8 @@
   * [ask\_many](#tableio_cfg_json._wizard_ui_bridge_helpers.ask_many)
   * [match\_token](#tableio_cfg_json._wizard_ui_bridge_helpers.match_token)
   * [multi\_count\_error](#tableio_cfg_json._wizard_ui_bridge_helpers.multi_count_error)
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_form](#tableio_cfg_json._wizard_ui_bridge_form)
+  * [initial\_answer](#tableio_cfg_json._wizard_ui_bridge_form.initial_answer)
 * [tableio\_cfg\_json.describe](#tableio_cfg_json.describe)
   * [get\_general\_cfg\_info](#tableio_cfg_json.describe.get_general_cfg_info)
   * [get\_config\_member\_names](#tableio_cfg_json.describe.get_config_member_names)
@@ -63,6 +65,7 @@
     * [ask\_choice](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_choice)
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_table)
+    * [ask\_form](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_form)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.show)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_console](#tableio_cfg_json.wizard_ui_bridge_console)
@@ -87,7 +90,6 @@
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs](#tableio_cfg_json.wizard_ui_bridge_form_defs)
-  * [FieldKind](#tableio_cfg_json.wizard_ui_bridge_form_defs.FieldKind)
   * [AskFieldCommon](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskFieldCommon)
   * [AskTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTextField)
   * [AskIntField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskIntField)
@@ -308,6 +310,27 @@ def multi_count_error(min_select: int, max_select: Optional[int]) -> str
 ```
 
 Return the message shown when the selected count is not allowed.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_form"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_form
+
+Helpers shared by the WizardUiBridge form question.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_form.initial_answer"></a>
+
+#### initial\_answer
+
+```python
+def initial_answer(field: AskField) -> AnswerField
+```
+
+Return the starting answer for a field before the user edits it.
+
+The value is the field's default, or the empty or not-yet-answered
+state when the field has no default. A choice field with no default
+starts as None, which tells a partial validator the choice is not
+answered yet; a bridge must not leave that None in a submitted form.
 
 <a id="tableio_cfg_json.describe"></a>
 
@@ -1475,27 +1498,31 @@ def ask_form(
 Ask the user to fill in a form and return the answers.
 
 The bridge shows a form whose fields are described by ask_fields.
-The application or library may override this method to provide
-a better user interface than the base implementation, which uses
-the ask_text(), ask_int(), ask_yes_no(), ask_path(), ask_choice()
-and ask_multi() methods.
+The base implementation is permanent and suitable for a console
+text interface: it shows long_question, then asks each field in
+turn with the typed ask methods ask_text(), ask_int(),
+ask_yes_no(), ask_path(), ask_choice() and ask_multi(), and
+returns one AnswerField per field in the same order.
 
 Any serious application or library using GUI, textual, curses or
-web interfaces should override this method to provide a better
-user experience than the base implementation. The base implementation
-is suitable for a console text interface that cannot run textual
-curses of GUI interfaces, but it is not suitable for a GUI,
-textual, curses or web interface.
-
-In a GUI implementation the ask_form is typically implemented with
-a dialog or a form window with question and re_ask_reason shown
-above a grid with 2 columns. The left column is typically a label
-with the field's short question, and the right column is typically
-an input widget for the user's answer.
+web interfaces should override this method to show the whole form
+at once, so the user sees every question together and answers them
+in any order. In such an implementation ask_form is typically a
+dialog or form window with long_question and re_ask_reason shown
+above a grid with two columns: the left column a label with the
+field's short question, and the right column an input widget.
 
 See wizard_ui_bridge_form_defs.py for the AskFields, and the
 description of how each field type is typically implemented in a GUI
 or textual interface.
+
+When partial_validator is given, the base implementation calls it
+after each field is answered, passing the current answers and the
+index of the field just answered. It shows the returned message and
+skips asking the fields listed in disable_row_idxs, filling them
+with their default or not-yet-answered value instead. WizardBack
+steps to the previous asked field; from the first field it
+propagates so the wizard steps to the previous question.
 
 **Arguments**:
 
@@ -1508,8 +1535,19 @@ or textual interface.
   value failed validation.
 - `partial_validator` - Optional callback for early per-field
   feedback. It receives the current answers
-  and the changed field index, and returns an
-  accepted flag and an error message.
+  and the changed field index, and returns a
+  PartFormValidationResult.
+  
+
+**Returns**:
+
+  One AnswerField per AskField, in the order of ask_fields.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file"></a>
 
@@ -1676,6 +1714,22 @@ def ask_table(columns: Sequence[TableColumn],
 ```
 
 Ask the user to fill a table; see WizardUiBridge.ask_table.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_form"></a>
+
+#### ask\_form
+
+```python
+def ask_form(
+        long_question: str,
+        ask_fields: AskFields,
+        *,
+        re_ask_reason: Optional[str] = None,
+        partial_validator: Optional[PartialFormValidator] = None
+) -> AnswerFields
+```
+
+Ask the user to fill a whole form on one screen; see ask_form.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.error_file"></a>
 
@@ -2092,16 +2146,6 @@ This file defines the data types used to describe the questions and answers of
 a form, and the validation callback function that is used to validate the
 answers of a partly filled form.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.FieldKind"></a>
-
-## FieldKind Objects
-
-```python
-class FieldKind(Enum)
-```
-
-Kinds of fields in a form.
-
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskFieldCommon"></a>
 
 ## AskFieldCommon Objects
@@ -2113,9 +2157,12 @@ class AskFieldCommon()
 
 Common attributes of a field in a form.
 
+Each concrete field is one of the Ask*Field subclasses, so its Python
+type already tells the bridge which kind of input to show. There is no
+separate kind attribute to keep in sync.
+
 **Attributes**:
 
-- `kind` - The kind of the field.
 - `short_question` - A short question to be displayed to the user.
   In a GUI implementation this is typically displayed
   as a label in a left column next to the input field.
@@ -2345,7 +2392,11 @@ An answer to a choice field in a form.
 
 - `asking` - How the question was asked, including the question text, help
   text, and other attributes of the question.
-- `value` - The value of the answer.
+- `value` - The chosen value, one of the choices. It is None only to
+  tell a partial validator that a choice with no default has
+  not been answered yet. A bridge never returns None as a final
+  choice answer: it makes sure a choice with no default is
+  answered before the form is submitted for final validation.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerMultiChoiceField"></a>
 
