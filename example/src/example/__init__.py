@@ -10,9 +10,9 @@ if TYPE_CHECKING:
     from . import e01_create_config, e02_write_table, e03_read_table, \
         e04_create_custom_config, e05_split_cities_wizard, \
         e06_split_cities, e07_split_cities_textual, \
-        e10_edit_config_wizard
+        e10_edit_config_wizard, e11_ask_form
 
 __all__ = ['e01_create_config', 'e02_write_table', 'e03_read_table',
            'e04_create_custom_config', 'e05_split_cities_wizard',
            'e06_split_cities', 'e07_split_cities_textual',
-           'e10_edit_config_wizard']
+           'e10_edit_config_wizard', 'e11_ask_form']

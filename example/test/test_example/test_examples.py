@@ -16,12 +16,13 @@ import pytest
 from tableio import FileAccess, access_capabilities, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio
-from tableio_cfg_json import get_config_member_names, UiBridgeType
+from tableio_cfg_json import get_config_member_names, UiBridgeType, \
+    AskPathField, AskMultiChoiceField, WizardPathKind
 
 from example import e01_create_config, e02_write_table, e03_read_table, \
     e04_create_custom_config, e05_split_cities_wizard, e06_split_cities, \
     e07_split_cities_textual, e08_rename_wizard, e09_split_cities_rename, \
-    e10_edit_config_wizard
+    e10_edit_config_wizard, e11_ask_form
 
 
 def _read_json(json_file: Path) -> dict[str, object]:
@@ -616,3 +617,73 @@ def test_rename_back(tmp_path: Path) -> None:
     config_data = _read_json(config_file)
     assert config_data['less_output_names'] == {
         'City': 'City', 'Country': 'Country'}
+
+
+def _run_form(lines: list[str]) -> tuple[Optional[str], str]:
+    """Run the ask_form example on the console with scripted answers.
+
+    Args:
+        lines: One scripted answer per line, in the order the console
+               fallback asks the form fields.
+    Returns:
+        The summary returned by the example and the full console output.
+    """
+    out_file = StringIO()
+    summary = e11_ask_form.collect_and_summarize(
+        stdin_file=StringIO('\n'.join(lines) + '\n'), stdout_file=out_file,
+        stderr_file=StringIO(), bridge_type=UiBridgeType.CONSOLE)
+    return summary, out_file.getvalue()
+
+
+def test_form_csv(tmp_path: Path) -> None:
+    """Accepting the defaults summarizes a full CSV export form."""
+    out_path = tmp_path / 'report.csv'
+    summary, _ = _run_form(['', str(out_path), '', '', '', '', ''])
+    assert summary is not None
+    assert 'Report title: Cities report' in summary
+    assert f'Output file: {out_path}' in summary
+    assert 'Output format: CSV' in summary
+    assert 'CSV delimiter: ,' in summary
+    assert 'Row limit: all rows' in summary
+    assert 'Header row: included' in summary
+    assert 'Columns: City, Country, Continent' in summary
+
+
+def test_form_no_delim(tmp_path: Path) -> None:
+    """A non-CSV format disables and hides the delimiter row."""
+    out_path = tmp_path / 'report.xlsx'
+    summary, _ = _run_form(['', str(out_path), '2', '', '', ''])
+    assert summary is not None
+    assert 'Output format: Excel' in summary
+    assert 'CSV delimiter' not in summary
+
+
+def test_form_reask(tmp_path: Path) -> None:
+    """A bad CSV delimiter is reported and the form is re-asked."""
+    out_path = tmp_path / 'report.csv'
+    bad = ['', str(out_path), '', ';;', '', '', '']
+    good = ['', str(out_path), '', ',', '', '', '']
+    summary, output = _run_form(bad + good)
+    assert summary is not None
+    assert 'CSV delimiter: ,' in summary
+    assert 'exactly one character' in output
+
+
+def test_form_cancel() -> None:
+    """Aborting at the first field returns no summary."""
+    summary, output = _run_form([':q'])
+    assert summary is None
+    assert 'cancelled' in output
+
+
+def test_form_fields() -> None:
+    """The form describes seven fields with a new-file path input."""
+    fields = e11_ask_form.build_export_form()
+    assert len(fields) == 7
+    path_field = fields[1]
+    assert isinstance(path_field, AskPathField)
+    assert path_field.path_options.kind == WizardPathKind.NON_EXISTING_FILE
+    columns_field = fields[6]
+    assert isinstance(columns_field, AskMultiChoiceField)
+    assert columns_field.min_select == 1
+    assert e11_ask_form.build_parser().parse_args([]).ui == 'auto'
