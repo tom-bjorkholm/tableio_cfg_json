@@ -7,21 +7,22 @@ larger config-as-json configuration class.
 """
 
 import json
-import inspect
-import warnings
-from copy import deepcopy
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import Callable, Literal, Optional, Sequence, TextIO
+from typing import Literal, Optional, Sequence, TextIO
 
 from config_as_json import ConfigBadJson, InvalidConfiguration
 from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio, tio_config_specs
 from tableio_cfg_json.config import TioJsonConfig
-from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
-    TableCell, TableColumn, WizardBack, WizardCancelLevel
+from tableio_cfg_json.wizard_ui_bridge_arg_types import WizardBack, \
+    WizardCancelLevel
 from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
+from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, \
+    AnswerField, AnswerFields, AskTextField, AskIntField, AskChoiceField, \
+    AnswerTextField, AnswerIntField, AnswerChoiceField, \
+    PartFormValidationResult, PartialFormValidator
 from tableio_cfg_json._wizard_ui_bridge_helpers import CHOICE_ERROR, \
     match_token
 
@@ -43,11 +44,9 @@ class _WizardRun:
 
 @dataclass(frozen=True)
 class _Step:
-    """One navigable question or grouped table in a wizard run."""
+    """One navigable question or grouped option form in a wizard run."""
 
-    kind: Literal['format', 'impl', 'scalar', 'section']
-    spec: Optional[ConfigSpec] = None
-    section: Optional[str] = None
+    kind: Literal['format', 'impl', 'options']
     specs: tuple[ConfigSpec, ...] = field(default_factory=tuple)
 
 
@@ -171,37 +170,17 @@ def _build_steps(run: _WizardRun) -> list[_Step]:
     implementation = run.data.get('implementation')
     selected = (implementation,) if isinstance(implementation, str) \
         else impl_names
-    steps.extend(_member_steps(format_name, selected))
+    specs = _relevant_specs(format_name, selected)
+    if specs:
+        steps.append(_Step(kind='options', specs=specs))
     return steps
 
 
-def _member_steps(format_name: str,
-                  selected_impls: Sequence[str]) -> list[_Step]:
-    """Return scalar and section steps for the relevant config members."""
-    steps: list[_Step] = []
-    seen_sections: set[str] = set()
-    for spec in tio_config_specs().values():
-        if not _ask_member(spec, format_name, selected_impls):
-            continue
-        if '.' not in spec.name:
-            steps.append(_Step(kind='scalar', spec=spec))
-            continue
-        section = spec.name.split('.', maxsplit=1)[0]
-        if section in seen_sections:
-            continue
-        seen_sections.add(section)
-        specs = _section_specs(section, format_name, selected_impls)
-        steps.append(_Step(kind='section', section=section, specs=specs))
-    return steps
-
-
-def _section_specs(section: str, format_name: str,
-                   selected_impls: Sequence[str]) -> tuple[ConfigSpec, ...]:
-    """Return the relevant config specs that belong to one section."""
-    prefix = f'{section}.'
+def _relevant_specs(format_name: str,
+                    selected_impls: Sequence[str]) -> tuple[ConfigSpec, ...]:
+    """Return the config specs the option form should ask for."""
     return tuple(spec for spec in tio_config_specs().values()
-                 if spec.name.startswith(prefix)
-                 and _ask_member(spec, format_name, selected_impls))
+                 if _ask_member(spec, format_name, selected_impls))
 
 
 def _run_step(run: _WizardRun, step: _Step) -> None:
@@ -210,13 +189,8 @@ def _run_step(run: _WizardRun, step: _Step) -> None:
         _run_format_step(run)
     elif step.kind == 'impl':
         _run_impl_step(run)
-    elif step.kind == 'scalar':
-        assert step.spec is not None
-        _ask_config_member(step.spec, run.data, run.caps, run.file_access,
-                           run.bridge, run.stderr)
     else:
-        assert step.section is not None
-        _run_section_step(run, step.section, step.specs)
+        _run_options_step(run, step.specs)
 
 
 def _run_format_step(run: _WizardRun) -> None:
@@ -251,49 +225,135 @@ def _clear_after_format(data: dict[str, object]) -> None:
         data['format_name'] = format_name
 
 
-def _run_section_step(run: _WizardRun, section: str,
-                      specs: tuple[ConfigSpec, ...]) -> None:
-    """Ask one table of section members and store the entered values."""
-    columns = (TableColumn('Parameter', read_only=True), TableColumn('Value'))
-    question = _section_question(section)
-    check = _section_check(run, section, specs)
+def _run_options_step(run: _WizardRun, specs: tuple[ConfigSpec, ...]) -> None:
+    """Ask one form of all optional members and store the answers."""
+    question = _options_question(run.data)
+    validator = _options_validator(run, specs)
     reason: Optional[str] = None
+    values = _current_values(run.data, specs)
     while True:
-        cells = _section_cells(run, section, specs)
-        result = run.bridge.ask_table(columns, cells, question,
+        answers = run.bridge.ask_form(question, _option_fields(specs, values),
                                       re_ask_reason=reason,
-                                      partial_check=check)
-        try:
-            new_data = _resolve_section(run.data, section, specs, result)
-        except (ConfigBadJson, ConfigError, InvalidConfiguration,
-                ValueError) as error:
-            reason = f'Invalid value: {error}\nPlease try again.'
-            continue
-        reason = _commit(run.data, new_data, run.caps, run.file_access,
-                         run.stderr)
+                                      partial_validator=validator)
+        values = _answer_values(specs, answers)
+        reason = _apply_options(run, specs, values)
         if reason is None:
             return
 
 
-def _section_question(section: str) -> str:
-    """Return the instruction shown above one section table."""
-    return f'Configure {section} options (one row per setting):'
+def _options_question(data: dict[str, object]) -> str:
+    """Return the instruction shown above the option form."""
+    format_name = data.get('format_name')
+    assert isinstance(format_name, str)
+    return (f'Configure options for {format_name}.\n'
+            'Leave a field blank or choose "use the default" to keep the '
+            'backend default.')
 
 
-def _section_cells(run: _WizardRun, section: str,
-                   specs: tuple[ConfigSpec, ...]) -> list[list[TableCell]]:
-    """Return the table rows for one section, pre-filled from the data."""
-    current = run.data.get(section)
-    values = current if isinstance(current, dict) else {}
-    rows: list[list[TableCell]] = []
+def _apply_options(run: _WizardRun, specs: tuple[ConfigSpec, ...],
+                   values: dict[str, object]) -> Optional[str]:
+    """Build data from the answers, validate it and commit on success."""
+    try:
+        new_data = _data_from_values(run.data, specs, values)
+    except (ConfigBadJson, ConfigError, InvalidConfiguration,
+            ValueError) as error:
+        return f'Invalid value: {error}\nPlease try again.'
+    return _commit(run.data, new_data, run.caps, run.file_access, run.stderr)
+
+
+def _options_validator(run: _WizardRun,
+                       specs: tuple[ConfigSpec, ...]) -> PartialFormValidator:
+    """Return a partial-form validator for the option form."""
+    def validator(answers: AnswerFields,
+                  _index: int) -> PartFormValidationResult:
+        values = _answer_values(specs, answers)
+        capture = StringIO()
+        try:
+            trial = _data_from_values(run.data, specs, values)
+            _config_from_data(trial, run.caps, run.file_access, capture)
+        except (ConfigBadJson, ConfigError, InvalidConfiguration,
+                ValueError) as error:
+            return PartFormValidationResult(False, f'Invalid value: {error}')
+        return PartFormValidationResult(True, '')
+    return validator
+
+
+def _current_values(data: dict[str, object],
+                    specs: tuple[ConfigSpec, ...]) -> dict[str, object]:
+    """Return the members already set in the data, keyed by member name."""
+    values: dict[str, object] = {}
     for spec in specs:
-        child = spec.name.split('.', maxsplit=1)[1]
-        value = values.get(child)
-        value_str = None if value is None else str(value)
-        rows.append([TableCell(value=child),
-                     TableCell(value=value_str, choices=_spec_choices(spec),
-                               nullable=True)])
-    return rows
+        value = _get_json_member(data, spec.name)
+        if value is not None:
+            values[spec.name] = value
+    return values
+
+
+def _answer_values(specs: tuple[ConfigSpec, ...],
+                   answers: AnswerFields) -> dict[str, object]:
+    """Return the answered members, dropping omitted ones, by member name."""
+    values: dict[str, object] = {}
+    for spec, answer in zip(specs, answers):
+        value = _answer_value(answer)
+        if value is not None:
+            values[spec.name] = value
+    return values
+
+
+def _answer_value(answer: AnswerField) -> Optional[object]:
+    """Return one member value from a form answer, or None when omitted."""
+    if isinstance(answer, AnswerChoiceField):
+        chosen = answer.value
+        return None if chosen in (None, _AUTO_MEMBER) else chosen
+    if isinstance(answer, AnswerIntField):
+        return answer.value
+    assert isinstance(answer, AnswerTextField)
+    return None if answer.value in (None, '') else answer.value
+
+
+def _option_fields(specs: tuple[ConfigSpec, ...],
+                   values: dict[str, object]) -> list[AskField]:
+    """Return one form field per config member, pre-filled from values."""
+    return [_option_field(spec, values.get(spec.name)) for spec in specs]
+
+
+def _option_field(spec: ConfigSpec, current: Optional[object]) -> AskField:
+    """Return the form field that asks for one config member."""
+    if spec.choices is not None:
+        return _choice_field(spec, current)
+    if spec.value_type == 'Optional[int]':
+        return AskIntField(spec.name, spec.description, nullable=True,
+                           default=_int_default(spec, current))
+    return AskTextField(spec.name, spec.description, nullable=True,
+                        default=_text_default(spec, current))
+
+
+def _choice_field(spec: ConfigSpec, current: Optional[object]) \
+        -> AskChoiceField:
+    """Return a choice field with a leading use-the-default option."""
+    real = _spec_choices(spec)
+    assert real is not None
+    choices = (_AUTO_MEMBER,) + real
+    default = str(current) if current is not None and str(current) in real \
+        else _AUTO_MEMBER
+    return AskChoiceField(spec.name, spec.description, choices=choices,
+                          default=default)
+
+
+def _int_default(spec: ConfigSpec, current: Optional[object]) -> Optional[int]:
+    """Return the pre-filled integer default for one member."""
+    if isinstance(current, int):
+        return current
+    text = _member_default(spec)
+    return None if text is None else int(text)
+
+
+def _text_default(spec: ConfigSpec,
+                  current: Optional[object]) -> Optional[str]:
+    """Return the pre-filled text default for one member."""
+    if current is not None:
+        return str(current)
+    return _member_default(spec)
 
 
 def _spec_choices(spec: ConfigSpec) -> Optional[tuple[str, ...]]:
@@ -303,46 +363,34 @@ def _spec_choices(spec: ConfigSpec) -> Optional[tuple[str, ...]]:
     return tuple(str(choice) for choice in spec.choices)
 
 
-def _resolve_section(data: dict[str, object], section: str,
-                     specs: tuple[ConfigSpec, ...],
-                     result: list[list[Optional[str]]]) -> dict[str, object]:
-    """Return data with one section rebuilt from a filled-in table."""
-    new_data = deepcopy(data)
-    new_data.pop(section, None)
-    for index, spec in enumerate(specs):
-        raw = result[index][1]
-        if raw is None or raw == '':
-            continue
-        value = _resolve_member_value(spec, raw)
-        _set_json_member(new_data, spec.name, value)
+def _data_from_values(data: dict[str, object], specs: tuple[ConfigSpec, ...],
+                      values: dict[str, object]) -> dict[str, object]:
+    """Return fresh data from the chosen format and the answered members."""
+    new_data: dict[str, object] = {}
+    format_name = data.get('format_name')
+    assert isinstance(format_name, str)
+    new_data['format_name'] = format_name
+    implementation = data.get('implementation')
+    if isinstance(implementation, str):
+        new_data['implementation'] = implementation
+    for spec in specs:
+        if spec.name in values:
+            _set_json_member(new_data, spec.name,
+                             _resolve_member_value(spec, values[spec.name]))
     return new_data
 
 
-def _resolve_member_value(spec: ConfigSpec, raw: str) -> object:
-    """Convert one entered table value to the type TableIO expects."""
+def _resolve_member_value(spec: ConfigSpec, raw: object) -> object:
+    """Convert one answered value to the type TableIO expects."""
     if spec.choices is not None:
         choices = tuple(str(choice) for choice in spec.choices)
-        resolved = match_token(raw, choices, False)
+        resolved = match_token(str(raw), choices, False)
         if resolved is None:
             raise ValueError(CHOICE_ERROR)
         return resolved
-    return _parse_member_value(spec, raw)
-
-
-def _section_check(run: _WizardRun, section: str,
-                   specs: tuple[ConfigSpec, ...]) -> PartialCheck:
-    """Return a partial-check callback for one section table."""
-    def check(table: list[list[Optional[str]]],
-              _position: tuple[int, int]) -> tuple[bool, str]:
-        capture = StringIO()
-        try:
-            trial = _resolve_section(run.data, section, specs, table)
-            _config_from_data(trial, run.caps, run.file_access, capture)
-        except (ConfigBadJson, ConfigError, InvalidConfiguration,
-                ValueError) as error:
-            return (False, f'Invalid value: {error}')
-        return (True, '')
-    return check
+    if isinstance(raw, int):
+        return raw
+    return _parse_member_value(spec, str(raw))
 
 
 def _commit(data: dict[str, object], new_data: dict[str, object],
@@ -414,57 +462,6 @@ def _matches(spec_values: Optional[Sequence[str]],
     return any(value in spec_values for value in wanted_values)
 
 
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
-                       caps: Capabilities, file_access: FileAccess,
-                       ui_bridge: WizardUiBridge, stderr_file: TextIO) -> None:
-    """Ask for one optional member and keep retrying until it validates."""
-    re_ask_reason = None
-    while True:
-        current = _get_json_member(data, spec.name)
-        value = _ask_member_value(spec, ui_bridge, re_ask_reason, current)
-        if value is None:
-            return
-        new_data = deepcopy(data)
-        _set_json_member(new_data, spec.name, value)
-        re_ask_reason = _commit(data, new_data, caps, file_access, stderr_file)
-        if re_ask_reason is None:
-            return
-
-
-def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                      re_ask_reason: Optional[str],
-                      current: object) -> Optional[object]:
-    """Ask for one optional value and convert simple scalar types."""
-    if spec.choices is not None:
-        real = tuple(str(choice) for choice in spec.choices)
-        choices = (_AUTO_MEMBER,) + real
-        default = str(current) if current is not None else _AUTO_MEMBER
-        if default not in choices:
-            default = _AUTO_MEMBER
-        chosen = ui_bridge.ask_choice(f'Select value for {spec.name}:',
-                                      choices=choices, default=default,
-                                      re_ask_reason=re_ask_reason)
-        return None if chosen == _AUTO_MEMBER else chosen
-    return _ask_text_member_value(spec, ui_bridge, re_ask_reason, current)
-
-
-def _ask_text_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                           re_ask_reason: Optional[str],
-                           current: object) -> Optional[object]:
-    """Ask for one free-text optional value."""
-    question = _member_question(spec)
-    default = str(current) if current is not None else _member_default(spec)
-    while True:
-        answer = _ask_text_default(ui_bridge, question, re_ask_reason, default)
-        if answer is None:
-            return None
-        try:
-            return _parse_member_value(spec, answer)
-        except ValueError as error:
-            re_ask_reason = f'Invalid value: {error}\nPlease try again.'
-
-
 def _parse_member_value(spec: ConfigSpec, answer: str) -> object:
     """Convert a free-text answer to the type expected by TableIO."""
     if spec.value_type == 'Optional[int]':
@@ -483,45 +480,6 @@ def _member_default(spec: ConfigSpec) -> Optional[str]:
     except ValueError:
         return None
     return spec.default_text
-
-
-def _ask_text_default(ui_bridge: WizardUiBridge, question: str,
-                      re_ask_reason: Optional[str],
-                      default: Optional[str]) -> Optional[str]:
-    """Ask nullable text, passing default when the bridge accepts it."""
-    if default is None:
-        return ui_bridge.ask_text(question, re_ask_reason, nullable=True)
-    if _accepts_default(ui_bridge.ask_text):
-        return ui_bridge.ask_text(question, re_ask_reason, nullable=True,
-                                  default=default)
-    bridge_name = type(ui_bridge).__name__
-    warnings.warn(
-        f'{bridge_name}.ask_text() should accept the default keyword '
-        'argument. Folding the default into the question text is '
-        'deprecated.',
-        DeprecationWarning, stacklevel=3)
-    answer = ui_bridge.ask_text(f'{question} [{default}]', re_ask_reason,
-                                nullable=True)
-    return default if answer is None else answer
-
-
-def _accepts_default(method: Callable[..., object]) -> bool:
-    """Return whether method accepts a default keyword argument."""
-    try:
-        params = inspect.signature(method).parameters.values()
-    except (TypeError, ValueError):
-        return False
-    return any(param.kind == inspect.Parameter.VAR_KEYWORD
-               or param.name == 'default' for param in params)
-
-
-def _member_question(spec: ConfigSpec) -> str:
-    """Return the explanatory question for one free-text member."""
-    return (
-        f'{spec.name}:\n'
-        f'{spec.description}\n'
-        f'Type: {spec.value_type}\n'
-        'Press Enter to use the default.')
 
 
 def _set_json_member(data: dict[str, object], member_name: str,

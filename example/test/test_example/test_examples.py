@@ -102,15 +102,15 @@ def _csv_wizard_answers(file_access: FileAccess,
     return lines
 
 
-def _csv_section_answers(file_access: FileAccess,
-                         member_answers: dict[str, str]) -> list[str]:
-    """Return answers for the CSV section part of the endpoint wizard."""
+def _csv_member_answers(file_access: FileAccess,
+                        member_answers: dict[str, str]) -> list[str]:
+    """Return option-form answers for every CSV member, in wizard order."""
     capabilities = access_capabilities(file_access)
     member_names = get_config_member_names(capabilities=capabilities,
                                            file_access=file_access,
                                            format_name='CSV')
     return [member_answers.get(name, '') for name in member_names
-            if name.startswith('csv.')]
+            if name not in ('format_name', 'implementation')]
 
 
 def _split_happy_answers() -> list[str]:
@@ -462,8 +462,8 @@ def test_edit_goes_back(tmp_path: Path) -> None:
     config_file = tmp_path / 'edit-back.csv.json'
     answers = _csv_wizard_answers(FileAccess.CREATE, {'csv.delimiter': ';'})
     answers.append('n')
-    answers.extend(_csv_section_answers(FileAccess.CREATE,
-                                        {'csv.delimiter': ','}))
+    answers.extend(_csv_member_answers(FileAccess.CREATE,
+                                       {'csv.delimiter': ','}))
     answers.append('')
     e10_edit_config_wizard.edit_config_file(config_file=config_file,
                                             stdin_file=StringIO(

@@ -73,11 +73,15 @@ def test_backward_start() -> None:
 
 
 def test_back_default() -> None:
-    """Going back re-asks the previous question with its old answer."""
+    """Back from the option form re-asks format with its old answer.
+
+    Back from the first option field returns to the format question,
+    which keeps the earlier format choice as its default.
+    """
     file_access = FileAccess.CREATE
     answers: list[str | int | BaseException] = [
-        _format_index('CSV', file_access), 'utf-8', WizardBack(), '']
-    answers.extend(_member_answer_lines('CSV', file_access))
+        _format_index('CSV', file_access), WizardBack(), '', 'utf-8',
+        '', '', '', '', '', '']
     config = _run_bridge(file_access, _ScriptedBridge(answers))
     assert config.format_name == 'CSV'
     assert config.character_encoding == 'utf-8'

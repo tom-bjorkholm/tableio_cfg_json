@@ -15,7 +15,7 @@ import pytest
 
 from tableio import Capabilities, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
-    list_implementations_tableio, list_registered_tableio, tio_config_specs
+    list_implementations_tableio, list_registered_tableio
 from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
     WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard, \
     TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
@@ -206,6 +206,14 @@ def _member_answer_lines(format_name: str, file_access: FileAccess,
     return lines
 
 
+def assert_csv_core(config: TioJsonConfig) -> None:
+    """Assert the CSV option values shared by several wizard tests."""
+    assert config.character_encoding == 'utf-8'
+    assert config.csv is not None
+    assert config.csv.dialect == CsvDialect.UNIX
+    assert config.csv.delimiter == ';'
+
+
 def test_public_api() -> None:
     """The wizard helper is exported from the package root."""
     assert callable(tio_json_config_wizard)
@@ -251,8 +259,8 @@ def test_wizard_csv_defaults() -> None:
     assert config.implementation is None
     assert config.csv is None
     assert 'Select TableIO format' in output
-    assert 'Configure csv options' in output
-    assert 'delimiter - Value' in output
+    assert 'Configure options for CSV' in output
+    assert 'csv.delimiter' in output
 
 
 def test_blank_impl() -> None:
@@ -279,20 +287,23 @@ def test_lock_impl() -> None:
 
 
 def test_csv_custom() -> None:
-    """The wizard stores entered CSV-specific values."""
+    """The wizard stores entered CSV-specific values.
+
+    The console option form is a choice menu per member. The leading
+    "use the default" option takes menu number 1, so UNIX is 3 in the
+    dialect menu and minimal is 3 in the quoting menu.
+    """
     member_answers = {
         'character_encoding': ['utf-8'],
-        'csv.dialect': ['2'],
+        'csv.dialect': ['3'],
         'csv.delimiter': [';'],
-        'csv.quoting': ['2'],
+        'csv.quoting': ['3'],
         'csv.quotechar': ['"']}
     lines = _wizard_lines('CSV', FileAccess.CREATE,
                           member_answers=member_answers)
     config, _, _ = _run_wizard(FileAccess.CREATE, lines)
-    assert config.character_encoding == 'utf-8'
+    assert_csv_core(config)
     assert config.csv is not None
-    assert config.csv.dialect == CsvDialect.UNIX
-    assert config.csv.delimiter == ';'
     assert config.csv.quoting == 'minimal'
     assert config.csv.quotechar == '"'
 
@@ -305,14 +316,25 @@ def test_bad_menu() -> None:
     assert 'Please enter one of the listed choices.' in error_output
 
 
+def _csv_form_lines(delimiter: str) -> list[str]:
+    """Return one console option-form pass for CSV with one delimiter."""
+    names = _optional_names('CSV', FileAccess.CREATE, None)
+    return [delimiter if name == 'csv.delimiter' else '' for name in names]
+
+
 def test_bad_member() -> None:
-    """A member value rejected by config validation is asked again."""
-    lines = _wizard_lines('CSV', FileAccess.CREATE,
-                          member_answers={'csv.delimiter': [';;', ';']})
-    config, _, error_output = _run_wizard(FileAccess.CREATE, lines)
+    """A member value rejected by config validation re-asks the form.
+
+    The option form is submitted as a whole, so a value that fails final
+    validation re-asks the entire form. The bad delimiter is entered on
+    the first pass and corrected on the second.
+    """
+    fmt = str(_format_index('CSV', FileAccess.CREATE) + 1)
+    lines = [fmt] + _csv_form_lines(';;') + _csv_form_lines(';')
+    config, output, _ = _run_wizard(FileAccess.CREATE, lines)
     assert config.csv is not None
     assert config.csv.delimiter == ';'
-    assert 'Invalid value' in error_output
+    assert 'Invalid value' in output
 
 
 def test_bridge_int_index() -> None:
@@ -335,8 +357,12 @@ def test_bool_choice_rejected() -> None:
 
 
 def test_bridge_str_index() -> None:
-    """A bridge may return a 0-based choice index as a string."""
-    member_answers: dict[str, list[str | int]] = {'csv.quoting': ['1']}
+    """A bridge may return a 0-based choice index as a string.
+
+    The option form prepends a "use the default" choice, so index 2 of
+    the quoting field selects minimal.
+    """
+    member_answers: dict[str, list[str | int]] = {'csv.quoting': ['2']}
     answers: list[str | int] = ['0']
     answers.extend(_member_answer_lines('CSV', FileAccess.CREATE,
                                         member_answers=member_answers))
@@ -385,7 +411,7 @@ def test_enum_bad_text_retry() -> None:
     assert config.csv is not None
     assert config.csv.dialect == CsvDialect.EXCEL
     reasons = [call[1] for call in ui_bridge.calls
-               if call[0].startswith('dialect')]
+               if call[0].startswith('csv.dialect')]
     retry_reason = reasons[1]
     assert reasons[0] is None
     assert retry_reason is not None
@@ -393,7 +419,11 @@ def test_enum_bad_text_retry() -> None:
 
 
 def test_text_value_retries() -> None:
-    """Free-text members reject malformed values and ask again."""
+    """Integer members reject malformed values and ask again.
+
+    Integer members are integer form fields, so the base ask_int loop
+    re-asks the same field until it parses, using the integer error.
+    """
     member_answers: dict[str, list[str | int]] = {
         'line_length': ['not-an-int', '72'],
         'table_max_line_length': ['oops', '30']}
@@ -407,7 +437,7 @@ def test_text_value_retries() -> None:
     assert config.table_max_line_length == 30
     reasons = [call[1] for call in ui_bridge.calls
                if call[1] is not None]
-    assert any('Invalid value:' in reason for reason in reasons)
+    assert any(_INT_ERROR in reason for reason in reasons)
 
 
 def test_bad_bridge_choice() -> None:
@@ -505,8 +535,8 @@ def test_table_partial_check() -> None:
     assert bridge.calls[1][1] == 'no good'
 
 
-def test_cancel_section() -> None:
-    """Cancelling a section returns to the format question to re-choose."""
+def test_cancel_options() -> None:
+    """Cancelling the option form returns to the format question."""
     answers: list[str | int | BaseException] = [
         _format_index('CSV', FileAccess.CREATE), '', WizardCancelLevel(),
         WizardAbort()]
@@ -525,7 +555,7 @@ def test_cancel_at_format() -> None:
 
 
 def test_abort_propagates() -> None:
-    """Abort raised in a section propagates out of the wizard."""
+    """Abort raised in the option form propagates out of the wizard."""
     answers: list[str | int | BaseException] = [
         _format_index('CSV', FileAccess.CREATE), '', WizardAbort()]
     with pytest.raises(WizardAbort):
@@ -538,25 +568,31 @@ def test_back_first_question() -> None:
         _run_bridge(FileAccess.CREATE, _ScriptedBridge([WizardBack()]))
 
 
-def test_back_prev_step() -> None:
-    """Back from a later step keeps the previous answer as default."""
+def test_back_to_format() -> None:
+    """Back from the first option field returns to the format question."""
     answers: list[str | int | BaseException] = [
-        _format_index('CSV', FileAccess.CREATE), 'utf-8', WizardBack(),
-        '', '', '', '', '', '', '']
-    config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
-    assert config.character_encoding == 'utf-8'
-    assert config.csv is None
+        _format_index('CSV', FileAccess.CREATE), WizardBack(),
+        _format_index('CSV', FileAccess.CREATE)]
+    answers.extend(_member_answer_lines('CSV', FileAccess.CREATE))
+    bridge = _ScriptedBridge(answers)
+    config = _run_bridge(FileAccess.CREATE, bridge)
+    assert config.format_name == 'CSV'
+    formats = [call for call in bridge.calls
+               if call[0] == 'Select TableIO format:']
+    assert len(formats) == 2
 
 
-def test_cell_back() -> None:
-    """Back inside a table re-asks one cell and keeps the earlier ones."""
+def test_back_within_form() -> None:
+    """Back to an earlier option field keeps the fields before it.
+
+    The base ask_form fallback re-asks the field stepped back to from its
+    starting value, while fields already answered before it are kept.
+    """
     answers: list[str | int | BaseException] = [
-        _format_index('CSV', FileAccess.CREATE), '', 'unix', 'x',
-        WizardBack(), ';', '', '', '', '']
+        _format_index('CSV', FileAccess.CREATE), 'utf-8', '', WizardBack(),
+        'unix', ';', '', '', '', '']
     config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
-    assert config.csv is not None
-    assert config.csv.delimiter == ';'
-    assert config.csv.dialect == CsvDialect.UNIX
+    assert_csv_core(config)
 
 
 def test_ask_choice_index() -> None:
@@ -756,97 +792,6 @@ def test_multi_empty_token() -> None:
     """Empty tokens between commas are ignored in a multi answer."""
     bridge = _ScriptedBridge(['0,,1'])
     assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a', 'b']
-
-
-class _TableBridge(WizardUiBridge):
-    """Bridge returning scripted, unvalidated tables for one section.
-
-    The format question is answered with a fixed choice and every scalar
-    member is skipped with an empty answer. Each ask_table call returns a
-    table built from the supplied rows and the values in one scripted
-    override dict, keyed by parameter name, so a test can submit tables
-    the per-cell partial check would otherwise have blocked.
-    """
-
-    def __init__(self, format_index: int,
-                 tables: Sequence[dict[str, str]]) -> None:
-        """Store the format index and the scripted table overrides."""
-        self.format_index = format_index
-        self.tables = list(tables)
-        self.table_reasons: list[Optional[str]] = []
-        self.stderr_file = StringIO()
-        self.shown: list[str] = []
-        self.format_asked = False
-
-    def ask_choice(self, question: str, *, choices: Sequence[str],
-                   default: Optional[str] = None,
-                   re_ask_reason: Optional[str] = None) -> str:
-        """Answer the format menu once with the scripted choice."""
-        if not self.format_asked:
-            self.format_asked = True
-            return choices[self.format_index]
-        return choices[0] if default is None else default
-
-    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False, *, default: Optional[str] = None,
-                 sensitive: bool = False) -> Optional[str]:
-        """Skip every scalar member with an empty answer."""
-        _ = (question, re_ask_reason, default, sensitive)
-        return None if nullable else ''
-
-    # pylint: disable-next=too-many-arguments
-    def ask_table(self, columns: Sequence[TableColumn],
-                  cells: list[list[TableCell]], question: str, *,
-                  re_ask_reason: Optional[str] = None,
-                  partial_check: Optional[PartialCheck] = None,
-                  min_rows: Optional[int] = None,
-                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
-        """Return a table built from the next scripted override dict."""
-        self.table_reasons.append(re_ask_reason)
-        overrides = self.tables.pop(0)
-        return [[row[0].value, overrides.get(str(row[0].value))]
-                for row in cells]
-
-    def error_file(self) -> StringIO:
-        """Return the stream used for validation diagnostics."""
-        return self.stderr_file
-
-    def show(self, message: str) -> None:
-        """Record a shown message."""
-        self.shown.append(message)
-
-
-def test_section_bad_table() -> None:
-    """An invalid submitted section table is rejected and re-asked."""
-    file_access = FileAccess.CREATE
-    caps = access_capabilities(file_access)
-    match = list_registered_tableio(
-        capabilities=add_access_capabilities(file_access, caps))
-    tables = [{'dialect': 'zzz'}, {'delimiter': ';;'}, {}]
-    bridge = _TableBridge(match.index('CSV'), tables)
-    config = tio_json_config_wizard(caps, file_access, bridge)
-    assert config.format_name == 'CSV'
-    assert config.csv is None
-    assert bridge.table_reasons[0] is None
-    first_retry = bridge.table_reasons[1]
-    second_retry = bridge.table_reasons[2]
-    assert first_retry is not None and 'Invalid value' in first_retry
-    assert second_retry is not None and 'Invalid value' in second_retry
-
-
-def test_scalar_commit_retry() -> None:
-    """A scalar value that fails validation is rejected and re-asked."""
-    file_access = FileAccess.CREATE
-    caps = access_capabilities(file_access)
-    spec = tio_config_specs()['character_encoding']
-    bridge = _ScriptedBridge(['bogus-encoding-xyz', ''])
-    data: dict[str, object] = {'format_name': 'CSV'}
-    wizard_module._ask_config_member(spec, data, caps, file_access, bridge,
-                                     bridge.error_file())
-    assert 'character_encoding' not in data
-    assert bridge.calls[0][1] is None
-    retry = bridge.calls[1][1]
-    assert retry is not None and 'Invalid value' in retry
 
 
 def test_ask_impl_single() -> None:

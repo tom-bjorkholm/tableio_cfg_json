@@ -1,89 +1,16 @@
 #! /usr/bin/env python3
-"""Tests for wizard text defaults and bridge adaptation."""
+"""Tests for the option-form field defaults built by the wizard."""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
 # pylint: disable=protected-access
 
-from typing import Optional, Sequence
-
+from typing import Optional
 import pytest
-
 from tableio import ConfigSpec
-from tableio_cfg_json import WizardUiBridge
+from tableio_cfg_json import AskChoiceField, AskIntField, AskTextField
 import tableio_cfg_json.wizard as wizard_module
-
-
-class _ModernBridge(WizardUiBridge):
-    """Bridge that records default-aware text questions."""
-
-    def __init__(self, answers: Sequence[str]) -> None:
-        """Store text answers and start with no recorded calls."""
-        self.answers = list(answers)
-        self.calls: list[tuple[str, Optional[str], Optional[str]]] = []
-
-    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False, *, default: Optional[str] = None,
-                 sensitive: bool = False) -> Optional[str]:
-        """Return scripted text, honoring the default argument."""
-        _ = sensitive
-        self.calls.append((question, re_ask_reason, default))
-        answer = self.answers.pop(0)
-        if answer == '' and default is not None:
-            return default
-        return None if nullable and answer == '' else answer
-
-    def show(self, message: str) -> None:
-        """Ignore shown messages."""
-        _ = message
-
-
-class _KwBridge(WizardUiBridge):
-    """Bridge that accepts default through keyword arguments."""
-
-    def __init__(self, answers: Sequence[str]) -> None:
-        """Store text answers and start with no recorded calls."""
-        self.answers = list(answers)
-        self.calls: list[tuple[str, Optional[str], Optional[str]]] = []
-
-    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False, **kwargs: object) -> Optional[str]:
-        """Return scripted text, accepting default through kwargs."""
-        default_value = kwargs.get('default')
-        assert default_value is None or isinstance(default_value, str)
-        default = default_value
-        self.calls.append((question, re_ask_reason, default))
-        answer = self.answers.pop(0)
-        if answer == '' and default is not None:
-            return default
-        return None if nullable and answer == '' else answer
-
-    def show(self, message: str) -> None:
-        """Ignore shown messages."""
-        _ = message
-
-
-class _OldBridge(WizardUiBridge):
-    """Bridge with the old ask_text signature."""
-
-    def __init__(self, answers: Sequence[str]) -> None:
-        """Store text answers and start with no recorded calls."""
-        self.answers = list(answers)
-        self.calls: list[tuple[str, Optional[str]]] = []
-
-    # pylint: disable-next=arguments-differ
-    def ask_text(self, question: str,  # type: ignore[override]
-                 re_ask_reason: Optional[str] = None,
-                 nullable: bool = False) -> Optional[str]:
-        """Return scripted text using the old signature."""
-        self.calls.append((question, re_ask_reason))
-        answer = self.answers.pop(0)
-        return None if nullable and answer == '' else answer
-
-    def show(self, message: str) -> None:
-        """Ignore shown messages."""
-        _ = message
 
 
 def _int_spec(default: Optional[str]) -> ConfigSpec:
@@ -93,71 +20,76 @@ def _int_spec(default: Optional[str]) -> ConfigSpec:
 
 def _str_spec(default: Optional[str]) -> ConfigSpec:
     """Return a string config spec with an optional default text."""
-    desc = 'Character encoding.'
-    return ConfigSpec('encoding', desc, 'Optional[str]', default)
+    return ConfigSpec('encoding', 'Character encoding.', 'Optional[str]',
+                      default)
 
 
-def test_modern_default() -> None:
-    """The wizard passes concrete defaults to modern bridges."""
-    bridge = _ModernBridge([''])
-    value = wizard_module._ask_text_member_value(_int_spec('72'), bridge, None,
-                                                 None)
-    assert value == 72
-    assert bridge.calls == [('line_length:\nLine length.\nType: '
-                             'Optional[int]\nPress Enter to use the '
-                             'default.', None, '72')]
+def _choice_spec() -> ConfigSpec:
+    """Return a choice config spec with two choices."""
+    return ConfigSpec('csv.dialect', 'The dialect.', 'Optional[str]',
+                      'None means backend default.', choices=('EXCEL', 'UNIX'))
 
 
-def test_kwargs_default() -> None:
-    """The wizard recognizes bridges that accept arbitrary keywords."""
-    bridge = _KwBridge([''])
-    value = wizard_module._ask_text_member_value(_int_spec('64'), bridge, None,
-                                                 None)
-    assert value == 64
-    assert bridge.calls[0][2] == '64'
-
-
-def test_old_default_warns() -> None:
-    """Old bridges get a warning and a bracketed prompt fallback."""
-    bridge = _OldBridge([''])
-    with pytest.warns(DeprecationWarning, match='_OldBridge.*default keyword'):
-        value = wizard_module._ask_text_member_value(_int_spec('80'), bridge,
-                                                     None, None)
-    assert value == 80
-    assert bridge.calls[0][0].endswith('Press Enter to use the default. [80]')
-
-
-def test_bad_default_skipped() -> None:
-    """Unparseable integer default text is not passed as a default."""
-    bridge = _ModernBridge([''])
-    assert wizard_module._ask_text_member_value(_int_spec('automatic'), bridge,
-                                                None, None) is None
-    assert bridge.calls[0][2] is None
-
-
-def test_none_description_skipped() -> None:
-    """None-means descriptions are not treated as concrete strings."""
-    bridge = _ModernBridge([''])
-    spec = _str_spec('None means backend default.')
-    assert wizard_module._ask_text_member_value(spec, bridge, None,
-                                                None) is None
-    assert bridge.calls[0][2] is None
-
-
-def test_invalid_retry_keeps_default() -> None:
-    """A retry keeps passing the default and shows the parse error."""
-    bridge = _ModernBridge(['bad', ''])
-    value = wizard_module._ask_text_member_value(_int_spec('40'), bridge, None,
-                                                 None)
-    assert value == 40
-    assert bridge.calls[1][1] is not None
-    assert bridge.calls[1][2] == '40'
-
-
-def test_member_default_helper() -> None:
+def test_member_default() -> None:
     """The default helper returns only concrete parseable values."""
     assert wizard_module._member_default(_int_spec('12')) == '12'
     assert wizard_module._member_default(_int_spec('auto')) is None
     assert wizard_module._member_default(_str_spec('utf-8')) == 'utf-8'
     assert wizard_module._member_default(
         _str_spec('None means backend default.')) is None
+
+
+@pytest.mark.parametrize('current, expected', [(7, 7), (None, 40)])
+def test_int_default(current: Optional[int], expected: int) -> None:
+    """An integer field starts from the current value or spec default."""
+    assert wizard_module._int_default(_int_spec('40'), current) == expected
+
+
+def test_int_default_none() -> None:
+    """An integer field with no current value and no default is empty."""
+    assert wizard_module._int_default(_int_spec(None), None) is None
+
+
+@pytest.mark.parametrize('current, expected', [
+    ('cp1252', 'cp1252'), (None, 'utf-8')])
+def test_text_default(current: Optional[str], expected: str) -> None:
+    """A text field starts from the current value or spec default."""
+    assert wizard_module._text_default(_str_spec('utf-8'), current) == expected
+
+
+def test_text_default_none() -> None:
+    """A text field with no current value and no default is empty."""
+    assert wizard_module._text_default(
+        _str_spec('None means backend default.'), None) is None
+
+
+def test_option_field_int() -> None:
+    """An Optional[int] member becomes a nullable integer field."""
+    field = wizard_module._option_field(_int_spec('None means default.'), 5)
+    assert isinstance(field, AskIntField)
+    assert field.nullable is True
+    assert field.default == 5
+    assert field.help_text == 'Line length.'
+
+
+def test_option_field_text() -> None:
+    """An Optional[str] member becomes a nullable text field."""
+    field = wizard_module._option_field(_str_spec('None means default.'), None)
+    assert isinstance(field, AskTextField)
+    assert field.nullable is True
+    assert field.default is None
+
+
+def test_option_field_choice() -> None:
+    """A member with choices becomes a choice field with a default option."""
+    field = wizard_module._option_field(_choice_spec(), 'UNIX')
+    assert isinstance(field, AskChoiceField)
+    assert field.choices[0] == wizard_module._AUTO_MEMBER
+    assert 'EXCEL' in field.choices and 'UNIX' in field.choices
+    assert field.default == 'UNIX'
+
+
+def test_choice_no_current() -> None:
+    """A choice field with no current value uses the use-the-default option."""
+    field = wizard_module._choice_field(_choice_spec(), None)
+    assert field.default == wizard_module._AUTO_MEMBER

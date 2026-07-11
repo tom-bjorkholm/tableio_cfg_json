@@ -276,33 +276,34 @@
   * [\_drive](#tableio_cfg_json.wizard._drive)
   * [\_start\_index](#tableio_cfg_json.wizard._start_index)
   * [\_build\_steps](#tableio_cfg_json.wizard._build_steps)
-  * [\_member\_steps](#tableio_cfg_json.wizard._member_steps)
-  * [\_section\_specs](#tableio_cfg_json.wizard._section_specs)
+  * [\_relevant\_specs](#tableio_cfg_json.wizard._relevant_specs)
   * [\_run\_step](#tableio_cfg_json.wizard._run_step)
   * [\_run\_format\_step](#tableio_cfg_json.wizard._run_format_step)
   * [\_run\_impl\_step](#tableio_cfg_json.wizard._run_impl_step)
   * [\_clear\_after\_format](#tableio_cfg_json.wizard._clear_after_format)
-  * [\_run\_section\_step](#tableio_cfg_json.wizard._run_section_step)
-  * [\_section\_question](#tableio_cfg_json.wizard._section_question)
-  * [\_section\_cells](#tableio_cfg_json.wizard._section_cells)
+  * [\_run\_options\_step](#tableio_cfg_json.wizard._run_options_step)
+  * [\_options\_question](#tableio_cfg_json.wizard._options_question)
+  * [\_apply\_options](#tableio_cfg_json.wizard._apply_options)
+  * [\_options\_validator](#tableio_cfg_json.wizard._options_validator)
+  * [\_current\_values](#tableio_cfg_json.wizard._current_values)
+  * [\_answer\_values](#tableio_cfg_json.wizard._answer_values)
+  * [\_answer\_value](#tableio_cfg_json.wizard._answer_value)
+  * [\_option\_fields](#tableio_cfg_json.wizard._option_fields)
+  * [\_option\_field](#tableio_cfg_json.wizard._option_field)
+  * [\_choice\_field](#tableio_cfg_json.wizard._choice_field)
+  * [\_int\_default](#tableio_cfg_json.wizard._int_default)
+  * [\_text\_default](#tableio_cfg_json.wizard._text_default)
   * [\_spec\_choices](#tableio_cfg_json.wizard._spec_choices)
-  * [\_resolve\_section](#tableio_cfg_json.wizard._resolve_section)
+  * [\_data\_from\_values](#tableio_cfg_json.wizard._data_from_values)
   * [\_resolve\_member\_value](#tableio_cfg_json.wizard._resolve_member_value)
-  * [\_section\_check](#tableio_cfg_json.wizard._section_check)
   * [\_commit](#tableio_cfg_json.wizard._commit)
   * [\_ask\_format](#tableio_cfg_json.wizard._ask_format)
   * [\_impl\_names](#tableio_cfg_json.wizard._impl_names)
   * [\_ask\_implementation](#tableio_cfg_json.wizard._ask_implementation)
   * [\_ask\_member](#tableio_cfg_json.wizard._ask_member)
   * [\_matches](#tableio_cfg_json.wizard._matches)
-  * [\_ask\_config\_member](#tableio_cfg_json.wizard._ask_config_member)
-  * [\_ask\_member\_value](#tableio_cfg_json.wizard._ask_member_value)
-  * [\_ask\_text\_member\_value](#tableio_cfg_json.wizard._ask_text_member_value)
   * [\_parse\_member\_value](#tableio_cfg_json.wizard._parse_member_value)
   * [\_member\_default](#tableio_cfg_json.wizard._member_default)
-  * [\_ask\_text\_default](#tableio_cfg_json.wizard._ask_text_default)
-  * [\_accepts\_default](#tableio_cfg_json.wizard._accepts_default)
-  * [\_member\_question](#tableio_cfg_json.wizard._member_question)
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_get\_json\_member](#tableio_cfg_json.wizard._get_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
@@ -4650,7 +4651,7 @@ Mutable state shared by the steps of one wizard run.
 class _Step()
 ```
 
-One navigable question or grouped table in a wizard run.
+One navigable question or grouped option form in a wizard run.
 
 <a id="tableio_cfg_json.wizard.tio_json_config_wizard"></a>
 
@@ -4763,27 +4764,16 @@ def _build_steps(run: _WizardRun) -> list[_Step]
 
 Return the ordered steps implied by the answers collected so far.
 
-<a id="tableio_cfg_json.wizard._member_steps"></a>
+<a id="tableio_cfg_json.wizard._relevant_specs"></a>
 
-#### \_member\_steps
-
-```python
-def _member_steps(format_name: str,
-                  selected_impls: Sequence[str]) -> list[_Step]
-```
-
-Return scalar and section steps for the relevant config members.
-
-<a id="tableio_cfg_json.wizard._section_specs"></a>
-
-#### \_section\_specs
+#### \_relevant\_specs
 
 ```python
-def _section_specs(section: str, format_name: str,
-                   selected_impls: Sequence[str]) -> tuple[ConfigSpec, ...]
+def _relevant_specs(format_name: str,
+                    selected_impls: Sequence[str]) -> tuple[ConfigSpec, ...]
 ```
 
-Return the relevant config specs that belong to one section.
+Return the config specs the option form should ask for.
 
 <a id="tableio_cfg_json.wizard._run_step"></a>
 
@@ -4825,37 +4815,132 @@ def _clear_after_format(data: dict[str, object]) -> None
 
 Keep the selected format and discard dependent option values.
 
-<a id="tableio_cfg_json.wizard._run_section_step"></a>
+<a id="tableio_cfg_json.wizard._run_options_step"></a>
 
-#### \_run\_section\_step
-
-```python
-def _run_section_step(run: _WizardRun, section: str,
-                      specs: tuple[ConfigSpec, ...]) -> None
-```
-
-Ask one table of section members and store the entered values.
-
-<a id="tableio_cfg_json.wizard._section_question"></a>
-
-#### \_section\_question
+#### \_run\_options\_step
 
 ```python
-def _section_question(section: str) -> str
+def _run_options_step(run: _WizardRun, specs: tuple[ConfigSpec, ...]) -> None
 ```
 
-Return the instruction shown above one section table.
+Ask one form of all optional members and store the answers.
 
-<a id="tableio_cfg_json.wizard._section_cells"></a>
+<a id="tableio_cfg_json.wizard._options_question"></a>
 
-#### \_section\_cells
+#### \_options\_question
 
 ```python
-def _section_cells(run: _WizardRun, section: str,
-                   specs: tuple[ConfigSpec, ...]) -> list[list[TableCell]]
+def _options_question(data: dict[str, object]) -> str
 ```
 
-Return the table rows for one section, pre-filled from the data.
+Return the instruction shown above the option form.
+
+<a id="tableio_cfg_json.wizard._apply_options"></a>
+
+#### \_apply\_options
+
+```python
+def _apply_options(run: _WizardRun, specs: tuple[ConfigSpec, ...],
+                   values: dict[str, object]) -> Optional[str]
+```
+
+Build data from the answers, validate it and commit on success.
+
+<a id="tableio_cfg_json.wizard._options_validator"></a>
+
+#### \_options\_validator
+
+```python
+def _options_validator(run: _WizardRun,
+                       specs: tuple[ConfigSpec, ...]) -> PartialFormValidator
+```
+
+Return a partial-form validator for the option form.
+
+<a id="tableio_cfg_json.wizard._current_values"></a>
+
+#### \_current\_values
+
+```python
+def _current_values(data: dict[str, object],
+                    specs: tuple[ConfigSpec, ...]) -> dict[str, object]
+```
+
+Return the members already set in the data, keyed by member name.
+
+<a id="tableio_cfg_json.wizard._answer_values"></a>
+
+#### \_answer\_values
+
+```python
+def _answer_values(specs: tuple[ConfigSpec, ...],
+                   answers: AnswerFields) -> dict[str, object]
+```
+
+Return the answered members, dropping omitted ones, by member name.
+
+<a id="tableio_cfg_json.wizard._answer_value"></a>
+
+#### \_answer\_value
+
+```python
+def _answer_value(answer: AnswerField) -> Optional[object]
+```
+
+Return one member value from a form answer, or None when omitted.
+
+<a id="tableio_cfg_json.wizard._option_fields"></a>
+
+#### \_option\_fields
+
+```python
+def _option_fields(specs: tuple[ConfigSpec, ...],
+                   values: dict[str, object]) -> list[AskField]
+```
+
+Return one form field per config member, pre-filled from values.
+
+<a id="tableio_cfg_json.wizard._option_field"></a>
+
+#### \_option\_field
+
+```python
+def _option_field(spec: ConfigSpec, current: Optional[object]) -> AskField
+```
+
+Return the form field that asks for one config member.
+
+<a id="tableio_cfg_json.wizard._choice_field"></a>
+
+#### \_choice\_field
+
+```python
+def _choice_field(spec: ConfigSpec,
+                  current: Optional[object]) -> AskChoiceField
+```
+
+Return a choice field with a leading use-the-default option.
+
+<a id="tableio_cfg_json.wizard._int_default"></a>
+
+#### \_int\_default
+
+```python
+def _int_default(spec: ConfigSpec, current: Optional[object]) -> Optional[int]
+```
+
+Return the pre-filled integer default for one member.
+
+<a id="tableio_cfg_json.wizard._text_default"></a>
+
+#### \_text\_default
+
+```python
+def _text_default(spec: ConfigSpec,
+                  current: Optional[object]) -> Optional[str]
+```
+
+Return the pre-filled text default for one member.
 
 <a id="tableio_cfg_json.wizard._spec_choices"></a>
 
@@ -4867,38 +4952,26 @@ def _spec_choices(spec: ConfigSpec) -> Optional[tuple[str, ...]]
 
 Return the advertised choices of one config member as strings.
 
-<a id="tableio_cfg_json.wizard._resolve_section"></a>
+<a id="tableio_cfg_json.wizard._data_from_values"></a>
 
-#### \_resolve\_section
+#### \_data\_from\_values
 
 ```python
-def _resolve_section(data: dict[str, object], section: str,
-                     specs: tuple[ConfigSpec, ...],
-                     result: list[list[Optional[str]]]) -> dict[str, object]
+def _data_from_values(data: dict[str, object], specs: tuple[ConfigSpec, ...],
+                      values: dict[str, object]) -> dict[str, object]
 ```
 
-Return data with one section rebuilt from a filled-in table.
+Return fresh data from the chosen format and the answered members.
 
 <a id="tableio_cfg_json.wizard._resolve_member_value"></a>
 
 #### \_resolve\_member\_value
 
 ```python
-def _resolve_member_value(spec: ConfigSpec, raw: str) -> object
+def _resolve_member_value(spec: ConfigSpec, raw: object) -> object
 ```
 
-Convert one entered table value to the type TableIO expects.
-
-<a id="tableio_cfg_json.wizard._section_check"></a>
-
-#### \_section\_check
-
-```python
-def _section_check(run: _WizardRun, section: str,
-                   specs: tuple[ConfigSpec, ...]) -> PartialCheck
-```
-
-Return a partial-check callback for one section table.
+Convert one answered value to the type TableIO expects.
 
 <a id="tableio_cfg_json.wizard._commit"></a>
 
@@ -4970,42 +5043,6 @@ def _matches(spec_values: Optional[Sequence[str]],
 
 Return True when metadata values overlap or are unrestricted.
 
-<a id="tableio_cfg_json.wizard._ask_config_member"></a>
-
-#### \_ask\_config\_member
-
-```python
-def _ask_config_member(spec: ConfigSpec, data: dict[str, object],
-                       caps: Capabilities, file_access: FileAccess,
-                       ui_bridge: WizardUiBridge, stderr_file: TextIO) -> None
-```
-
-Ask for one optional member and keep retrying until it validates.
-
-<a id="tableio_cfg_json.wizard._ask_member_value"></a>
-
-#### \_ask\_member\_value
-
-```python
-def _ask_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                      re_ask_reason: Optional[str],
-                      current: object) -> Optional[object]
-```
-
-Ask for one optional value and convert simple scalar types.
-
-<a id="tableio_cfg_json.wizard._ask_text_member_value"></a>
-
-#### \_ask\_text\_member\_value
-
-```python
-def _ask_text_member_value(spec: ConfigSpec, ui_bridge: WizardUiBridge,
-                           re_ask_reason: Optional[str],
-                           current: object) -> Optional[object]
-```
-
-Ask for one free-text optional value.
-
 <a id="tableio_cfg_json.wizard._parse_member_value"></a>
 
 #### \_parse\_member\_value
@@ -5025,38 +5062,6 @@ def _member_default(spec: ConfigSpec) -> Optional[str]
 ```
 
 Return a concrete default text value for one spec, if available.
-
-<a id="tableio_cfg_json.wizard._ask_text_default"></a>
-
-#### \_ask\_text\_default
-
-```python
-def _ask_text_default(ui_bridge: WizardUiBridge, question: str,
-                      re_ask_reason: Optional[str],
-                      default: Optional[str]) -> Optional[str]
-```
-
-Ask nullable text, passing default when the bridge accepts it.
-
-<a id="tableio_cfg_json.wizard._accepts_default"></a>
-
-#### \_accepts\_default
-
-```python
-def _accepts_default(method: Callable[..., object]) -> bool
-```
-
-Return whether method accepts a default keyword argument.
-
-<a id="tableio_cfg_json.wizard._member_question"></a>
-
-#### \_member\_question
-
-```python
-def _member_question(spec: ConfigSpec) -> str
-```
-
-Return the explanatory question for one free-text member.
 
 <a id="tableio_cfg_json.wizard._set_json_member"></a>
 
