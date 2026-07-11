@@ -12,16 +12,19 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import pytest
+from textual.widgets import Button, Input
 
 from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
-    AskMultiChoiceField, AskTextField, AskYesNoField, AnswerTextField, \
-    PartialFormValidator, PathAskOptions, TableCell, TableColumn, \
-    WizardAbort, WizardBack, WizardCancelLevel, WizardNavigation, \
-    WizardPathKind, WizardUiBridgeTextual
+    AskMultiChoiceField, AskPathField, AskTextField, AskYesNoField, \
+    AnswerTextField, PartialFormValidator, PathAskOptions, TableCell, \
+    TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
+    WizardNavigation, WizardPathKind, WizardUiBridgeTextual
 from tableio_cfg_json.wizard_ui_bridge_form_defs import AnswerField
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _FormApp, \
-    _MultiApp, _NavApp, _PathApp, _TableApp, _TextApp, _default_index, \
-    _field_index, _parse_cell_id, _preselected, _selection_text
+    _MultiApp, _NavApp, _PathApp, _TableApp, _TextApp, _browse_index, \
+    _default_index, _field_index, _parse_cell_id, _preselected
+from tableio_cfg_json._wizard_ui_bridge_path import _PickerScreen, \
+    _selection_text
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 
@@ -811,3 +814,107 @@ def test_field_index() -> None:
     assert _field_index('field_4') == 4
     assert _field_index(None) is None
     assert _field_index('label_2') is None
+
+
+def test_browse_index() -> None:
+    """A browse id parses to its index; other ids parse to None."""
+    assert _browse_index('browse_3') == 3
+    assert _browse_index(None) is None
+    assert _browse_index('field_1') is None
+
+
+def test_path_enter_submits(tmp_path: Path) -> None:
+    """Pressing Return in the path input submits its value."""
+    path = tmp_path / 'config.json'
+    app = _PathApp('q', [], PathAskOptions(), str(path))
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            app.query_one('#path_input', Input).focus()
+            await pilot.press('enter')
+    asyncio.run(scenario())
+    assert app.return_value == str(path)
+
+
+def test_path_fill_input(tmp_path: Path) -> None:
+    """A tree selection fills the editable path input."""
+    sub = tmp_path / 'sub'
+    sub.mkdir()
+    app = _PathApp('q', [], PathAskOptions(kind=WizardPathKind.DIR), None)
+
+    async def scenario() -> str:
+        async with app.run_test():
+            app._fill_input(sub, is_dir=True)
+            return app.query_one('#path_input', Input).value
+    assert asyncio.run(scenario()) == str(sub)
+
+
+def test_picker_seed(tmp_path: Path) -> None:
+    """The picker roots at the typed folder, else at the default."""
+    options = PathAskOptions(default=tmp_path / 'out.csv')
+    empty = _PickerScreen(options, '')
+    assert empty._start == tmp_path
+    assert empty._value == ''
+    typed = _PickerScreen(options, str(tmp_path))
+    assert typed._start == tmp_path
+    assert typed._value == str(tmp_path)
+
+
+def test_form_path_default(tmp_path: Path) -> None:
+    """A form path field submits its default path unchanged."""
+    target = tmp_path / 'out.csv'
+    field = AskPathField('File', None, PathAskOptions(default=target))
+    driven = drive(_FormApp('H', [field], [], None), ['#submit'])
+    assert _submitted(driven)[0].value == target
+
+
+def test_form_browse_fills(tmp_path: Path) -> None:
+    """Submitting the picker fills the form path field."""
+    picked = tmp_path / 'picked.csv'
+    field = AskPathField('File', None, PathAskOptions())
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            await pilot.click('#browse_0')
+            await pilot.pause()
+            screen = app.screen
+            assert isinstance(screen, _PickerScreen)
+            screen.query_one('#path_input', Input).value = str(picked)
+            await pilot.press('ctrl+s')
+            await pilot.pause()
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    assert _submitted(app)[0].value == picked
+
+
+def test_form_browse_cancel(tmp_path: Path) -> None:
+    """Cancelling the picker leaves the field at its default."""
+    target = tmp_path / 'out.csv'
+    field = AskPathField('File', None, PathAskOptions(default=target))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            await pilot.click('#browse_0')
+            await pilot.pause()
+            screen = app.screen
+            assert isinstance(screen, _PickerScreen)
+            screen.query_one('#path_input', Input).value = str(tmp_path)
+            await pilot.press('escape')
+            await pilot.pause()
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    assert _submitted(app)[0].value == target
+
+
+def test_form_browse_disabled() -> None:
+    """Disabling a path row also disables its Browse button."""
+    field = AskPathField('File', None, PathAskOptions())
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> bool:
+        async with app.run_test():
+            app._apply_disabled((0,))
+            return app.query_one('#browse_0', Button).disabled
+    assert asyncio.run(scenario()) is True

@@ -20,16 +20,16 @@ corrupt the Textual display.
 # MIT License
 
 from __future__ import annotations
-import os
+from functools import partial
 from io import StringIO
 from pathlib import Path
 from typing import ClassVar, Iterator, Optional, Sequence, TypeVar
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import BindingType
-from textual.containers import Grid, VerticalScroll
+from textual.containers import Grid, Horizontal, VerticalScroll
 from textual.widget import Widget
-from textual.widgets import Button, Checkbox, DirectoryTree, Footer, Input, \
+from textual.widgets import Button, Checkbox, Footer, Input, \
     OptionList, Select, SelectionList, Static
 from textual.widgets.selection_list import Selection
 from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
@@ -37,9 +37,11 @@ from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     int_text, multi_count_error, out_of_range, path_answer, range_error, \
     text_answer
 from tableio_cfg_json._wizard_ui_bridge_form import initial_answer
+from tableio_cfg_json._wizard_ui_bridge_path import _PathPick, \
+    _PickerScreen, _start_dir, _start_value
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
     WizardNavigation, WizardBack, WizardCancelLevel, \
-    WizardAbort, WizardPathKind, PathAskOptions, TableColumn, TableCell
+    WizardAbort, PathAskOptions, TableColumn, TableCell
 from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
     AnswerField, AnswerFields, PartialFormValidator, AskTextField, \
     AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
@@ -48,7 +50,6 @@ from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 
 _T = TypeVar('_T')
-_PATH_INPUT_ID = 'path_input'
 _INT_ERROR = 'Please enter an integer.'
 _CHOICE_REQUIRED = 'Please choose a value.'
 
@@ -120,45 +121,7 @@ class _TextApp(_NavApp[str]):
         self.exit(event.value)
 
 
-def _start_dir(default: Optional[Path]) -> Path:
-    """Return the directory tree root for a path question."""
-    if default is None:
-        return Path.cwd()
-    try:
-        if default.exists() and default.is_dir():
-            return default
-        parent = default.parent
-        if parent.exists() and parent.is_dir():
-            return parent
-    except OSError:
-        pass
-    return Path.cwd()
-
-
-def _start_value(value: Optional[str], default: Optional[Path]) -> str:
-    """Return the initial path input text."""
-    if value is not None:
-        return value
-    return '' if default is None else str(default)
-
-
-def _new_child_prefix(path: Path) -> str:
-    """Return path text ready for appending a child name."""
-    text = str(path)
-    return text if text.endswith(os.sep) else text + os.sep
-
-
-def _selection_text(path: Path, is_dir: bool, kind: WizardPathKind) -> str:
-    """Return the input text to use for a selected path."""
-    if is_dir and kind in (WizardPathKind.EXISTING_FILE,
-                           WizardPathKind.NON_EXISTING_FILE,
-                           WizardPathKind.FILE,
-                           WizardPathKind.NON_EXISTING_DIR):
-        return _new_child_prefix(path)
-    return str(path)
-
-
-class _PathApp(_NavApp[str]):
+class _PathApp(_PathPick, _NavApp[str]):
     """Path screen with a filesystem tree and editable path input."""
 
     BINDINGS: ClassVar[list[BindingType]] = [('ctrl+s', 'submit', 'Submit')]
@@ -169,49 +132,25 @@ class _PathApp(_NavApp[str]):
         super().__init__()
         self._question = question
         self._messages = messages
-        self._options = options
+        self._kind = options.kind
         self._start = _start_dir(options.default)
         self._value = _start_value(value, options.default)
 
     def compose(self) -> ComposeResult:
         """Lay out the header, directory tree, path input and footer."""
         yield from _header_widgets(self._messages, self._question)
-        yield DirectoryTree(self._start)
-        yield Input(value=self._value, id=_PATH_INPUT_ID)
+        yield from self.pick_widgets(self._start, self._value)
         yield Button('Submit', id='submit')
         yield Footer()
-
-    @on(DirectoryTree.FileSelected)
-    def _file_selected(self, event: DirectoryTree.FileSelected) -> None:
-        """Use the selected file as the editable input value."""
-        self._set_path(event.path, is_dir=False)
-
-    @on(DirectoryTree.DirectorySelected)
-    def _dir_selected(self, event: DirectoryTree.DirectorySelected) -> None:
-        """Use the selected directory as value or editable prefix."""
-        self._set_path(event.path, is_dir=True)
-
-    @on(Input.Submitted)
-    def _entered(self, event: Input.Submitted) -> None:
-        """Submit the entered path when Return is pressed in the input."""
-        self.exit(event.value)
 
     @on(Button.Pressed, '#submit')
     def _submit_clicked(self, _event: Button.Pressed) -> None:
         """Submit the current input when the button is pressed."""
         self.action_submit()
 
-    def action_submit(self) -> None:
-        """Exit returning the current path input."""
-        self.exit(self.query_one(f'#{_PATH_INPUT_ID}', Input).value)
-
-    def _set_path(self, path: Path, is_dir: bool) -> None:
-        """Set the input from a tree selection and move focus there."""
-        value = _selection_text(path, is_dir, self._options.kind)
-        path_input = self.query_one(f'#{_PATH_INPUT_ID}', Input)
-        path_input.value = value
-        path_input.cursor_position = len(value)
-        path_input.focus()
+    def _confirm(self, value: str) -> None:
+        """Exit returning the confirmed path input."""
+        self.exit(value)
 
 
 class _ChoiceApp(_NavApp[int]):
@@ -541,6 +480,18 @@ def _multi_selection(field: AskMultiChoiceField,
     return SelectionList[int](*selections, id=widget_id)
 
 
+def _path_field_row(value: str, index: int) -> Horizontal:
+    """Return a path input paired with a Browse button.
+
+    The input keeps the plain field id so the form reads and validates
+    it like any other field, while the button carries a browse class so
+    the form can open the directory picker for this row.
+    """
+    return Horizontal(Input(value=value, id=f'field_{index}'),
+                      Button('Browse', id=f'browse_{index}', classes='browse'),
+                      id=f'pathrow_{index}')
+
+
 def _make_field_widget(field: AskField, index: int) -> Widget:
     """Return the input widget shown for one form field."""
     widget_id = f'field_{index}'
@@ -552,8 +503,8 @@ def _make_field_widget(field: AskField, index: int) -> Widget:
         return Input(value=value, id=widget_id)
     if isinstance(field, AskPathField):
         default = field.path_options.default
-        return Input(value='' if default is None else str(default),
-                     id=widget_id)
+        text = '' if default is None else str(default)
+        return _path_field_row(text, index)
     if isinstance(field, AskYesNoField):
         return Checkbox(value=field.default, id=widget_id)
     if isinstance(field, AskChoiceField):
@@ -562,11 +513,21 @@ def _make_field_widget(field: AskField, index: int) -> Widget:
     return _multi_selection(field, widget_id)
 
 
-def _field_index(widget_id: Optional[str]) -> Optional[int]:
-    """Return the field index encoded in a field widget id."""
-    if widget_id is None or not widget_id.startswith('field_'):
+def _id_index(widget_id: Optional[str], prefix: str) -> Optional[int]:
+    """Return the integer index following prefix in a widget id."""
+    if widget_id is None or not widget_id.startswith(prefix):
         return None
     return int(widget_id.split('_')[1])
+
+
+def _field_index(widget_id: Optional[str]) -> Optional[int]:
+    """Return the field index encoded in a field widget id."""
+    return _id_index(widget_id, 'field_')
+
+
+def _browse_index(widget_id: Optional[str]) -> Optional[int]:
+    """Return the field index encoded in a browse button id."""
+    return _id_index(widget_id, 'browse_')
 
 
 def _multi_error(count: int, field: AskMultiChoiceField) -> Optional[str]:
@@ -593,7 +554,12 @@ class _FormApp(_NavApp[list[AnswerField]]):
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [('ctrl+s', 'submit', 'Submit')]
-    CSS = '#form_grid { height: auto; }'
+    CSS = '''
+    #form_grid { height: auto; }
+    #form_grid Horizontal { height: auto; width: 1fr; }
+    #form_grid Horizontal Input { width: 1fr; }
+    #form_grid Horizontal Button { width: auto; margin-left: 1; }
+    '''
 
     def __init__(self, question: str, fields: list[AskField],
                  messages: list[str],
@@ -684,11 +650,37 @@ class _FormApp(_NavApp[list[AnswerField]]):
             off = index in self._disabled
             self.query_one(f'#field_{index}').disabled = off
             self.query_one(f'#label_{index}').disabled = off
+            for button in self.query(f'#browse_{index}'):
+                button.disabled = off
 
     @on(Button.Pressed, '#submit')
     def _submit_clicked(self, _event: Button.Pressed) -> None:
         """Submit the form when the submit button is pressed."""
         self.action_submit()
+
+    @on(Button.Pressed, '.browse')
+    def _browse_clicked(self, event: Button.Pressed) -> None:
+        """Open the directory picker for the clicked path field."""
+        index = _browse_index(event.button.id)
+        if index is not None:
+            self._open_picker(index)
+
+    def _open_picker(self, index: int) -> None:
+        """Push the picker seeded with the field's current text."""
+        field = self._fields[index]
+        assert isinstance(field, AskPathField)
+        text = self.query_one(f'#field_{index}', Input).value
+        self.push_screen(_PickerScreen(field.path_options, text),
+                         partial(self._path_picked, index))
+
+    def _path_picked(self, index: int, result: Optional[str]) -> None:
+        """Fill the path input with the picked path, if any.
+
+        Setting the input value raises Input.Changed, so the answer and
+        the partial validator update as if the user had typed the path.
+        """
+        if result is not None:
+            self.query_one(f'#field_{index}', Input).value = result
 
     def action_submit(self) -> None:
         """Validate every enabled field and exit with the answers."""

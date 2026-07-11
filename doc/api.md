@@ -2396,7 +2396,9 @@ An answer to a choice field in a form.
   tell a partial validator that a choice with no default has
   not been answered yet. A bridge never returns None as a final
   choice answer: it makes sure a choice with no default is
-  answered before the form is submitted for final validation.
+  answered before the form is submitted for final validation,
+  unless the choice is disabled by a partial validator because
+  it is irrelevant given the current state of the form.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerMultiChoiceField"></a>
 

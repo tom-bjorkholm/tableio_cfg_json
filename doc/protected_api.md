@@ -132,19 +132,11 @@
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp.compose)
     * [\_entered](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp._entered)
-  * [\_start\_dir](#tableio_cfg_json.wizard_ui_bridge_textual._start_dir)
-  * [\_start\_value](#tableio_cfg_json.wizard_ui_bridge_textual._start_value)
-  * [\_new\_child\_prefix](#tableio_cfg_json.wizard_ui_bridge_textual._new_child_prefix)
-  * [\_selection\_text](#tableio_cfg_json.wizard_ui_bridge_textual._selection_text)
   * [\_PathApp](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp.compose)
-    * [\_file\_selected](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._file_selected)
-    * [\_dir\_selected](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._dir_selected)
-    * [\_entered](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._entered)
     * [\_submit\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._submit_clicked)
-    * [action\_submit](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp.action_submit)
-    * [\_set\_path](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._set_path)
+    * [\_confirm](#tableio_cfg_json.wizard_ui_bridge_textual._PathApp._confirm)
   * [\_ChoiceApp](#tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp.compose)
@@ -183,8 +175,11 @@
     * [\_read\_cell](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._read_cell)
   * [\_choice\_select](#tableio_cfg_json.wizard_ui_bridge_textual._choice_select)
   * [\_multi\_selection](#tableio_cfg_json.wizard_ui_bridge_textual._multi_selection)
+  * [\_path\_field\_row](#tableio_cfg_json.wizard_ui_bridge_textual._path_field_row)
   * [\_make\_field\_widget](#tableio_cfg_json.wizard_ui_bridge_textual._make_field_widget)
+  * [\_id\_index](#tableio_cfg_json.wizard_ui_bridge_textual._id_index)
   * [\_field\_index](#tableio_cfg_json.wizard_ui_bridge_textual._field_index)
+  * [\_browse\_index](#tableio_cfg_json.wizard_ui_bridge_textual._browse_index)
   * [\_multi\_error](#tableio_cfg_json.wizard_ui_bridge_textual._multi_error)
   * [\_FormApp](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp.__init__)
@@ -199,6 +194,9 @@
     * [\_run\_validator](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._run_validator)
     * [\_apply\_disabled](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_disabled)
     * [\_submit\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._submit_clicked)
+    * [\_browse\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._browse_clicked)
+    * [\_open\_picker](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._open_picker)
+    * [\_path\_picked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._path_picked)
     * [action\_submit](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp.action_submit)
     * [\_validator\_accepts](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._validator_accepts)
     * [\_first\_error](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._first_error)
@@ -240,6 +238,27 @@
   * [\_to\_index](#tableio_cfg_json.wizard_ui_bridge_console._to_index)
   * [\_menu\_lines](#tableio_cfg_json.wizard_ui_bridge_console._menu_lines)
   * [\_multi\_question](#tableio_cfg_json.wizard_ui_bridge_console._multi_question)
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_path](#tableio_cfg_json._wizard_ui_bridge_path)
+  * [\_start\_dir](#tableio_cfg_json._wizard_ui_bridge_path._start_dir)
+  * [\_start\_value](#tableio_cfg_json._wizard_ui_bridge_path._start_value)
+  * [\_new\_child\_prefix](#tableio_cfg_json._wizard_ui_bridge_path._new_child_prefix)
+  * [\_selection\_text](#tableio_cfg_json._wizard_ui_bridge_path._selection_text)
+  * [\_seed\_path](#tableio_cfg_json._wizard_ui_bridge_path._seed_path)
+  * [\_PathPick](#tableio_cfg_json._wizard_ui_bridge_path._PathPick)
+    * [pick\_widgets](#tableio_cfg_json._wizard_ui_bridge_path._PathPick.pick_widgets)
+    * [\_file\_selected](#tableio_cfg_json._wizard_ui_bridge_path._PathPick._file_selected)
+    * [\_dir\_selected](#tableio_cfg_json._wizard_ui_bridge_path._PathPick._dir_selected)
+    * [\_input\_entered](#tableio_cfg_json._wizard_ui_bridge_path._PathPick._input_entered)
+    * [action\_submit](#tableio_cfg_json._wizard_ui_bridge_path._PathPick.action_submit)
+    * [\_fill\_input](#tableio_cfg_json._wizard_ui_bridge_path._PathPick._fill_input)
+    * [\_confirm](#tableio_cfg_json._wizard_ui_bridge_path._PathPick._confirm)
+  * [\_PickerScreen](#tableio_cfg_json._wizard_ui_bridge_path._PickerScreen)
+    * [\_\_init\_\_](#tableio_cfg_json._wizard_ui_bridge_path._PickerScreen.__init__)
+    * [compose](#tableio_cfg_json._wizard_ui_bridge_path._PickerScreen.compose)
+    * [\_submit\_clicked](#tableio_cfg_json._wizard_ui_bridge_path._PickerScreen._submit_clicked)
+    * [\_cancel\_clicked](#tableio_cfg_json._wizard_ui_bridge_path._PickerScreen._cancel_clicked)
+    * [action\_cancel](#tableio_cfg_json._wizard_ui_bridge_path._PickerScreen.action_cancel)
+    * [\_confirm](#tableio_cfg_json._wizard_ui_bridge_path._PickerScreen._confirm)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_arg\_types](#tableio_cfg_json.wizard_ui_bridge_arg_types)
   * [WizardNavigation](#tableio_cfg_json.wizard_ui_bridge_arg_types.WizardNavigation)
   * [WizardBack](#tableio_cfg_json.wizard_ui_bridge_arg_types.WizardBack)
@@ -2998,52 +3017,12 @@ def _entered(event: Input.Submitted) -> None
 
 Exit returning the entered text, empty when nothing typed.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._start_dir"></a>
-
-#### \_start\_dir
-
-```python
-def _start_dir(default: Optional[Path]) -> Path
-```
-
-Return the directory tree root for a path question.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._start_value"></a>
-
-#### \_start\_value
-
-```python
-def _start_value(value: Optional[str], default: Optional[Path]) -> str
-```
-
-Return the initial path input text.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._new_child_prefix"></a>
-
-#### \_new\_child\_prefix
-
-```python
-def _new_child_prefix(path: Path) -> str
-```
-
-Return path text ready for appending a child name.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._selection_text"></a>
-
-#### \_selection\_text
-
-```python
-def _selection_text(path: Path, is_dir: bool, kind: WizardPathKind) -> str
-```
-
-Return the input text to use for a selected path.
-
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp"></a>
 
 ## \_PathApp Objects
 
 ```python
-class _PathApp(_NavApp[str])
+class _PathApp(_PathPick, _NavApp[str])
 ```
 
 Path screen with a filesystem tree and editable path input.
@@ -3069,39 +3048,6 @@ def compose() -> ComposeResult
 
 Lay out the header, directory tree, path input and footer.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._file_selected"></a>
-
-#### \_file\_selected
-
-```python
-@on(DirectoryTree.FileSelected)
-def _file_selected(event: DirectoryTree.FileSelected) -> None
-```
-
-Use the selected file as the editable input value.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._dir_selected"></a>
-
-#### \_dir\_selected
-
-```python
-@on(DirectoryTree.DirectorySelected)
-def _dir_selected(event: DirectoryTree.DirectorySelected) -> None
-```
-
-Use the selected directory as value or editable prefix.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._entered"></a>
-
-#### \_entered
-
-```python
-@on(Input.Submitted)
-def _entered(event: Input.Submitted) -> None
-```
-
-Submit the entered path when Return is pressed in the input.
-
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._submit_clicked"></a>
 
 #### \_submit\_clicked
@@ -3113,25 +3059,15 @@ def _submit_clicked(_event: Button.Pressed) -> None
 
 Submit the current input when the button is pressed.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp.action_submit"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._confirm"></a>
 
-#### action\_submit
-
-```python
-def action_submit() -> None
-```
-
-Exit returning the current path input.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._PathApp._set_path"></a>
-
-#### \_set\_path
+#### \_confirm
 
 ```python
-def _set_path(path: Path, is_dir: bool) -> None
+def _confirm(value: str) -> None
 ```
 
-Set the input from a tree selection and move focus there.
+Exit returning the confirmed path input.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._ChoiceApp"></a>
 
@@ -3547,6 +3483,20 @@ def _multi_selection(field: AskMultiChoiceField,
 
 Return a check-box list for a multi-choice field.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._path_field_row"></a>
+
+#### \_path\_field\_row
+
+```python
+def _path_field_row(value: str, index: int) -> Horizontal
+```
+
+Return a path input paired with a Browse button.
+
+The input keeps the plain field id so the form reads and validates
+it like any other field, while the button carries a browse class so
+the form can open the directory picker for this row.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._make_field_widget"></a>
 
 #### \_make\_field\_widget
@@ -3557,6 +3507,16 @@ def _make_field_widget(field: AskField, index: int) -> Widget
 
 Return the input widget shown for one form field.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._id_index"></a>
+
+#### \_id\_index
+
+```python
+def _id_index(widget_id: Optional[str], prefix: str) -> Optional[int]
+```
+
+Return the integer index following prefix in a widget id.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._field_index"></a>
 
 #### \_field\_index
@@ -3566,6 +3526,16 @@ def _field_index(widget_id: Optional[str]) -> Optional[int]
 ```
 
 Return the field index encoded in a field widget id.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._browse_index"></a>
+
+#### \_browse\_index
+
+```python
+def _browse_index(widget_id: Optional[str]) -> Optional[int]
+```
+
+Return the field index encoded in a browse button id.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._multi_error"></a>
 
@@ -3721,6 +3691,40 @@ def _submit_clicked(_event: Button.Pressed) -> None
 ```
 
 Submit the form when the submit button is pressed.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._browse_clicked"></a>
+
+#### \_browse\_clicked
+
+```python
+@on(Button.Pressed, '.browse')
+def _browse_clicked(event: Button.Pressed) -> None
+```
+
+Open the directory picker for the clicked path field.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._open_picker"></a>
+
+#### \_open\_picker
+
+```python
+def _open_picker(index: int) -> None
+```
+
+Push the picker seeded with the field's current text.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._path_picked"></a>
+
+#### \_path\_picked
+
+```python
+def _path_picked(index: int, result: Optional[str]) -> None
+```
+
+Fill the path input with the picked path, if any.
+
+Setting the input value raises Input.Changed, so the answer and
+the partial validator update as if the user had typed the path.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp.action_submit"></a>
 
@@ -4233,6 +4237,236 @@ def _multi_question(question: str) -> str
 ```
 
 Return the multi-choice question with an entry hint appended.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_path
+
+Reusable path-input machinery for the Textual wizard bridge.
+
+The directory tree, the editable path input and the logic that fills
+the input from a tree selection are shared between the standalone path
+question and the directory picker opened from a form path field. This
+module holds that shared machinery: the path helpers, the _PathPick
+mixin that any host screen uses, and the _PickerScreen modal that a form
+opens for one path field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._start_dir"></a>
+
+#### \_start\_dir
+
+```python
+def _start_dir(default: Optional[Path]) -> Path
+```
+
+Return the directory tree root for a path question.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._start_value"></a>
+
+#### \_start\_value
+
+```python
+def _start_value(value: Optional[str], default: Optional[Path]) -> str
+```
+
+Return the initial path input text.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._new_child_prefix"></a>
+
+#### \_new\_child\_prefix
+
+```python
+def _new_child_prefix(path: Path) -> str
+```
+
+Return path text ready for appending a child name.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._selection_text"></a>
+
+#### \_selection\_text
+
+```python
+def _selection_text(path: Path, is_dir: bool, kind: WizardPathKind) -> str
+```
+
+Return the input text to use for a selected path.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._seed_path"></a>
+
+#### \_seed\_path
+
+```python
+def _seed_path(value: str, default: Optional[Path]) -> Optional[Path]
+```
+
+Return the path whose folder roots the picker's tree.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick"></a>
+
+## \_PathPick Objects
+
+```python
+class _PathPick(MessagePump)
+```
+
+Fill a path input from a directory-tree selection.
+
+A host lays out the tree and input with pick_widgets(), keeps the
+wanted WizardPathKind in _kind, and implements _confirm() to consume
+the confirmed path text. Selecting in the tree fills the input;
+Return in the input or the submit action confirms the current text.
+It derives from MessagePump so that its @on handlers register when it
+is mixed into a host screen or app.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick.pick_widgets"></a>
+
+#### pick\_widgets
+
+```python
+def pick_widgets(start: Path, value: str) -> Iterator[Widget]
+```
+
+Yield the directory tree and the editable path input.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick._file_selected"></a>
+
+#### \_file\_selected
+
+```python
+@on(DirectoryTree.FileSelected)
+def _file_selected(event: DirectoryTree.FileSelected) -> None
+```
+
+Use the selected file as the editable input value.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick._dir_selected"></a>
+
+#### \_dir\_selected
+
+```python
+@on(DirectoryTree.DirectorySelected)
+def _dir_selected(event: DirectoryTree.DirectorySelected) -> None
+```
+
+Use the selected directory as value or editable prefix.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick._input_entered"></a>
+
+#### \_input\_entered
+
+```python
+@on(Input.Submitted, f'#{_PATH_INPUT_ID}')
+def _input_entered(event: Input.Submitted) -> None
+```
+
+Confirm the entered path when Return is pressed.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick.action_submit"></a>
+
+#### action\_submit
+
+```python
+def action_submit() -> None
+```
+
+Confirm the current editable path input.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick._fill_input"></a>
+
+#### \_fill\_input
+
+```python
+def _fill_input(path: Path, is_dir: bool) -> None
+```
+
+Set the input from a tree selection and move focus there.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PathPick._confirm"></a>
+
+#### \_confirm
+
+```python
+def _confirm(value: str) -> None
+```
+
+Consume the confirmed path text; overridden by the host.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PickerScreen"></a>
+
+## \_PickerScreen Objects
+
+```python
+class _PickerScreen(_PathPick, ModalScreen[Optional[str]])
+```
+
+Modal directory picker that fills a form path field.
+
+It shows a directory tree and an editable path input, like the
+standalone path question. Selecting in the tree fills the input;
+Submit or Return returns the text to the form, while Cancel or
+Escape returns nothing so the field keeps its current value.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PickerScreen.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(options: PathAskOptions, value: str) -> None
+```
+
+Store the path kind and the tree root and initial input.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PickerScreen.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Lay out the tree, the path input and the buttons.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PickerScreen._submit_clicked"></a>
+
+#### \_submit\_clicked
+
+```python
+@on(Button.Pressed, '#submit')
+def _submit_clicked(_event: Button.Pressed) -> None
+```
+
+Submit the picked path when the submit button is pressed.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PickerScreen._cancel_clicked"></a>
+
+#### \_cancel\_clicked
+
+```python
+@on(Button.Pressed, '#cancel')
+def _cancel_clicked(_event: Button.Pressed) -> None
+```
+
+Close without changing the field when cancel is pressed.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PickerScreen.action_cancel"></a>
+
+#### action\_cancel
+
+```python
+def action_cancel() -> None
+```
+
+Close the picker without returning a path.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_path._PickerScreen._confirm"></a>
+
+#### \_confirm
+
+```python
+def _confirm(value: str) -> None
+```
+
+Return the confirmed path text to the form.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_arg_types"></a>
 
@@ -5371,7 +5605,9 @@ An answer to a choice field in a form.
   tell a partial validator that a choice with no default has
   not been answered yet. A bridge never returns None as a final
   choice answer: it makes sure a choice with no default is
-  answered before the form is submitted for final validation.
+  answered before the form is submitted for final validation,
+  unless the choice is disabled by a partial validator because
+  it is irrelevant given the current state of the form.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerMultiChoiceField"></a>
 
