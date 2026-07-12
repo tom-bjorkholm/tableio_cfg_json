@@ -10,7 +10,7 @@ import json
 
 from tableio import FileAccess, access_capabilities
 from tableio_cfg_json import TioJsonConfig, WizardBack, tio_json_config_wizard
-from .test_wizard import _ScriptedBridge, _format_index, \
+from .wizard_support import _ScriptedBridge, _format_index, \
     _member_answer_lines, _run_bridge
 
 
@@ -101,3 +101,28 @@ def test_change_drops_old() -> None:
                                     default=default)
     assert config.format_name == 'reST'
     assert config.csv is None
+
+
+def test_pinned_impl_kept() -> None:
+    """An implementation pinned in the defaults survives editing options.
+
+    A format with only one implementation shows no implementation
+    question, so a pinned implementation from the defaults must be kept
+    through the option form rather than being silently dropped.
+    """
+    file_access = FileAccess.CREATE
+    default = _json_default(file_access, {
+        'format_name': 'CSV',
+        'implementation': 'csv',
+        'csv': {'delimiter': ';'}})
+    answers: list[str | int] = ['']
+    answers.extend(_member_answer_lines('CSV', file_access,
+                                        implementation='csv'))
+    capabilities = access_capabilities(file_access)
+    bridge = _ScriptedBridge(answers)
+    config = tio_json_config_wizard(capabilities, file_access, bridge,
+                                    default=default)
+    assert config.format_name == 'CSV'
+    assert config.implementation == 'csv'
+    assert config.csv is not None
+    assert config.csv.delimiter == ';'

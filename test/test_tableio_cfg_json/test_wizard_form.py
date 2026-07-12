@@ -27,9 +27,9 @@ from tableio_cfg_json import AskChoiceField, AskIntField, AskTextField, \
 from tableio_cfg_json._wizard_ui_bridge_form import initial_answer
 from tableio_cfg_json.wizard_ui_bridge_textual import _FormApp
 import tableio_cfg_json.wizard as wizard_module
-from .test_wizard import _ScriptedBridge, _format_index, \
+from .wizard_support import _ScriptedBridge, _format_index, \
     _member_answer_lines, _run_bridge, assert_csv_core
-from .test_ui_textual import _CannedBridge
+from .ui_textual_support import _CannedBridge
 
 
 def _csv_specs() -> tuple[ConfigSpec, ...]:

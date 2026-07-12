@@ -14,6 +14,7 @@ from tableio_cfg_json import PathAskOptions as PublicPathAskOptions, \
     WizardPathKind as PublicPathKind, WizardUiBridge
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PathAskOptions, \
     WizardPathKind
+from tableio_cfg_json._wizard_ui_bridge_helpers import path_answer
 
 
 class _TextBridge(WizardUiBridge):
@@ -178,3 +179,22 @@ def test_path_empty(tmp_path: Path) -> None:
     bridge = _TextBridge(['', str(paths['file'])])
     assert bridge.ask_path('Path?') == paths['file']
     assert 'enter a path' in (bridge.calls[1][1] or '')
+
+
+def test_path_unusable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A path whose existence check fails is reported as invalid.
+
+    Some filesystems raise OSError when a path is queried instead of
+    reporting that it is absent, so path_answer reports the failure as a
+    retry reason rather than letting the error escape.
+    """
+    def boom(self: Path) -> bool:
+        """Fail every existence check with an OSError."""
+        _ = self
+        raise OSError('unusable')
+    monkeypatch.setattr(Path, 'exists', boom)
+    options = PathAskOptions(kind=WizardPathKind.EXISTING_FILE)
+    done, value, reason = path_answer('some/path', options)
+    assert done is False
+    assert value is None
+    assert reason is not None and 'Invalid path' in reason

@@ -9,8 +9,9 @@ test_wizard.py alongside the wizard that drives them.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+import getpass
 from io import StringIO
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 import pytest
 
@@ -18,6 +19,7 @@ from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
     AskMultiChoiceField, AskTextField, AskYesNoField, PartialFormValidator, \
     PartialCheck, TableCell, TableColumn, \
     WizardAbort, WizardBack, WizardCancelLevel, WizardUiBridgeConsole
+from tableio_cfg_json import AnswerField, PartFormValidationResult
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -357,3 +359,69 @@ def test_console_back_first() -> None:
     bridge, _ = _console(':b\n')
     with pytest.raises(WizardBack):
         bridge.ask_form('H', [AskTextField('A', None)])
+
+
+class _Tty(StringIO):
+    """A text stream that reports itself as an interactive terminal."""
+
+    def isatty(self) -> bool:
+        """Report the stream as a terminal to trigger hidden input."""
+        return True
+
+
+def _reply(reply: str) -> Callable[..., str]:
+    """Return a getpass stand-in that yields a fixed reply."""
+    def fake(prompt: str = '', stream: Optional[object] = None) -> str:
+        """Ignore the prompt and stream and return the fixed reply."""
+        _ = (prompt, stream)
+        return reply
+    return fake
+
+
+def test_sensitive_tty(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On a real terminal sensitive text is read hidden via getpass."""
+    monkeypatch.setattr(getpass, 'getpass', _reply('topsecret'))
+    bridge = WizardUiBridgeConsole(StringIO(), _Tty(), StringIO())
+    assert bridge.ask_text('Password?', sensitive=True) == 'topsecret'
+
+
+def test_sensitive_tty_nav(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A navigation token typed at a hidden prompt still navigates."""
+    monkeypatch.setattr(getpass, 'getpass', _reply(':q'))
+    bridge = WizardUiBridgeConsole(StringIO(), _Tty(), StringIO())
+    with pytest.raises(WizardAbort):
+        bridge.ask_text('Password?', sensitive=True)
+
+
+def test_fixed_table_back() -> None:
+    """Back from a later cell of a fixed table re-asks the previous cell."""
+    cols = (TableColumn('A'), TableColumn('B'))
+    cells = [[TableCell(value='a'), TableCell(value='b')]]
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO('X\n:b\nY\nZ\n'),
+                                   StringIO())
+    assert bridge.ask_table(cols, cells, 'Q:') == [['Y', 'Z']]
+
+
+def test_fixed_back_first() -> None:
+    """Back from the first cell of a fixed table propagates the request."""
+    cols = (TableColumn('A'),)
+    cells = [[TableCell(value='a')]]
+    bridge = WizardUiBridgeConsole(StringIO(), StringIO(':b\n'), StringIO())
+    with pytest.raises(WizardBack):
+        bridge.ask_table(cols, cells, 'Q:')
+
+
+def _disable_second(answers: Sequence[AnswerField],
+                    index: int) -> PartFormValidationResult:
+    """Return a validator result that always disables the second field."""
+    _ = (answers, index)
+    return PartFormValidationResult(True, '', (1,))
+
+
+def test_back_over_disabled() -> None:
+    """Back past a disabled field re-asks the nearest enabled field."""
+    fields = [AskTextField('A', None), AskTextField('B', None),
+              AskTextField('C', None)]
+    bridge, _ = _console('a\n:b\nA2\nc\n')
+    answers = bridge.ask_form('H', fields, partial_validator=_disable_second)
+    assert [answer.value for answer in answers] == ['A2', None, 'c']

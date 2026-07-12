@@ -1,5 +1,10 @@
 #! /usr/bin/env python3
-"""Tests for the interactive TableIO JSON config wizard."""
+"""Tests for the interactive TableIO JSON config wizard flow.
+
+This drives the wizard end to end through the format, implementation and
+option questions, covering navigation, defaults, the deprecated bridge
+API and the wizard's internal data handling.
+"""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
@@ -9,209 +14,21 @@
 import sys
 import warnings
 from io import StringIO
-from typing import Callable, Optional, Sequence
+from typing import Optional, Sequence
 
 import pytest
 
-from tableio import Capabilities, CsvDialect, FileAccess, \
+from tableio import Capabilities, ConfigSpec, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
-    list_implementations_tableio, list_registered_tableio
-from tableio_cfg_json import TioJsonConfig, WizardUiBridge, \
-    WizardUiBridgeConsole, get_config_member_names, tio_json_config_wizard, \
-    TableCell, TableColumn, WizardAbort, WizardBack, WizardCancelLevel, \
-    PartialCheck, WizardNavigation
+    list_implementations_tableio
+from tableio_cfg_json import WizardUiBridge, WizardUiBridgeConsole, \
+    tio_json_config_wizard, TableCell, TableColumn, WizardAbort, WizardBack, \
+    WizardCancelLevel
 from tableio_cfg_json.wizard_ui_bridge import _INT_ERROR
-from tableio_cfg_json._wizard_ui_bridge_helpers import ask_many, ask_one, \
-    ask_yes_no, run_table
 import tableio_cfg_json.wizard as wizard_module
-
-
-class _ScriptedBridge(WizardUiBridge):
-    """Wizard UI bridge that returns scripted answers for tests.
-
-    The bridge implements the typed ask methods directly, like a real
-    bridge, by feeding scripted raw answers into the shared answer
-    interpreters. A scripted answer that is an exception is raised
-    instead, which lets tests drive navigation requests.
-    """
-
-    def __init__(self, answers: Sequence[str | int | BaseException]) -> None:
-        """Store raw answers returned in order to the ask methods."""
-        self.answers: list[str | int | BaseException] = list(answers)
-        self.calls: list[
-            tuple[str, Optional[str], Optional[tuple[str, ...]]]] = []
-        self.messages: list[str] = []
-        self.stderr_file = StringIO()
-
-    def _next(self) -> str | int:
-        """Return the next scripted answer, raising scripted exceptions."""
-        if not self.answers:
-            raise EOFError('No scripted answer left.')
-        answer = self.answers.pop(0)
-        if isinstance(answer, BaseException):
-            raise answer
-        return answer
-
-    def _reader(self, question: str, choices: Optional[Sequence[str]]
-                ) -> Callable[[Optional[str]], str | int]:
-        """Return a reader that records each call and pops an answer."""
-        choice_tuple = None if choices is None else tuple(choices)
-
-        def read(reason: Optional[str]) -> str | int:
-            self.calls.append((question, reason, choice_tuple))
-            return self._next()
-        return read
-
-    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
-                 nullable: bool = False, *, default: Optional[str] = None,
-                 sensitive: bool = False) -> Optional[str]:
-        """Return the next scripted answer as text."""
-        if sensitive and default is not None:
-            raise ValueError('default is not allowed for sensitive input')
-        self.calls.append((question, re_ask_reason, None))
-        answer = self._next()
-        text = answer if isinstance(answer, str) else str(answer)
-        if text == '' and default is not None:
-            return default
-        return None if (nullable and text == '') else text
-
-    def ask_choice(self, question: str, *, choices: Sequence[str],
-                   default: Optional[str] = None,
-                   re_ask_reason: Optional[str] = None) -> str:
-        """Pick one scripted choice; see WizardUiBridge.ask_choice."""
-        return ask_one(self._reader(question, choices), choices, default,
-                       re_ask_reason)
-
-    # pylint: disable-next=too-many-arguments
-    def ask_multi(self, question: str, *, choices: Sequence[str],
-                  default: Optional[Sequence[str]] = None, min_select: int = 0,
-                  max_select: Optional[int] = None,
-                  re_ask_reason: Optional[str] = None) -> list[str]:
-        """Pick several scripted choices; see WizardUiBridge.ask_multi."""
-        return ask_many(self._reader(question, choices), choices, default,
-                        min_select, max_select, re_ask_reason, one_based=False)
-
-    def ask_yes_no(self, question: str, default: bool,
-                   re_ask_reason: Optional[str] = None) -> bool:
-        """Answer a scripted yes/no question; see ask_yes_no."""
-        return ask_yes_no(self._reader(question, ('yes', 'no')), default,
-                          re_ask_reason)
-
-    # pylint: disable-next=too-many-arguments
-    def ask_table(self, columns: Sequence[TableColumn],
-                  cells: list[list[TableCell]], question: str, *,
-                  re_ask_reason: Optional[str] = None,
-                  partial_check: Optional[PartialCheck] = None,
-                  min_rows: Optional[int] = None,
-                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
-        """Fill a table from scripted answers; see ask_table."""
-        _ = (min_rows, max_rows)
-        return run_table(self._cell_reader, self.show, columns, cells,
-                         question, re_ask_reason, partial_check)
-
-    def _cell_reader(self, prompt: str, re_ask_reason: Optional[str] = None,
-                     choices: Optional[Sequence[str]] = None) -> str | int:
-        """Record one table-cell prompt and return the next answer."""
-        choice_tuple = None if choices is None else tuple(choices)
-        self.calls.append((prompt, re_ask_reason, choice_tuple))
-        return self._next()
-
-    def error_file(self) -> StringIO:
-        """Return the stream used for validation diagnostics."""
-        return self.stderr_file
-
-    def show(self, message: str) -> None:
-        """Store a shown message."""
-        self.messages.append(message)
-
-
-def _run_wizard(file_access: FileAccess, answer_lines: list[str]
-                ) -> tuple[TioJsonConfig, str, str]:
-    """Run the wizard with scripted answers."""
-    stdin_file = StringIO('\n'.join(answer_lines) + '\n')
-    stdout_file = StringIO()
-    stderr_file = StringIO()
-    ui_bridge = WizardUiBridgeConsole(stdout_file, stdin_file, stderr_file)
-    capabilities = access_capabilities(file_access, error_file=stderr_file)
-    config = tio_json_config_wizard(capabilities, file_access, ui_bridge)
-    return config, stdout_file.getvalue(), stderr_file.getvalue()
-
-
-def _run_bridge(file_access: FileAccess,
-                ui_bridge: WizardUiBridge) -> TioJsonConfig:
-    """Run the wizard through a supplied bridge."""
-    capabilities = access_capabilities(file_access,
-                                       error_file=ui_bridge.error_file())
-    return tio_json_config_wizard(capabilities, file_access, ui_bridge)
-
-
-def _wizard_lines(format_name: str, file_access: FileAccess,
-                  impl_answer: Optional[str] = None,
-                  member_answers: Optional[dict[str, list[str]]] = None
-                  ) -> list[str]:
-    """Return scripted answers for one format and optional member values."""
-    capabilities = access_capabilities(file_access)
-    match_caps = add_access_capabilities(file_access, capabilities)
-    format_names = list_registered_tableio(capabilities=match_caps)
-    impl_names = list_implementations_tableio(format_name=format_name,
-                                              capabilities=match_caps)
-    answer_map = {} if member_answers is None else member_answers
-    lines = [_menu_number(format_name, format_names)]
-    implementation = None
-    if len(impl_names) > 1:
-        impl_menu = (wizard_module._AUTO_IMPL,) + tuple(impl_names)
-        lines.append('' if impl_answer is None else impl_answer)
-        if impl_answer is not None and impl_answer != '':
-            implementation = impl_menu[int(impl_answer) - 1]
-    for member_name in _optional_names(format_name, file_access,
-                                       implementation):
-        lines.extend(answer_map.get(member_name, ['']))
-    return lines
-
-
-def _optional_names(format_name: str, file_access: FileAccess,
-                    implementation: Optional[str]) -> tuple[str, ...]:
-    """Return optional wizard member names for one scripted selection."""
-    capabilities = access_capabilities(file_access)
-    member_names = get_config_member_names(capabilities=capabilities,
-                                           file_access=file_access,
-                                           format_name=format_name,
-                                           implementation=implementation)
-    return tuple(name for name in member_names
-                 if name not in ('format_name', 'implementation'))
-
-
-def _menu_number(choice: str, choices: Sequence[str]) -> str:
-    """Return the one-based menu number for a known choice."""
-    return str(choices.index(choice) + 1)
-
-
-def _format_index(format_name: str, file_access: FileAccess) -> int:
-    """Return the 0-based index of one format for scripted answers."""
-    capabilities = access_capabilities(file_access)
-    match_caps = add_access_capabilities(file_access, capabilities)
-    return list_registered_tableio(capabilities=match_caps).index(format_name)
-
-
-def _member_answer_lines(format_name: str, file_access: FileAccess,
-                         implementation: Optional[str] = None,
-                         member_answers: Optional[dict[str, list[str | int]]]
-                         = None) -> list[str | int]:
-    """Return scripted answers for optional members."""
-    answer_map = {} if member_answers is None else member_answers
-    lines: list[str | int] = []
-    for member_name in _optional_names(format_name, file_access,
-                                       implementation):
-        lines.extend(answer_map.get(member_name, ['']))
-    return lines
-
-
-def assert_csv_core(config: TioJsonConfig) -> None:
-    """Assert the CSV option values shared by several wizard tests."""
-    assert config.character_encoding == 'utf-8'
-    assert config.csv is not None
-    assert config.csv.dialect == CsvDialect.UNIX
-    assert config.csv.delimiter == ';'
+from .wizard_support import _ScriptedBridge, _run_wizard, _run_bridge, \
+    _wizard_lines, _optional_names, _menu_number, _format_index, \
+    _member_answer_lines, assert_csv_core
 
 
 def test_public_api() -> None:
@@ -474,67 +291,6 @@ def test_scalar_json_section() -> None:
     assert data == {'csv': 'bad'}
 
 
-@pytest.mark.parametrize('answer, default, expected', [
-    ('', True, True), ('', False, False), (0, False, True), (1, True, False),
-    ('y', False, True), ('no', True, False), ('TRUE', False, True),
-    ('n', True, False)])
-def test_yes_no_fallback(answer: str | int, default: bool,
-                         expected: bool) -> None:
-    """ask_yes_no maps scripted bridge answers to booleans."""
-    bridge = _ScriptedBridge([answer])
-    assert bridge.ask_yes_no('OK?', default) is expected
-
-
-def test_yes_no_retry() -> None:
-    """ask_yes_no re-asks until it understands the answer."""
-    bridge = _ScriptedBridge(['maybe', 'yes'])
-    assert bridge.ask_yes_no('OK?', False) is True
-    assert bridge.calls[1][1] == 'Please answer yes or no.'
-
-
-@pytest.mark.parametrize('token, error', [
-    (':b', WizardBack), (':c', WizardCancelLevel), (':q', WizardAbort)])
-def test_console_nav_tokens(token: str, error: type[BaseException]) -> None:
-    """Console reserved tokens raise the matching navigation request."""
-    bridge = WizardUiBridgeConsole(StringIO(), StringIO(token + '\n'),
-                                   StringIO())
-    with pytest.raises(error):
-        bridge.ask_text('Question?')
-
-
-def test_descriptor_defaults() -> None:
-    """Table descriptors default to editable free-text non-null cells."""
-    column = TableColumn('Value')
-    cell = TableCell()
-    assert column.read_only is False
-    assert (cell.value, cell.choices, cell.nullable) == (None, None, False)
-
-
-def test_table_keep_and_erase() -> None:
-    """ask_table keeps a value on enter and erases on the token."""
-    columns = (TableColumn('Parameter', read_only=True), TableColumn('Value'))
-    cells = [[TableCell(value='impl'), TableCell(value='Lib', nullable=True)]]
-    keep = _ScriptedBridge(['']).ask_table(columns, cells, 'Pick:')
-    erase = _ScriptedBridge([':e']).ask_table(columns, cells, 'Pick:')
-    assert keep == [['impl', 'Lib']]
-    assert erase == [['impl', None]]
-
-
-def test_table_partial_check() -> None:
-    """ask_table re-asks a cell until the partial check passes."""
-    columns = (TableColumn('Value'),)
-    cells = [[TableCell(nullable=True)]]
-
-    def check(table: list[list[Optional[str]]],
-              position: tuple[int, int]) -> tuple[bool, str]:
-        value = table[position[0]][position[1]]
-        return (False, 'no good') if value == 'bad' else (True, '')
-    bridge = _ScriptedBridge(['bad', 'good'])
-    result = bridge.ask_table(columns, cells, 'Enter:', partial_check=check)
-    assert result == [['good']]
-    assert bridge.calls[1][1] == 'no good'
-
-
 def test_cancel_options() -> None:
     """Cancelling the option form returns to the format question."""
     answers: list[str | int | BaseException] = [
@@ -593,205 +349,6 @@ def test_back_within_form() -> None:
         'unix', ';', '', '', '', '']
     config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
     assert_csv_core(config)
-
-
-def test_ask_choice_index() -> None:
-    """ask_choice maps a 0-based answer index to a choice."""
-    bridge = _ScriptedBridge([1])
-    assert bridge.ask_choice('Pick:', choices=('a', 'b', 'c')) == 'b'
-
-
-def test_ask_choice_default() -> None:
-    """An empty answer selects the default choice."""
-    bridge = _ScriptedBridge([''])
-    assert bridge.ask_choice('Pick:', choices=('a', 'b'), default='a') == 'a'
-
-
-def test_ask_choice_required() -> None:
-    """With no default an empty answer is rejected and re-asked."""
-    bridge = _ScriptedBridge(['', 0])
-    assert bridge.ask_choice('Pick:', choices=('a', 'b')) == 'a'
-    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
-
-
-def test_ask_choice_prefix() -> None:
-    """ask_choice accepts a unique name prefix."""
-    bridge = _ScriptedBridge(['ban'])
-    assert bridge.ask_choice('Pick:', choices=('apple', 'banana')) == 'banana'
-
-
-def test_ask_choice_nav() -> None:
-    """A navigation request raised inside ask_choice propagates."""
-    bridge = _ScriptedBridge([WizardBack()])
-    with pytest.raises(WizardBack):
-        bridge.ask_choice('Pick:', choices=('a', 'b'))
-
-
-def test_console_choice_num() -> None:
-    """The console choice menu maps a 1-based number to a choice."""
-    bridge = WizardUiBridgeConsole(StringIO(), StringIO('2\n'), StringIO())
-    assert bridge.ask_choice('Pick:', choices=('a', 'b', 'c')) == 'b'
-
-
-def test_console_choice_def() -> None:
-    """The console choice menu marks and selects the default."""
-    out = StringIO()
-    bridge = WizardUiBridgeConsole(out, StringIO('\n'), StringIO())
-    assert bridge.ask_choice('Pick:', choices=('a', 'b'), default='b') == 'b'
-    assert 'b (default)' in out.getvalue()
-
-
-def test_ask_multi_basic() -> None:
-    """ask_multi returns chosen items in choices order."""
-    bridge = _ScriptedBridge(['0,2'])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
-
-
-def test_ask_multi_names() -> None:
-    """ask_multi accepts names and orders them by choices."""
-    bridge = _ScriptedBridge(['b , a'])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'b']
-
-
-def test_ask_multi_dedupe() -> None:
-    """ask_multi drops duplicate selections."""
-    bridge = _ScriptedBridge(['2,0,0'])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
-
-
-def test_ask_multi_default() -> None:
-    """An empty multi answer selects the default set."""
-    bridge = _ScriptedBridge([''])
-    result = bridge.ask_multi('Pick:', choices=('a', 'b'), default=('b',))
-    assert result == ['b']
-
-
-def test_ask_multi_empty() -> None:
-    """An empty multi answer with no default selects nothing."""
-    bridge = _ScriptedBridge([''])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == []
-
-
-def test_ask_multi_min() -> None:
-    """Too few selections are rejected and re-asked."""
-    bridge = _ScriptedBridge(['0', '0,1'])
-    result = bridge.ask_multi('Pick:', choices=('a', 'b'), min_select=2)
-    assert result == ['a', 'b']
-    assert bridge.calls[1][1] == 'Please select at least 2.'
-
-
-def test_ask_multi_exact() -> None:
-    """An exact-count requirement reports the exact message."""
-    bridge = _ScriptedBridge(['0', '0,1'])
-    result = bridge.ask_multi('Pick:', choices=('a', 'b'), min_select=2,
-                              max_select=2)
-    assert result == ['a', 'b']
-    assert bridge.calls[1][1] == 'Please select exactly 2.'
-
-
-def test_ask_multi_max() -> None:
-    """Too many selections are rejected and re-asked."""
-    bridge = _ScriptedBridge(['0,1', '1'])
-    result = bridge.ask_multi('Pick:', choices=('a', 'b'), max_select=1)
-    assert result == ['b']
-    assert bridge.calls[1][1] == 'Please select between 0 and 1.'
-
-
-def test_ask_multi_bad_token() -> None:
-    """An unmatched token is rejected and the answer is re-asked."""
-    bridge = _ScriptedBridge(['x', '0'])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a']
-    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
-
-
-def test_console_multi() -> None:
-    """The console multi menu maps 1-based numbers to choices."""
-    bridge = WizardUiBridgeConsole(StringIO(), StringIO('1,3\n'), StringIO())
-    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['a', 'c']
-
-
-def test_ask_table_reask() -> None:
-    """ask_table shows a re-ask reason above the table."""
-    columns = (TableColumn('Value'),)
-    cells = [[TableCell(value='x')]]
-    bridge = _ScriptedBridge([''])
-    bridge.ask_table(columns, cells, 'Pick:', re_ask_reason='try again')
-    assert 'try again' in bridge.messages
-
-
-def test_cell_bool_invalid() -> None:
-    """A boolean cell answer is rejected and the cell is re-asked."""
-    columns = (TableColumn('Value'),)
-    cells = [[TableCell()]]
-    bridge = _ScriptedBridge([True, 'ok'])
-    assert bridge.ask_table(columns, cells, 'Pick:') == [['ok']]
-    assert bridge.calls[1][1] == 'Please enter a value.'
-
-
-@pytest.mark.parametrize('answer', [True, False])
-def test_yes_no_bool(answer: bool) -> None:
-    """A boolean bridge answer maps straight to that boolean."""
-    bridge = _ScriptedBridge([answer])
-    assert bridge.ask_yes_no('OK?', not answer) is answer
-
-
-def test_yes_no_bad_index() -> None:
-    """An out-of-range index answer is re-asked as yes or no."""
-    bridge = _ScriptedBridge([7, 0])
-    assert bridge.ask_yes_no('OK?', False) is True
-    assert bridge.calls[1][1] == 'Please answer yes or no.'
-
-
-def test_erase_freetext() -> None:
-    """Erasing a non-nullable free-text cell yields an empty string."""
-    columns = (TableColumn('Value'),)
-    cells = [[TableCell(value='x')]]
-    bridge = _ScriptedBridge([':e'])
-    assert bridge.ask_table(columns, cells, 'Pick:') == [['']]
-
-
-def test_erase_choice() -> None:
-    """Erasing a non-nullable choice cell is rejected and re-asked."""
-    columns = (TableColumn('Value'),)
-    cells = [[TableCell(choices=('a', 'b'))]]
-    bridge = _ScriptedBridge([':e', 0])
-    assert bridge.ask_table(columns, cells, 'Pick:') == [['a']]
-    assert bridge.calls[1][1] == 'Please enter a value.'
-
-
-def test_cell_index_oob() -> None:
-    """An out-of-range choice index is rejected and the cell re-asked."""
-    columns = (TableColumn('Value'),)
-    cells = [[TableCell(choices=('a', 'b'))]]
-    bridge = _ScriptedBridge([9, 1])
-    assert bridge.ask_table(columns, cells, 'Pick:') == [['b']]
-    assert bridge.calls[1][1] == 'Please enter a value.'
-
-
-def test_multi_bool() -> None:
-    """A boolean multi answer is rejected and the answer re-asked."""
-    bridge = _ScriptedBridge([True, '0'])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a']
-    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
-
-
-def test_multi_int_index() -> None:
-    """A single integer multi answer selects that one choice."""
-    bridge = _ScriptedBridge([1])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b', 'c')) == ['b']
-
-
-def test_multi_int_oob() -> None:
-    """An out-of-range integer multi answer is re-asked."""
-    bridge = _ScriptedBridge([9, '0'])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a']
-    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
-
-
-def test_multi_empty_token() -> None:
-    """Empty tokens between commas are ignored in a multi answer."""
-    bridge = _ScriptedBridge(['0,,1'])
-    assert bridge.ask_multi('Pick:', choices=('a', 'b')) == ['a', 'b']
 
 
 def test_ask_impl_single() -> None:
@@ -877,68 +434,55 @@ def test_typed_no_impl() -> None:
         bridge.ask_choice('q', choices=('a', 'b'))
 
 
-@pytest.mark.parametrize('answer, expected', [
-    ('42', 42), (' 7 ', 7), ('-3', -3), ('+5', 5), ('1_000', 1000)])
-def test_ask_int_value(answer: str, expected: int) -> None:
-    """ask_int parses a single integer answer like Python int()."""
-    bridge = _ScriptedBridge([answer])
-    assert bridge.ask_int('How many?') == expected
+def _choice_spec() -> ConfigSpec:
+    """Return a choice config spec with two string choices."""
+    return ConfigSpec('csv.dialect', 'The dialect.', 'Optional[str]',
+                      'None means backend default.', choices=('EXCEL', 'UNIX'))
 
 
-def test_ask_int_null() -> None:
-    """A nullable empty answer is reported as None."""
+def test_impl_default_reset() -> None:
+    """A stale implementation default falls back to the auto option.
+
+    When the previously chosen implementation is no longer offered, the
+    implementation question drops the stale default and keeps the
+    recommended auto behavior, so an empty answer returns None.
+    """
     bridge = _ScriptedBridge([''])
-    assert bridge.ask_int('How many?', nullable=True) is None
+    result = wizard_module._ask_implementation(['impl_a', 'impl_b'], bridge,
+                                               'gone')
+    assert result is None
 
 
-@pytest.mark.parametrize('first', ['', 'abc'])
-def test_ask_int_bad(first: str) -> None:
-    """An empty or non-integer answer is re-asked as not an integer."""
-    bridge = _ScriptedBridge([first, '9'])
-    assert bridge.ask_int('How many?') == 9
-    assert bridge.calls[1][1] == _INT_ERROR
+def test_resolve_bad_choice() -> None:
+    """An answered choice outside the member's options is rejected."""
+    with pytest.raises(ValueError):
+        wizard_module._resolve_member_value(_choice_spec(), 'NONSENSE')
 
 
-@pytest.mark.parametrize(
-    'answers, min_value, max_value, expected, reason', [
-        (['0', '5'], 1, 10, 5, 'between 1 and 10'),
-        (['11', '4'], 1, 10, 4, 'between 1 and 10'),
-        (['0', '3'], 1, None, 3, 'at least 1'),
-        (['11', '7'], None, 10, 7, 'at most 10'),
-        (['1'], 1, 10, 1, None),
-        (['10'], 1, 10, 10, None)])
-def test_ask_int_range(answers: list[str], min_value: Optional[int],
-                       max_value: Optional[int], expected: int,
-                       reason: Optional[str]) -> None:
-    """Values outside the inclusive bounds are re-asked with a reason."""
-    bridge = _ScriptedBridge(answers)
-    result = bridge.ask_int('How many?', min_value=min_value,
-                            max_value=max_value)
-    assert result == expected
-    if reason is None:
-        assert bridge.calls[0][1] is None
-    else:
-        assert reason in (bridge.calls[1][1] or '')
+def test_apply_bad_option() -> None:
+    """An option value that fails conversion becomes a retry reason."""
+    stderr = StringIO()
+    file_access = FileAccess.CREATE
+    caps = access_capabilities(file_access, error_file=stderr)
+    match_caps = add_access_capabilities(file_access, caps, error_file=stderr)
+    run = wizard_module._WizardRun(bridge=WizardUiBridge(), caps=caps,
+                                   file_access=file_access,
+                                   match_caps=match_caps, stderr=stderr,
+                                   data={'format_name': 'CSV'})
+    reason = wizard_module._apply_options(run, (_choice_spec(),),
+                                          {'csv.dialect': 'BAD'})
+    assert reason is not None and 'Invalid value' in reason
 
 
-def test_ask_int_reason() -> None:
-    """A given re_ask_reason is shown on the first prompt."""
-    bridge = _ScriptedBridge(['5'])
-    assert bridge.ask_int('How many?', 'Was rejected.') == 5
-    assert bridge.calls[0][1] == 'Was rejected.'
+def test_clear_no_format() -> None:
+    """Clearing option values with no format leaves the data empty."""
+    data: dict[str, object] = {'other': 1}
+    wizard_module._clear_after_format(data)
+    assert not data
 
 
-@pytest.mark.parametrize('error', [
-    WizardBack(), WizardCancelLevel(), WizardAbort()])
-def test_ask_int_nav(error: WizardNavigation) -> None:
-    """Navigation requests propagate out of ask_int."""
-    bridge = _ScriptedBridge([error])
-    with pytest.raises(type(error)):
-        bridge.ask_int('How many?')
-
-
-def test_ask_int_minmax() -> None:
-    """ask_int rejects a min_value above max_value."""
-    bridge = _ScriptedBridge([])
-    with pytest.raises(AssertionError):
-        bridge.ask_int('How many?', min_value=5, max_value=3)
+def test_spec_choices_none() -> None:
+    """A member without choices reports no string choice tuple."""
+    spec = ConfigSpec('character_encoding', 'Encoding.', 'Optional[str]',
+                      'None means backend default.')
+    assert wizard_module._spec_choices(spec) is None
