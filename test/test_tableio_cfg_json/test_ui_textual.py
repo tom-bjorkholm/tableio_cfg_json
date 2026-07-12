@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import pytest
-from textual.widgets import Button, Input
+from textual.widgets import Button, Input, SelectionList, Static
 
 from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
     AskMultiChoiceField, AskPathField, AskTextField, AskYesNoField, \
@@ -683,6 +683,11 @@ def _submitted(app: _NavApp[Any]) -> list[AnswerField]:
     return result
 
 
+def _status(app: _FormApp) -> str:
+    """Return the text currently shown in the form status line."""
+    return str(app.query_one('#form_status', Static).render())
+
+
 def test_form_defaults() -> None:
     """Submitting a form unchanged returns each field's default."""
     driven = drive(_FormApp('H', _sample_form(), [], None), ['#submit'])
@@ -745,6 +750,26 @@ def test_form_multi_min() -> None:
     assert driven.return_value is None
 
 
+def test_form_multi_fits() -> None:
+    """A multi-choice list sits fully inside the grid, not clipped.
+
+    The check-box list would otherwise inherit a parent-relative
+    max-height that collapses its grid row to one line, leaving only the
+    top border visible. The definite max-height in the form CSS lets the
+    auto-height grid reserve the whole widget.
+    """
+    app = _FormApp('H', _sample_form(), [], None)
+
+    async def scenario() -> tuple[int, int]:
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            multi = app.query_one(SelectionList)
+            grid = app.query_one('#form_grid')
+            return (multi.region.bottom, grid.region.bottom)
+    multi_bottom, grid_bottom = asyncio.run(scenario())
+    assert multi_bottom <= grid_bottom
+
+
 def test_form_partial_disable(toggle_fields: list[AskField],
                               toggle_validator: PartialFormValidator) -> None:
     """A disabled row's widgets are disabled and skip validation."""
@@ -760,6 +785,61 @@ def test_form_partial_disable(toggle_fields: list[AskField],
             return disabled
     assert asyncio.run(scenario()) is True
     assert _submitted(app)[1].value is None
+
+
+def test_form_live_path_error(tmp_path: Path) -> None:
+    """An existing file shows an error while editing, then clears.
+
+    On the console the path is re-asked at once, so the form gives the
+    same immediate feedback instead of only reporting it on submit.
+    """
+    existing = tmp_path / 'there.csv'
+    existing.write_text('x')
+    field = AskPathField('File', None, PathAskOptions(
+        kind=WizardPathKind.NON_EXISTING_FILE))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> tuple[str, str]:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = str(existing)
+            await pilot.pause()
+            shown = _status(app)
+            app.query_one('#field_0', Input).value = str(tmp_path / 'new.csv')
+            await pilot.pause()
+            return (shown, _status(app))
+    error, cleared = asyncio.run(scenario())
+    assert error == 'Path already exists.'
+    assert cleared == ''
+
+
+def test_form_live_int_error() -> None:
+    """An out-of-range integer shows its error while editing."""
+    fields: list[AskField] = [
+        AskIntField('N', None, min_value=1, max_value=5)]
+    app = _FormApp('H', fields, [], None)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = '9'
+            await pilot.pause()
+            return _status(app)
+    assert 'between 1 and 5' in asyncio.run(scenario())
+
+
+def test_form_live_disabled(toggle_fields: list[AskField],
+                            toggle_validator: PartialFormValidator) -> None:
+    """A disabled field shows no live error of its own."""
+    app = _FormApp('H', toggle_fields, [], toggle_validator)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0').focus()
+            await pilot.press('space')
+            await pilot.pause()
+            app._changed('field_1')
+            await pilot.pause()
+            return _status(app)
+    assert asyncio.run(scenario()) == ''
 
 
 def test_form_help_tooltip() -> None:

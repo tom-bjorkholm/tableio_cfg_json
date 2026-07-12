@@ -191,7 +191,8 @@
     * [\_checkbox\_changed](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._checkbox_changed)
     * [\_multi\_changed](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._multi_changed)
     * [\_changed](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._changed)
-    * [\_run\_validator](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._run_validator)
+    * [\_apply\_validator](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_validator)
+    * [\_live\_message](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._live_message)
     * [\_apply\_disabled](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_disabled)
     * [\_submit\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._submit_clicked)
     * [\_browse\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._browse_clicked)
@@ -3660,17 +3661,33 @@ React to a multi-choice selection change.
 def _changed(widget_id: Optional[str]) -> None
 ```
 
-Update the changed answer and run the partial validator.
+Update the changed answer and refresh the shown feedback.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._run_validator"></a>
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_validator"></a>
 
-#### \_run\_validator
+#### \_apply\_validator
 
 ```python
-def _run_validator(index: int) -> None
+def _apply_validator(index: int) -> str
 ```
 
-Show advisory feedback and apply the disabled rows.
+Apply the validator's disabled rows and return its message.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._live_message"></a>
+
+#### \_live\_message
+
+```python
+def _live_message(index: int, validator_message: str) -> str
+```
+
+Return the changed field's own error, else the validator's.
+
+A field disabled by the validator is skipped, as on submit, so an
+irrelevant field never blocks the user with its own error. This
+gives a path, integer, choice or multi-choice field the same
+immediate feedback while editing that the console bridge gives by
+re-asking, instead of waiting for submit.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_disabled"></a>
 

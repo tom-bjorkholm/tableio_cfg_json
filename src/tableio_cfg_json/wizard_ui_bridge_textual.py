@@ -559,6 +559,10 @@ class _FormApp(_NavApp[list[AnswerField]]):
     #form_grid Horizontal { height: auto; width: 1fr; }
     #form_grid Horizontal Input { width: 1fr; }
     #form_grid Horizontal Button { width: auto; margin-left: 1; }
+    /* A definite max-height lets the auto-height grid size this row;
+       the inherited 100% is parent-relative and collapses it to a
+       sliver. A longer list scrolls inside these rows. */
+    #form_grid SelectionList { max-height: 10; }
     '''
 
     def __init__(self, question: str, fields: list[AskField],
@@ -625,7 +629,7 @@ class _FormApp(_NavApp[list[AnswerField]]):
         self._changed(event.control.id)
 
     def _changed(self, widget_id: Optional[str]) -> None:
-        """Update the changed answer and run the partial validator."""
+        """Update the changed answer and refresh the shown feedback."""
         if not self._form_ready:
             return
         index = _field_index(widget_id)
@@ -633,15 +637,30 @@ class _FormApp(_NavApp[list[AnswerField]]):
             return
         self._last_changed = index
         self._answers[index] = self._read_field(index)
-        self._run_validator(index)
+        validator_message = self._apply_validator(index)
+        self._set_status(self._live_message(index, validator_message))
 
-    def _run_validator(self, index: int) -> None:
-        """Show advisory feedback and apply the disabled rows."""
+    def _apply_validator(self, index: int) -> str:
+        """Apply the validator's disabled rows and return its message."""
         if self._validator is None:
-            return
+            return ''
         result = self._validator(self._answers, index)
         self._apply_disabled(result.disable_row_idxs)
-        self._set_status('' if result.is_valid else result.message)
+        return '' if result.is_valid else result.message
+
+    def _live_message(self, index: int, validator_message: str) -> str:
+        """Return the changed field's own error, else the validator's.
+
+        A field disabled by the validator is skipped, as on submit, so an
+        irrelevant field never blocks the user with its own error. This
+        gives a path, integer, choice or multi-choice field the same
+        immediate feedback while editing that the console bridge gives by
+        re-asking, instead of waiting for submit.
+        """
+        if index in self._disabled:
+            return validator_message
+        error = self._field_error(index, self._fields[index])
+        return validator_message if error is None else error
 
     def _apply_disabled(self, disable_row_idxs: tuple[int, ...]) -> None:
         """Enable or disable each row to match the validator result."""
