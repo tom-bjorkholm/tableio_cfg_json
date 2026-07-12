@@ -1,9 +1,11 @@
 #! /usr/bin/env python3
 """Tests for the console user interface bridge.
 
-This covers the console bridge variable-row ask_table editor and the
-console yes/no question. Other console ask methods are tested in
-test_wizard.py alongside the wizard that drives them.
+This covers the console bridge's typed ask methods: ask_text (including
+sensitive hidden input), ask_int, ask_yes_no and the ask_form question,
+plus the ask_table editor for both fixed and variable-row tables. The
+single-choice menu and show() are exercised through the wizard in
+test_wizard.py.
 """
 
 # Copyright (c) 2026 Tom Björkholm

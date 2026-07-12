@@ -354,7 +354,7 @@
 
 # tableio\_cfg\_json.\_wizard\_ui\_bridge\_helpers
 
-Helpers for the WizardUIBridge base class.
+Helpers for the WizardUiBridge base class.
 
 <a id="tableio_cfg_json._wizard_ui_bridge_helpers._ERASE_TOKEN"></a>
 
@@ -2306,13 +2306,24 @@ and the column and cell descriptors used by table questions. Concrete
 console and graphical bridges derive from WizardUiBridge.
 
 An application that drives the wizard is responsible for implementing
-the typed ask methods of its bridge, together with show(). The typed
-methods are ask_text(), ask_choice(), ask_multi(), ask_yes_no(),
-ask_table() and ask_path(). The low-level ask() is deprecated: it warns
-when called and when a bridge overrides it. The base class keeps
-temporary fallback implementations of the typed methods written in terms
-of ask(), so a bridge that still overrides ask() keeps working while it
-is adjusted to implement the typed methods directly.
+the typed ask methods of its bridge, together with show(). A concrete
+bridge implements ask_text(), ask_choice(), ask_multi(), ask_yes_no()
+and ask_table(); ask_path() has a permanent base implementation that a
+bridge may override for a native file or directory picker. The low-level
+ask() is deprecated: it warns when called and when a bridge overrides
+it. The base class keeps temporary fallback implementations of the typed
+methods written in terms of ask(), so a bridge that still overrides
+ask() keeps working while it is adjusted to implement the typed methods
+directly.
+
+A GUI, textual, curses or web application should override ask_form() to show
+the whole form at once, so the user sees every question together and answers
+them in any order. The base implementation is permanent and suitable for a
+console text interface.
+
+A GUI, textual, curses or web application should also override ask_path() to
+provide a native file or directory picker. The base implementation asks for
+text and validates the path.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge"></a>
 
@@ -2332,15 +2343,21 @@ interface.
 A concrete bridge implements ask_text(), ask_choice(), ask_multi(),
 ask_yes_no(), ask_table() and show(). It may override ask_path() for
 a native file or directory picker; otherwise the base implementation
-asks for text and validates the path. The low-level ask() is
-deprecated: it warns when called and when a bridge overrides it. As a
-temporary migration aid the base class implements typed methods via the
-deprecated ask(), so a bridge that still overrides ask() keeps
-working while it is adjusted; each fallback warns that the typed
-method should be overridden instead. These fallbacks are temporary
+asks for text and validates the path. It may override ask_form() to
+show the whole form at once, so the user sees every question together
+and answers them in any order. Overriding ask_form() and ask_path()
+is strongly recommended for a GUI, textual, curses or web application.
+
+The low-level ask() is deprecated: it warns when called and when a bridge
+overrides it. As a temporary migration aid the base class implements
+typed methods via the deprecated ask(), so a bridge that still overrides
+ask() keeps working while it is adjusted; each fallback warns that the
+typed method should be overridden instead. These fallbacks are temporary
 and will be withdrawn once bridges implement the typed methods
-directly. Any ask method may raise a WizardNavigation subclass to
-request back, cancel-level or abort instead of returning an answer.
+directly.
+
+Any ask method may raise a WizardNavigation subclass to request back,
+cancel-level or abort instead of returning an answer.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.__init_subclass__"></a>
 
@@ -4490,7 +4507,7 @@ Return the confirmed path text to the form.
 
 # tableio\_cfg\_json.wizard\_ui\_bridge\_arg\_types
 
-Types used as arguments to the WizardUIBridge class.
+Types used as arguments to the WizardUiBridge class.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_arg_types.WizardNavigation"></a>
 
@@ -4689,10 +4706,11 @@ Use this function when an application wants to ask a user which TableIO
 format and options should be stored for one input or output endpoint. The
 function first offers only formats that match the supplied capabilities and
 file access. If the selected format has several matching implementations,
-it asks whether to lock one down; a blank answer keeps the recommended
-runtime behavior where TableIO chooses the implementation. It then asks
-for the optional members that can affect the selected backend and validates
-each entered value by constructing a TioJsonConfig.
+it asks which one to use, offering "let TableIO choose (recommended)" as
+the default choice that keeps the runtime behavior where TableIO selects
+the implementation. It then asks for the optional members that can affect
+the selected backend and validates each entered value by constructing a
+TioJsonConfig.
 
 The user can navigate the questions of this one endpoint through the bridge
 by asking to go back to the previous question or to cancel the current
@@ -5485,10 +5503,10 @@ toggle button.
 
 **Attributes**:
 
-- `default` - The value returned when user fills in nothing, or None for
-  no default. In a GUI implementation this is typically shown
-  as the starting value in the input field, and the user can
-  change it.
+- `default` - The boolean value used when the user makes no explicit
+  choice. In a GUI implementation this is typically shown as
+  the starting value in the checkbox or toggle, and the user
+  can change it.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskChoiceField"></a>
 

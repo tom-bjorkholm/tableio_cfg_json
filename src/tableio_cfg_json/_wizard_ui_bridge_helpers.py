@@ -1,5 +1,5 @@
 #! /usr/local/bin/python3
-"""Helpers for the WizardUIBridge base class."""
+"""Helpers for the WizardUiBridge base class."""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License

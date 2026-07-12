@@ -60,10 +60,11 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
     format and options should be stored for one input or output endpoint. The
     function first offers only formats that match the supplied capabilities and
     file access. If the selected format has several matching implementations,
-    it asks whether to lock one down; a blank answer keeps the recommended
-    runtime behavior where TableIO chooses the implementation. It then asks
-    for the optional members that can affect the selected backend and validates
-    each entered value by constructing a TioJsonConfig.
+    it asks which one to use, offering "let TableIO choose (recommended)" as
+    the default choice that keeps the runtime behavior where TableIO selects
+    the implementation. It then asks for the optional members that can affect
+    the selected backend and validates each entered value by constructing a
+    TioJsonConfig.
 
     The user can navigate the questions of this one endpoint through the bridge
     by asking to go back to the previous question or to cancel the current

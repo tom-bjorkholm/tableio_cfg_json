@@ -132,10 +132,10 @@ class AskYesNoField(AskFieldCommon):
     toggle button.
 
     Attributes:
-        default: The value returned when user fills in nothing, or None for
-                 no default. In a GUI implementation this is typically shown
-                 as the starting value in the input field, and the user can
-                 change it.
+        default: The boolean value used when the user makes no explicit
+                 choice. In a GUI implementation this is typically shown as
+                 the starting value in the checkbox or toggle, and the user
+                 can change it.
     """
 
     default: bool

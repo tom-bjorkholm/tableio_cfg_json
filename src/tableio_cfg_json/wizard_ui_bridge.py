@@ -7,13 +7,24 @@ and the column and cell descriptors used by table questions. Concrete
 console and graphical bridges derive from WizardUiBridge.
 
 An application that drives the wizard is responsible for implementing
-the typed ask methods of its bridge, together with show(). The typed
-methods are ask_text(), ask_choice(), ask_multi(), ask_yes_no(),
-ask_table() and ask_path(). The low-level ask() is deprecated: it warns
-when called and when a bridge overrides it. The base class keeps
-temporary fallback implementations of the typed methods written in terms
-of ask(), so a bridge that still overrides ask() keeps working while it
-is adjusted to implement the typed methods directly.
+the typed ask methods of its bridge, together with show(). A concrete
+bridge implements ask_text(), ask_choice(), ask_multi(), ask_yes_no()
+and ask_table(); ask_path() has a permanent base implementation that a
+bridge may override for a native file or directory picker. The low-level
+ask() is deprecated: it warns when called and when a bridge overrides
+it. The base class keeps temporary fallback implementations of the typed
+methods written in terms of ask(), so a bridge that still overrides
+ask() keeps working while it is adjusted to implement the typed methods
+directly.
+
+A GUI, textual, curses or web application should override ask_form() to show
+the whole form at once, so the user sees every question together and answers
+them in any order. The base implementation is permanent and suitable for a
+console text interface.
+
+A GUI, textual, curses or web application should also override ask_path() to
+provide a native file or directory picker. The base implementation asks for
+text and validates the path.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -50,15 +61,21 @@ class WizardUiBridge:
     A concrete bridge implements ask_text(), ask_choice(), ask_multi(),
     ask_yes_no(), ask_table() and show(). It may override ask_path() for
     a native file or directory picker; otherwise the base implementation
-    asks for text and validates the path. The low-level ask() is
-    deprecated: it warns when called and when a bridge overrides it. As a
-    temporary migration aid the base class implements typed methods via the
-    deprecated ask(), so a bridge that still overrides ask() keeps
-    working while it is adjusted; each fallback warns that the typed
-    method should be overridden instead. These fallbacks are temporary
+    asks for text and validates the path. It may override ask_form() to
+    show the whole form at once, so the user sees every question together
+    and answers them in any order. Overriding ask_form() and ask_path()
+    is strongly recommended for a GUI, textual, curses or web application.
+
+    The low-level ask() is deprecated: it warns when called and when a bridge
+    overrides it. As a temporary migration aid the base class implements
+    typed methods via the deprecated ask(), so a bridge that still overrides
+    ask() keeps working while it is adjusted; each fallback warns that the
+    typed method should be overridden instead. These fallbacks are temporary
     and will be withdrawn once bridges implement the typed methods
-    directly. Any ask method may raise a WizardNavigation subclass to
-    request back, cancel-level or abort instead of returning an answer.
+    directly.
+
+    Any ask method may raise a WizardNavigation subclass to request back,
+    cancel-level or abort instead of returning an answer.
     """
 
     def __init_subclass__(cls, **kwargs: object) -> None:

@@ -1,5 +1,5 @@
 #! /usr/local/bin/python3
-"""Types used as arguments to the WizardUIBridge class."""
+"""Types used as arguments to the WizardUiBridge class."""
 
 from dataclasses import dataclass
 from enum import Enum, auto
