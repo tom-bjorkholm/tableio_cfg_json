@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=82.0.1"]
+requires = ["setuptools>=83.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "tableio-cfg-json"
-version = "0.8.1"
+version = "0.9"
 authors = [
   { name="Tom Björkholm", email="klausuler_linnet0q@icloud.com" },
 ]
