@@ -37,6 +37,7 @@ from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     int_text, multi_count_error, out_of_range, path_answer, range_error, \
     text_answer
 from tableio_cfg_json._wizard_ui_bridge_form import initial_answer
+from tableio_cfg_json._wizard_ui_bridge_form_prefill import apply_prefills
 from tableio_cfg_json._wizard_ui_bridge_path import _PathPick, \
     _PickerScreen, _start_dir, _start_value
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
@@ -641,11 +642,12 @@ class _FormApp(_NavApp[list[AnswerField]]):
         self._set_status(self._live_message(index, validator_message))
 
     def _apply_validator(self, index: int) -> str:
-        """Apply the validator's disabled rows and return its message."""
+        """Apply the validator's disabled rows and prefills, return message."""
         if self._validator is None:
             return ''
         result = self._validator(self._answers, index)
         self._apply_disabled(result.disable_row_idxs)
+        apply_prefills(self, self._fields, index, result.prefill_values)
         return '' if result.is_valid else result.message
 
     def _live_message(self, index: int, validator_message: str) -> str:

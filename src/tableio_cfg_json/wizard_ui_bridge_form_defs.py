@@ -306,6 +306,26 @@ type AnswerFields = Sequence[AnswerField]
    """
 
 
+type PrefillValueType = Union[str, int, Path, bool, Sequence[str]]
+"""The type of a value a partial validator may prefill into a field.
+
+The value must match the answer type of the target field: a str for a
+text or choice field, an int for an integer field, a Path for a path
+field, a bool for a yes/no field, and a sequence of str for a
+multi-choice field.
+"""
+
+
+type PrefillValues = tuple[tuple[int, PrefillValueType], ...]
+"""Prefill requests returned by a partial form validator.
+
+Each pair is (row_index, value): a request to place value into the input
+of the row at row_index, as if the user had typed it. See
+PartFormValidationResult.prefill_values for the rules a bridge follows
+when it applies these requests.
+"""
+
+
 class PartFormValidationResult(NamedTuple):
     """Result of validating a partly filled form.
 
@@ -321,11 +341,34 @@ class PartFormValidationResult(NamedTuple):
                           they are irrelevant for the chosen output format.
                           Actually disabling these rows is not strictly
                           necessary, but it is a good user experience to do so.
+        prefill_values: Values the validator asks the bridge to place into
+                        other rows' inputs, as a tuple of (row_index, value)
+                        pairs. Each value must match the answer type of the
+                        field in that row. A bridge applies each request
+                        during live editing as if the user had typed the
+                        value; setting a value equal to the one already there
+                        is a no-op, so a validator that emits a stable value
+                        does not loop. The validator owns idempotency: it
+                        should emit a prefill only when it means to fill or
+                        overwrite the target. A prefill aimed at the row that
+                        just changed is ignored, so writing back never fights
+                        the user's current edit. A prefill aimed at a disabled
+                        row is still applied, so the value shows in the greyed
+                        row and takes effect if the row is later enabled. A
+                        row index outside the form, or a value whose type does
+                        not match the field, raises an exception, since both
+                        are validator bugs. A choice or multi-choice value not
+                        among the field's choices, and any prefill of a
+                        sensitive field, are ignored. prefill_values is a
+                        live-editing convenience only and is ignored when the
+                        form is submitted, so an application must still apply
+                        the same default on submit.
     """
 
     is_valid: bool
     message: str
     disable_row_idxs: tuple[int, ...] = ()
+    prefill_values: PrefillValues = ()
 
 
 type PartialFormValidator = Callable[[AnswerFields, int],

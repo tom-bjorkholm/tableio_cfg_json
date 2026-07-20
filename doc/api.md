@@ -18,6 +18,8 @@
   * [multi\_count\_error](#tableio_cfg_json._wizard_ui_bridge_helpers.multi_count_error)
 * [tableio\_cfg\_json.\_wizard\_ui\_bridge\_form](#tableio_cfg_json._wizard_ui_bridge_form)
   * [initial\_answer](#tableio_cfg_json._wizard_ui_bridge_form.initial_answer)
+  * [valid\_prefills](#tableio_cfg_json._wizard_ui_bridge_form.valid_prefills)
+  * [prefilled\_field](#tableio_cfg_json._wizard_ui_bridge_form.prefilled_field)
 * [tableio\_cfg\_json.describe](#tableio_cfg_json.describe)
   * [get\_general\_cfg\_info](#tableio_cfg_json.describe.get_general_cfg_info)
   * [get\_config\_member\_names](#tableio_cfg_json.describe.get_config_member_names)
@@ -89,6 +91,8 @@
   * [TableCell](#tableio_cfg_json.wizard_ui_bridge_arg_types.TableCell)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_form\_prefill](#tableio_cfg_json._wizard_ui_bridge_form_prefill)
+  * [apply\_prefills](#tableio_cfg_json._wizard_ui_bridge_form_prefill.apply_prefills)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs](#tableio_cfg_json.wizard_ui_bridge_form_defs)
   * [AskFieldCommon](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskFieldCommon)
   * [AskTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTextField)
@@ -331,6 +335,43 @@ The value is the field's default, or the empty or not-yet-answered
 state when the field has no default. A choice field with no default
 starts as None, which tells a partial validator the choice is not
 answered yet; a bridge must not leave that None in a submitted form.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_form.valid_prefills"></a>
+
+#### valid\_prefills
+
+```python
+def valid_prefills(
+        fields: Sequence[AskField], changed: int, prefill_values: PrefillValues
+) -> Iterator[tuple[int, PrefillValueType]]
+```
+
+Yield the prefill requests a bridge should apply, validated.
+
+Each yielded (index, value) pair is ready to place into the row's
+input. A prefill aimed at the changed row is skipped, so writing back
+never fights the user's current edit. A row index outside the form
+raises IndexError and a value whose Python type does not match the
+field raises TypeError, since both are validator bugs. A choice value
+not among the field's choices, any prefill of a sensitive text field,
+and a multi-choice value with no valid member, are dropped instead, so
+a portable validator stays safe. A multi-choice value keeps only its
+members that are valid choices.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_form.prefilled_field"></a>
+
+#### prefilled\_field
+
+```python
+def prefilled_field(field: AskField, prefill: PrefillValueType) -> AskField
+```
+
+Return field with prefill as its default.
+
+The console bridge offers a prefill as the row's default when the row
+is asked. A prefill that cannot serve as a valid default, such as an
+integer outside the field's bounds, is ignored so the field keeps its
+own default.
 
 <a id="tableio_cfg_json.describe"></a>
 
@@ -2140,6 +2181,32 @@ optional values stay omitted so TableIO can use backend defaults later.
 
   A validated TableIO JSON config for the one endpoint.
 
+<a id="tableio_cfg_json._wizard_ui_bridge_form_prefill"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_form\_prefill
+
+Apply a partial validator's prefills to a Textual form's widgets.
+
+The Textual form bridge asks the partial validator after every change and
+then places the prefill values it returns into the matching field widgets,
+exactly as if the user had typed them. This module holds that write-back,
+kept apart from the large Textual bridge module.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_form_prefill.apply_prefills"></a>
+
+#### apply\_prefills
+
+```python
+def apply_prefills(form: DOMNode, fields: Sequence[AskField], changed: int,
+                   prefill_values: PrefillValues) -> None
+```
+
+Write each valid prefill into its row's widget in form.
+
+A disabled row is written too, so the value shows greyed and takes
+effect if the row is later enabled. Writing a value equal to the one
+already there is a no-op, so a stable validator does not loop.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs"></a>
 
 # tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs
@@ -2458,6 +2525,28 @@ Result of validating a partly filled form.
   they are irrelevant for the chosen output format.
   Actually disabling these rows is not strictly
   necessary, but it is a good user experience to do so.
+- `prefill_values` - Values the validator asks the bridge to place into
+  other rows' inputs, as a tuple of (row_index, value)
+  pairs. Each value must match the answer type of the
+  field in that row. A bridge applies each request
+  during live editing as if the user had typed the
+  value; setting a value equal to the one already there
+  is a no-op, so a validator that emits a stable value
+  does not loop. The validator owns idempotency: it
+  should emit a prefill only when it means to fill or
+  overwrite the target. A prefill aimed at the row that
+  just changed is ignored, so writing back never fights
+  the user's current edit. A prefill aimed at a disabled
+  row is still applied, so the value shows in the greyed
+  row and takes effect if the row is later enabled. A
+  row index outside the form, or a value whose type does
+  not match the field, raises an exception, since both
+  are validator bugs. A choice or multi-choice value not
+  among the field's choices, and any prefill of a
+  sensitive field, are ignored. prefill_values is a
+  live-editing convenience only and is ignored when the
+  form is submitted, so an application must still apply
+  the same default on submit.
 
 <a id="tableio_cfg_json.wizard_ui_factory"></a>
 

@@ -13,14 +13,17 @@ bridge method that maps the form outcome back to the wizard.
 
 import asyncio
 from pathlib import Path
+from typing import Sequence
 
 import pytest
-from textual.widgets import Button, Input, SelectionList, Static
+from textual.widgets import Button, Checkbox, Input, Select, SelectionList, \
+    Static
 
 from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
     AskMultiChoiceField, AskPathField, AskTextField, AskYesNoField, \
-    AnswerTextField, PartialFormValidator, PathAskOptions, WizardBack, \
-    WizardCancelLevel, WizardPathKind
+    AnswerField, AnswerTextField, AnswerYesNoField, \
+    PartFormValidationResult, PartialFormValidator, PathAskOptions, \
+    PrefillValues, WizardBack, WizardCancelLevel, WizardPathKind
 from tableio_cfg_json.wizard_ui_bridge_textual import _FormApp, \
     _browse_index, _field_index
 from .ui_textual_support import drive, open_picker, _CannedBridge, _submitted
@@ -368,3 +371,259 @@ def test_form_int_not_number() -> None:
             await pilot.click('#submit')
     asyncio.run(scenario())
     assert app.return_value is None
+
+
+def test_prefill_text() -> None:
+    """A validator prefill appears in the target text widget."""
+    fields: list[AskField] = [AskTextField('Key', None),
+                              AskTextField('Filter', None)]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        key = answers[0]
+        filt = answers[1]
+        assert isinstance(key, AnswerTextField)
+        assert isinstance(filt, AnswerTextField)
+        prefill: PrefillValues = ()
+        if changed == 0 and key.value and not filt.value:
+            prefill = ((1, f'derived {key.value}'),)
+        return PartFormValidationResult(True, '', (), prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = 'ABC'
+            await pilot.pause()
+            shown = app.query_one('#field_1', Input).value
+            await pilot.click('#submit')
+            return shown
+    assert asyncio.run(scenario()) == 'derived ABC'
+    assert _submitted(app)[1].value == 'derived ABC'
+
+
+def test_prefill_bool() -> None:
+    """A bool prefill toggles the target check box."""
+    fields: list[AskField] = [AskYesNoField('A', None, False),
+                              AskYesNoField('B', None, False)]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        gate = answers[0]
+        assert isinstance(gate, AnswerYesNoField)
+        prefill: PrefillValues = ()
+        if changed == 0 and gate.value:
+            prefill = ((1, True),)
+        return PartFormValidationResult(True, '', (), prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> bool:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0').focus()
+            await pilot.press('space')
+            await pilot.pause()
+            checked = app.query_one('#field_1', Checkbox).value
+            await pilot.click('#submit')
+            return checked
+    assert asyncio.run(scenario()) is True
+    assert _submitted(app)[1].value is True
+
+
+def test_prefill_choice() -> None:
+    """A str prefill selects the value in the target drop-down."""
+    fields: list[AskField] = [
+        AskTextField('A', None),
+        AskChoiceField('B', None, choices=('r', 'g', 'b'))]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        first = answers[0]
+        assert isinstance(first, AnswerTextField)
+        prefill: PrefillValues = ()
+        if changed == 0 and first.value:
+            prefill = ((1, 'g'),)
+        return PartFormValidationResult(True, '', (), prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = 'x'
+            await pilot.pause()
+            shown = str(app.query_one('#field_1', Select).value)
+            await pilot.click('#submit')
+            return shown
+    assert asyncio.run(scenario()) == 'g'
+    assert _submitted(app)[1].value == 'g'
+
+
+def test_prefill_multi() -> None:
+    """A sequence prefill selects the members in the target list."""
+    fields: list[AskField] = [
+        AskTextField('A', None),
+        AskMultiChoiceField('B', None, choices=('a', 'b', 'c'))]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        first = answers[0]
+        assert isinstance(first, AnswerTextField)
+        prefill: PrefillValues = ()
+        if changed == 0 and first.value:
+            prefill = ((1, ['a', 'c']),)
+        return PartFormValidationResult(True, '', (), prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = 'x'
+            await pilot.pause()
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    assert _submitted(app)[1].value == ['a', 'c']
+
+
+def test_prefill_disabled() -> None:
+    """A prefill fills a greyed row and is used once it is enabled."""
+    fields: list[AskField] = [AskYesNoField('Gate', None, True),
+                              AskTextField('B', None)]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        gate = answers[0]
+        assert isinstance(gate, AnswerYesNoField)
+        disable = () if gate.value else (1,)
+        prefill: PrefillValues = ((1, 'derived'),) if changed == 0 else ()
+        return PartFormValidationResult(True, '', disable, prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> tuple[bool, str, bool, str]:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0').focus()
+            await pilot.press('space')
+            await pilot.pause()
+            off = app.query_one('#field_1').disabled
+            greyed = app.query_one('#field_1', Input).value
+            app.query_one('#field_0').focus()
+            await pilot.press('space')
+            await pilot.pause()
+            on = app.query_one('#field_1').disabled
+            final = app.query_one('#field_1', Input).value
+            return (off, greyed, on, final)
+    off, greyed, on, final = asyncio.run(scenario())
+    assert off is True
+    assert greyed == 'derived'
+    assert on is False
+    assert final == 'derived'
+
+
+def test_prefill_own_row() -> None:
+    """A prefill for the row the user just changed is ignored."""
+    fields: list[AskField] = [AskTextField('A', None)]
+
+    def rule(_answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        return PartFormValidationResult(True, '', (), ((changed, 'over'),))
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = 'typed'
+            await pilot.pause()
+            return app.query_one('#field_0', Input).value
+    assert asyncio.run(scenario()) == 'typed'
+
+
+def test_prefill_converges() -> None:
+    """A stable prefill applies once and does not loop."""
+    calls: list[int] = []
+    fields: list[AskField] = [AskTextField('A', None),
+                              AskTextField('B', None)]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        calls.append(changed)
+        second = answers[1]
+        assert isinstance(second, AnswerTextField)
+        prefill: PrefillValues = () if second.value else ((1, 'v'),)
+        return PartFormValidationResult(True, '', (), prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = 'x'
+            await pilot.pause()
+            await pilot.pause()
+            return app.query_one('#field_1', Input).value
+    assert asyncio.run(scenario()) == 'v'
+    assert len(calls) <= 3
+
+
+def test_prefill_on_submit() -> None:
+    """Prefills are not applied on submit, only during live editing."""
+    fields: list[AskField] = [AskTextField('A', None),
+                              AskTextField('B', None, nullable=True)]
+
+    def rule(_answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        _ = changed
+        return PartFormValidationResult(True, '', (), ((1, 'onsubmit'),))
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            await pilot.click('#submit')
+    asyncio.run(scenario())
+    assert _submitted(app)[1].value is None
+
+
+def test_prefill_int() -> None:
+    """An int prefill appears in the target integer widget."""
+    fields: list[AskField] = [
+        AskTextField('A', None),
+        AskIntField('B', None, min_value=1, max_value=99)]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        first = answers[0]
+        assert isinstance(first, AnswerTextField)
+        prefill: PrefillValues = ()
+        if changed == 0 and first.value:
+            prefill = ((1, 42),)
+        return PartFormValidationResult(True, '', (), prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = 'x'
+            await pilot.pause()
+            shown = app.query_one('#field_1', Input).value
+            await pilot.click('#submit')
+            return shown
+    assert asyncio.run(scenario()) == '42'
+    assert _submitted(app)[1].value == 42
+
+
+def test_prefill_path(tmp_path: Path) -> None:
+    """A Path prefill appears in the target path widget."""
+    target = tmp_path / 'out.csv'
+    fields: list[AskField] = [
+        AskTextField('A', None),
+        AskPathField('B', None, PathAskOptions())]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        first = answers[0]
+        assert isinstance(first, AnswerTextField)
+        prefill: PrefillValues = ()
+        if changed == 0 and first.value:
+            prefill = ((1, target),)
+        return PartFormValidationResult(True, '', (), prefill)
+    app = _FormApp('H', fields, [], rule)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = 'x'
+            await pilot.pause()
+            shown = app.query_one('#field_1', Input).value
+            await pilot.click('#submit')
+            return shown
+    assert asyncio.run(scenario()) == str(target)
+    assert _submitted(app)[1].value == target

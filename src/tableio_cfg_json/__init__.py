@@ -17,10 +17,10 @@ from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
 from tableio_cfg_json.wizard_ui_bridge_console import WizardUiBridgeConsole
 from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
     AnswerField, AnswerFields, PartialFormValidator, \
-    PartFormValidationResult, AskTextField, AskIntField, AskPathField, \
-    AskYesNoField, AskChoiceField, AskMultiChoiceField, AnswerTextField, \
-    AnswerIntField, AnswerPathField, AnswerYesNoField, AnswerChoiceField, \
-    AnswerMultiChoiceField
+    PartFormValidationResult, PrefillValues, PrefillValueType, AskTextField, \
+    AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
+    AskMultiChoiceField, AnswerTextField, AnswerIntField, AnswerPathField, \
+    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField
 from tableio_cfg_json.wizard_ui_factory import make_text_ui_bridge, \
     UiBridgeType
 try:
@@ -41,6 +41,7 @@ __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
            'UiBridgeType', 'PathAskOptions', 'WizardPathKind',
            'AskField', 'AskFields', 'AnswerField', 'AnswerFields',
            'PartialFormValidator', 'PartFormValidationResult',
+           'PrefillValues', 'PrefillValueType',
            'AskTextField', 'AskIntField', 'AskPathField', 'AskYesNoField',
            'AskChoiceField', 'AskMultiChoiceField', 'AnswerTextField',
            'AnswerIntField', 'AnswerPathField', 'AnswerYesNoField',

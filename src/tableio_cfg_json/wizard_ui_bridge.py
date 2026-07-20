@@ -39,12 +39,14 @@ from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
 from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     text_answer, question_with_default, ask_yes_no, ask_one, \
     ask_many, run_table, int_text, out_of_range, range_error, path_answer
-from tableio_cfg_json._wizard_ui_bridge_form import initial_answer
+from tableio_cfg_json._wizard_ui_bridge_form import initial_answer, \
+    valid_prefills, prefilled_field
 from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
     AnswerField, AnswerFields, PartialFormValidator, AskTextField, \
     AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
     AskMultiChoiceField, AnswerTextField, AnswerIntField, AnswerPathField, \
-    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField
+    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField, \
+    PrefillValueType
 
 
 _INT_ERROR = 'Please enter an integer.'
@@ -500,19 +502,26 @@ class WizardUiBridge:
 
     def _fill_form(self, ask_fields: AskFields, answers: list[AnswerField],
                    validator: Optional[PartialFormValidator]) -> None:
-        """Ask each enabled field in turn, stepping back on WizardBack."""
+        """Ask each enabled field in turn, stepping back on WizardBack.
+
+        A prefill returned by the validator for a not-yet-asked row is kept
+        in pending and offered as that row's default when it is asked.
+        """
         disabled: set[int] = set()
+        pending: dict[int, PrefillValueType] = {}
         position = 0
         while position < len(ask_fields):
             if position in disabled:
                 position += 1
                 continue
             try:
-                answers[position] = self._ask_field(ask_fields[position])
+                answers[position] = self._ask_field(
+                    ask_fields[position], pending.pop(position, None))
             except WizardBack:
                 position = self._prev_field(position, disabled)
                 continue
-            disabled = self._form_feedback(answers, position, validator)
+            disabled = self._form_feedback(ask_fields, answers, position,
+                                           validator, pending)
             position += 1
 
     @staticmethod
@@ -525,18 +534,35 @@ class WizardUiBridge:
             raise WizardBack()
         return prev
 
-    def _form_feedback(self, answers: list[AnswerField], position: int,
-                       validator: Optional[PartialFormValidator]) -> set[int]:
-        """Run the validator, show its message, return the disabled rows."""
+    # pylint: disable-next=too-many-arguments
+    def _form_feedback(self, ask_fields: AskFields, answers: list[AnswerField],
+                       position: int,
+                       validator: Optional[PartialFormValidator],
+                       pending: dict[int, PrefillValueType]) -> set[int]:
+        """Run the validator, show its message, store prefills, return rows.
+
+        Prefills for other rows are validated and kept in pending, so a
+        later row is offered the value as its default when it is asked.
+        """
         if validator is None:
             return set()
         result = validator(answers, position)
         if not result.is_valid and result.message:
             self.show(result.message)
+        for index, value in valid_prefills(ask_fields, position,
+                                           result.prefill_values):
+            pending[index] = value
         return set(result.disable_row_idxs)
 
-    def _ask_field(self, field: AskField) -> AnswerField:
-        """Ask one form field with the matching typed ask method."""
+    def _ask_field(self, field: AskField,
+                   prefill: Optional[PrefillValueType] = None) -> AnswerField:
+        """Ask one form field with the matching typed ask method.
+
+        When prefill is given it replaces the field's default, so the value
+        is offered as the starting answer the user can accept or edit.
+        """
+        if prefill is not None:
+            field = prefilled_field(field, prefill)
         if field.help_text is not None:
             self.show(field.help_text)
         if isinstance(field, AskTextField):
