@@ -24,6 +24,8 @@ This package is a good fit when one or more of these apply:
   larger application configuration file.
 - You want validation and generated user documentation for the TableIO
   options that are relevant to your application's capabilities.
+- You want to use the wizard user interface bridge defined in this
+  package for some wizard (probably used for configuration).
 
 This package is probably not the right one when:
 
