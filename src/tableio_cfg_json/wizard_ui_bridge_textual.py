@@ -52,8 +52,8 @@ from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
     WizardNavigation, WizardBack, WizardCancelLevel, \
     WizardAbort, PathAskOptions, TableColumn, TableCell
 from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
-    AnswerField, AnswerFields, PartialFormValidator, AskTextField, \
-    AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
+    ALL_ASK_FIELD_TYPES, AnswerField, AnswerFields, PartialFormValidator, \
+    AskTextField, AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
     AskMultiChoiceField, AskDateField, AskDateTimeField, AnswerTextField, \
     AnswerIntField, AnswerPathField, AnswerYesNoField, AnswerChoiceField, \
     AnswerMultiChoiceField
@@ -864,8 +864,7 @@ class WizardUiBridgeTextual(WizardUiBridge):
         text input for float, time and duration fields and a text input
         with a calendar Pick button for date and date-time fields.
         """
-        assert field is not None
-        return True
+        return isinstance(field, ALL_ASK_FIELD_TYPES)
 
     def _run(self, app: _NavApp[_T]) -> _T:
         """Run one screen and translate its outcome.

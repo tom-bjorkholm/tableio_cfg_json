@@ -12,7 +12,7 @@ typed fields.
 
 import asyncio
 from datetime import date, datetime, time, timedelta
-from typing import Sequence
+from typing import Optional, Sequence
 
 import pytest
 from textual.widgets import Button, Input, Static
@@ -22,7 +22,8 @@ from tableio_cfg_json import AskField, AskFloatField, AskDateField, \
     PartFormValidationResult, PrefillValues, WizardUiBridgeTextual
 from tableio_cfg_json.wizard_ui_bridge_textual import _FormApp
 from tableio_cfg_json._wizard_ui_bridge_calendar import _CalendarScreen, _shift
-from .ui_textual_support import drive, _submitted
+from .ui_textual_support import drive, _submitted, focused_day
+from .form_field_support import all_ask_fields, unknown_field
 
 
 def _typed_form() -> list[AskField]:
@@ -147,6 +148,52 @@ def test_calendar_disabled() -> None:
     assert asyncio.run(scenario()) is True
 
 
+def test_calendar_arrow_moves() -> None:
+    """Arrow keys move the focus between days of the shown month."""
+    field = AskDateField('Day', None, default=date(2024, 3, 10))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> Optional[str]:
+        async with app.run_test() as pilot:
+            return await focused_day(pilot, 'right', 'down')
+    assert asyncio.run(scenario()) == 'day_18'
+
+
+def test_calendar_arrow_pick() -> None:
+    """Arrow keys then Enter pick a day without the mouse."""
+    field = AskDateField('Day', None, default=date(2024, 3, 10))
+    app = _FormApp('H', [field], [], None)
+    driven = drive(app, ['#pick_0', 'right', 'down', 'enter', '#submit'],
+                   pause=True)
+    assert _submitted(driven)[0].value == date(2024, 3, 18)
+
+
+def test_calendar_arrow_stops() -> None:
+    """Arrow keys do not move past the field's maximum day."""
+    field = AskDateField('Day', None, default=date(2024, 3, 19),
+                         max_value=date(2024, 3, 20))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> Optional[str]:
+        async with app.run_test() as pilot:
+            return await focused_day(pilot, 'right', 'right')
+    assert asyncio.run(scenario()) == 'day_20'
+
+
+def test_calendar_nearest() -> None:
+    """The nearest enabled day is focused when the seed day is disabled."""
+    field = AskDateField('Day', None, min_value=date(2024, 3, 15),
+                         max_value=date(2024, 3, 31))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> Optional[str]:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = '2024-03-10'
+            await pilot.pause()
+            return await focused_day(pilot)
+    assert asyncio.run(scenario()) == 'day_15'
+
+
 @pytest.mark.parametrize('year, month, action, expected', [
     (2024, 3, 'prev_month', (2024, 2)),
     (2024, 1, 'prev_month', (2023, 12)),
@@ -180,11 +227,8 @@ def test_prefill_duration() -> None:
     assert _submitted(driven)[1].value == timedelta(hours=2)
 
 
-def test_supports_all() -> None:
-    """The Textual bridge reports every typed field as supported."""
+def test_supports_fields() -> None:
+    """The Textual bridge supports every field type, rejects unknown."""
     bridge = WizardUiBridgeTextual()
-    fields: list[AskField] = [
-        AskFloatField('R', None), AskDateField('D', None),
-        AskTimeField('T', None), AskDateTimeField('W', None),
-        AskDurationField('L', None)]
-    assert all(bridge.supports_form_field(field) for field in fields)
+    assert all(bridge.supports_form_field(f) for f in all_ask_fields())
+    assert not bridge.supports_form_field(unknown_field())

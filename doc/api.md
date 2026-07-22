@@ -113,6 +113,7 @@
   * [AskTimeField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTimeField)
   * [AskDateTimeField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateTimeField)
   * [AskDurationField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDurationField)
+  * [ALL\_ASK\_FIELD\_TYPES](#tableio_cfg_json.wizard_ui_bridge_form_defs.ALL_ASK_FIELD_TYPES)
   * [AnswerTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField)
   * [AnswerIntField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerIntField)
   * [AnswerPathField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerPathField)
@@ -2709,6 +2710,16 @@ A duration field in a form.
   The min value is inclusive.
 - `max_value` - The maximum allowed value, or None for no maximum.
   The max value is inclusive.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.ALL_ASK_FIELD_TYPES"></a>
+
+#### ALL\_ASK\_FIELD\_TYPES
+
+Every concrete AskField class, in the order of the AskField union.
+
+A bridge that shows all field types checks membership against this tuple
+in supports_form_field(), so a field type added later is reported as
+unsupported until this tuple and the bridge are extended together.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField"></a>
 

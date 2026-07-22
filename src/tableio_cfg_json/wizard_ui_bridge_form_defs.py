@@ -384,6 +384,18 @@ type AskFields = Sequence[AskField]
 """AskFields is a sequence of AskField objects, one for each row in a form."""
 
 
+ALL_ASK_FIELD_TYPES = (AskTextField, AskIntField, AskPathField, AskYesNoField,
+                       AskChoiceField, AskMultiChoiceField, AskFloatField,
+                       AskDateField, AskTimeField, AskDateTimeField,
+                       AskDurationField)
+"""Every concrete AskField class, in the order of the AskField union.
+
+A bridge that shows all field types checks membership against this tuple
+in supports_form_field(), so a field type added later is reported as
+unsupported until this tuple and the bridge are extended together.
+"""
+
+
 @dataclass
 class AnswerTextField:
     """An answer to a text field in a form.

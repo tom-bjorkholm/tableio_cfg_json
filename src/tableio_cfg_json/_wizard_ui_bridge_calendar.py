@@ -4,10 +4,11 @@
 A date field, and the date part of a date-time field, are shown in the
 Textual form as a text input paired with a Pick button. Pressing that
 button, or typing the '?' token into the input, opens this modal
-calendar. The user steps between months and years and clicks a day to
-return it; Escape or the Cancel button returns nothing so the input is
-left unchanged. Days outside a field's inclusive bounds are shown
-disabled, so the calendar only offers acceptable dates.
+calendar. The user steps between months and years, moves between the
+days of the shown month with the arrow keys, and clicks a day to return
+it; Escape or the Cancel button returns nothing so the input is left
+unchanged. Days outside a field's inclusive bounds are shown disabled,
+so the calendar only offers acceptable dates.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -49,18 +50,27 @@ class _CalendarScreen(ModalScreen[Optional[date]]):
     The screen opens on a seed month and offers day buttons for that
     month, greying the days outside the inclusive minimum and maximum.
     Month and year buttons move the view, a day button returns its date,
-    and Escape or Cancel returns None so the field keeps its value.
+    and Escape or Cancel returns None so the field keeps its value. The
+    seed day is focused on opening and the arrow keys move the focus
+    between the enabled days of the shown month, so a day can be picked
+    without the mouse.
     """
 
-    BINDINGS: ClassVar[list[BindingType]] = [('escape', 'cancel', 'Cancel')]
+    BINDINGS: ClassVar[list[BindingType]] = [
+        ('escape', 'cancel', 'Cancel'),
+        ('left', 'step_day(-1)', 'Prev day'),
+        ('right', 'step_day(1)', 'Next day'),
+        ('up', 'step_day(-7)', 'Prev week'),
+        ('down', 'step_day(7)', 'Next week')]
     CSS = '#cal_grid { height: auto; grid-size: 7; }'
 
     def __init__(self, seed: date, minimum: Optional[date],
                  maximum: Optional[date]) -> None:
-        """Store the seed month and the inclusive day bounds."""
+        """Store the seed month, its day and the inclusive day bounds."""
         super().__init__()
         self._year = seed.year
         self._month = seed.month
+        self._seed_day = seed.day
         self._minimum = minimum
         self._maximum = maximum
 
@@ -77,8 +87,9 @@ class _CalendarScreen(ModalScreen[Optional[date]]):
         yield Footer()
 
     async def on_mount(self) -> None:
-        """Fill the title and day grid for the seed month."""
+        """Fill the day grid and focus the seed month's starting day."""
         await self._show_month()
+        self._focus_start_day()
 
     async def _show_month(self) -> None:
         """Show the current month's title and rebuild the day grid.
@@ -106,9 +117,13 @@ class _CalendarScreen(ModalScreen[Optional[date]]):
         """Return a blank cell for a padding day, else a day button."""
         if day == 0:
             return Static('')
+        return Button(str(day), id=f'day_{day}',
+                      disabled=self._day_disabled(day))
+
+    def _day_disabled(self, day: int) -> bool:
+        """Return whether a day of the shown month is out of bounds."""
         in_month = date(self._year, self._month, day)
-        disabled = value_out_of_range(in_month, self._minimum, self._maximum)
-        return Button(str(day), id=f'day_{day}', disabled=disabled)
+        return value_out_of_range(in_month, self._minimum, self._maximum)
 
     @on(Button.Pressed)
     async def _pressed(self, event: Button.Pressed) -> None:
@@ -126,3 +141,43 @@ class _CalendarScreen(ModalScreen[Optional[date]]):
     def action_cancel(self) -> None:
         """Close the calendar without returning a date."""
         self.dismiss(None)
+
+    def action_step_day(self, delta: int) -> None:
+        """Move focus by delta days within the shown month, if possible.
+
+        The arrow keys step one day left or right and one week up or
+        down. A step off the month, or onto a disabled day, is ignored,
+        so the focus stays on a selectable day of the shown month.
+        """
+        current = self._focused_day()
+        if current is not None:
+            self._focus_day(current + delta)
+
+    def _focus_start_day(self) -> None:
+        """Focus the seed day, or the nearest enabled day of the month."""
+        day = self._nearest_enabled(self._seed_day)
+        if day is not None:
+            self._focus_day(day)
+
+    def _focused_day(self) -> Optional[int]:
+        """Return the day number of the focused day button, or None."""
+        focused = self.focused
+        if isinstance(focused, Button) and focused.id is not None \
+                and focused.id.startswith('day_'):
+            return int(focused.id[4:])
+        return None
+
+    def _focus_day(self, day: int) -> None:
+        """Focus a day's button when it is in the month and enabled."""
+        last = calendar.monthrange(self._year, self._month)[1]
+        if 1 <= day <= last and not self._day_disabled(day):
+            self.query_one(f'#day_{day}', Button).focus()
+
+    def _nearest_enabled(self, target: int) -> Optional[int]:
+        """Return the enabled day nearest target, or None when none are."""
+        last = calendar.monthrange(self._year, self._month)[1]
+        enabled = [day for day in range(1, last + 1)
+                   if not self._day_disabled(day)]
+        if not enabled:
+            return None
+        return min(enabled, key=lambda day: abs(day - target))

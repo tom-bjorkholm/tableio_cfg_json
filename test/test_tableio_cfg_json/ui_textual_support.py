@@ -12,7 +12,7 @@ test modules can share one screen driver and one canned bridge.
 # pylint: disable=protected-access
 
 import asyncio
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from textual.pilot import Pilot
 from textual.widgets import Input
@@ -76,6 +76,22 @@ def _submitted(app: _NavApp[Any]) -> list[AnswerField]:
     result = app.return_value
     assert isinstance(result, list)
     return result
+
+
+async def focused_day(pilot: Pilot[Any], *keys: str) -> Optional[str]:
+    """Open the field-0 calendar, press keys, return the focused id.
+
+    The calendar is opened from the Pick button of the first form date
+    field and each key in keys is pressed in turn, so a test can move the
+    day focus and read the id of the day button left focused.
+    """
+    await pilot.click('#pick_0')
+    await pilot.pause()
+    for key in keys:
+        await pilot.press(key)
+    await pilot.pause()
+    focused = pilot.app.screen.focused
+    return None if focused is None else focused.id
 
 
 async def open_picker(pilot: Pilot[Any], value: str) -> _PickerScreen:

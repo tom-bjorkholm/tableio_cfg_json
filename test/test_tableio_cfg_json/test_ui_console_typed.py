@@ -18,6 +18,7 @@ import pytest
 
 from tableio_cfg_json import AskField, AskFloatField, AskDateField, \
     AskTimeField, AskDateTimeField, AskDurationField, WizardUiBridgeConsole
+from .form_field_support import all_ask_fields, unknown_field
 
 
 def _run(lines: str, fields: list[AskField]) -> tuple[list[object], str, str]:
@@ -106,7 +107,8 @@ def test_hint_in_question() -> None:
     assert 'Rate (a number)' in out
 
 
-def test_supports_typed() -> None:
-    """The console bridge reports the typed fields as supported."""
+def test_supports_fields() -> None:
+    """The console bridge supports every field type, rejects unknown."""
     bridge = WizardUiBridgeConsole(StringIO(), StringIO(), StringIO())
-    assert all(bridge.supports_form_field(field) for field in _all_typed())
+    assert all(bridge.supports_form_field(f) for f in all_ask_fields())
+    assert not bridge.supports_form_field(unknown_field())

@@ -399,6 +399,7 @@
     * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateTimeField.__post_init__)
   * [AskDurationField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDurationField)
     * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDurationField.__post_init__)
+  * [ALL\_ASK\_FIELD\_TYPES](#tableio_cfg_json.wizard_ui_bridge_form_defs.ALL_ASK_FIELD_TYPES)
   * [AnswerTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField)
   * [AnswerIntField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerIntField)
   * [AnswerPathField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerPathField)
@@ -448,8 +449,14 @@
     * [\_show\_month](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._show_month)
     * [\_grid\_widgets](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._grid_widgets)
     * [\_day\_widget](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._day_widget)
+    * [\_day\_disabled](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._day_disabled)
     * [\_pressed](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._pressed)
     * [action\_cancel](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.action_cancel)
+    * [action\_step\_day](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.action_step_day)
+    * [\_focus\_start\_day](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._focus_start_day)
+    * [\_focused\_day](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._focused_day)
+    * [\_focus\_day](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._focus_day)
+    * [\_nearest\_enabled](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._nearest_enabled)
 
 <a id="tableio_cfg_json._wizard_ui_bridge_helpers"></a>
 
@@ -6532,6 +6539,16 @@ def __post_init__() -> None
 
 Check that the duration bounds and default agree.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.ALL_ASK_FIELD_TYPES"></a>
+
+#### ALL\_ASK\_FIELD\_TYPES
+
+Every concrete AskField class, in the order of the AskField union.
+
+A bridge that shows all field types checks membership against this tuple
+in supports_form_field(), so a field type added later is reported as
+unsupported until this tuple and the bridge are extended together.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField"></a>
 
 ## AnswerTextField Objects
@@ -7142,10 +7159,11 @@ A modal month calendar for the Textual date and date-time fields.
 A date field, and the date part of a date-time field, are shown in the
 Textual form as a text input paired with a Pick button. Pressing that
 button, or typing the '?' token into the input, opens this modal
-calendar. The user steps between months and years and clicks a day to
-return it; Escape or the Cancel button returns nothing so the input is
-left unchanged. Days outside a field's inclusive bounds are shown
-disabled, so the calendar only offers acceptable dates.
+calendar. The user steps between months and years, moves between the
+days of the shown month with the arrow keys, and clicks a day to return
+it; Escape or the Cancel button returns nothing so the input is left
+unchanged. Days outside a field's inclusive bounds are shown disabled,
+so the calendar only offers acceptable dates.
 
 <a id="tableio_cfg_json._wizard_ui_bridge_calendar._shift"></a>
 
@@ -7170,7 +7188,10 @@ Modal month calendar returning the date the user clicks.
 The screen opens on a seed month and offers day buttons for that
 month, greying the days outside the inclusive minimum and maximum.
 Month and year buttons move the view, a day button returns its date,
-and Escape or Cancel returns None so the field keeps its value.
+and Escape or Cancel returns None so the field keeps its value. The
+seed day is focused on opening and the arrow keys move the focus
+between the enabled days of the shown month, so a day can be picked
+without the mouse.
 
 <a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.__init__"></a>
 
@@ -7181,7 +7202,7 @@ def __init__(seed: date, minimum: Optional[date],
              maximum: Optional[date]) -> None
 ```
 
-Store the seed month and the inclusive day bounds.
+Store the seed month, its day and the inclusive day bounds.
 
 <a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.compose"></a>
 
@@ -7201,7 +7222,7 @@ Lay out the title, the navigation, the day grid and footer.
 async def on_mount() -> None
 ```
 
-Fill the title and day grid for the seed month.
+Fill the day grid and focus the seed month's starting day.
 
 <a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._show_month"></a>
 
@@ -7237,6 +7258,16 @@ def _day_widget(day: int) -> Widget
 
 Return a blank cell for a padding day, else a day button.
 
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._day_disabled"></a>
+
+#### \_day\_disabled
+
+```python
+def _day_disabled(day: int) -> bool
+```
+
+Return whether a day of the shown month is out of bounds.
+
 <a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._pressed"></a>
 
 #### \_pressed
@@ -7257,4 +7288,58 @@ def action_cancel() -> None
 ```
 
 Close the calendar without returning a date.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.action_step_day"></a>
+
+#### action\_step\_day
+
+```python
+def action_step_day(delta: int) -> None
+```
+
+Move focus by delta days within the shown month, if possible.
+
+The arrow keys step one day left or right and one week up or
+down. A step off the month, or onto a disabled day, is ignored,
+so the focus stays on a selectable day of the shown month.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._focus_start_day"></a>
+
+#### \_focus\_start\_day
+
+```python
+def _focus_start_day() -> None
+```
+
+Focus the seed day, or the nearest enabled day of the month.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._focused_day"></a>
+
+#### \_focused\_day
+
+```python
+def _focused_day() -> Optional[int]
+```
+
+Return the day number of the focused day button, or None.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._focus_day"></a>
+
+#### \_focus\_day
+
+```python
+def _focus_day(day: int) -> None
+```
+
+Focus a day's button when it is in the month and enabled.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._nearest_enabled"></a>
+
+#### \_nearest\_enabled
+
+```python
+def _nearest_enabled(target: int) -> Optional[int]
+```
+
+Return the enabled day nearest target, or None when none are.
 
