@@ -4,7 +4,7 @@
 from setuptools import setup  # type: ignore[import-untyped]
 
 setup(
-  name='tableio-cfg-json', version='1.0',
+  name='tableio-cfg-json', version='1.0.1',
   description='config-as-json configuration encapsulation for tableio.',
   author='Tom Björkholm', author_email='klausuler_linnet0q@icloud.com',
   python_requires='>=3.12', packages=['tableio_cfg_json'],
