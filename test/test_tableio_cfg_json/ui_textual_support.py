@@ -23,11 +23,14 @@ from tableio_cfg_json.wizard_ui_bridge_textual import _NavApp
 from tableio_cfg_json._wizard_ui_bridge_path import _PickerScreen
 
 
-def drive(app: _NavApp[Any], steps: Sequence[str]) -> _NavApp[Any]:
+def drive(app: _NavApp[Any], steps: Sequence[str],
+          pause: bool = False) -> _NavApp[Any]:
     """Run a screen headlessly, performing each step, and return it.
 
     A step starting with '#' is a click on that widget id; any other
-    step is a single key press.
+    step is a single key press. When pause is True the driver pauses
+    after each step, which lets a pushed modal screen (such as the
+    calendar) mount before the next step acts on it.
     """
     async def scenario() -> None:
         async with app.run_test() as pilot:
@@ -36,6 +39,8 @@ def drive(app: _NavApp[Any], steps: Sequence[str]) -> _NavApp[Any]:
                     await pilot.click(step)
                 else:
                     await pilot.press(step)
+                if pause:
+                    await pilot.pause()
     asyncio.run(scenario())
     return app
 

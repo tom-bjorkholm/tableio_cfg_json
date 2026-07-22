@@ -20,6 +20,7 @@ corrupt the Textual display.
 # MIT License
 
 from __future__ import annotations
+from datetime import date
 from functools import partial
 from io import StringIO
 from pathlib import Path
@@ -27,7 +28,7 @@ from typing import ClassVar, Iterator, Optional, Sequence, TypeVar
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import BindingType
-from textual.containers import Grid, Horizontal, VerticalScroll
+from textual.containers import Grid, VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Button, Checkbox, Footer, Input, \
     OptionList, Select, SelectionList, Static
@@ -38,6 +39,13 @@ from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     text_answer
 from tableio_cfg_json._wizard_ui_bridge_form import initial_answer
 from tableio_cfg_json._wizard_ui_bridge_form_prefill import apply_prefills
+from tableio_cfg_json._wizard_ui_bridge_parse import NEW_FIELD_TYPES, \
+    value_from_text, error_from_text, new_answer
+from tableio_cfg_json._wizard_ui_bridge_calendar import _CalendarScreen
+from tableio_cfg_json._wizard_ui_bridge_textual_widgets import \
+    _header_widgets, _default_index, _preselected, _parse_cell_id, \
+    _make_select, _make_field_widget, _field_index, _browse_index, \
+    _pick_index, _multi_error, _calendar_setup, _combined_text
 from tableio_cfg_json._wizard_ui_bridge_path import _PathPick, \
     _PickerScreen, _start_dir, _start_value
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
@@ -46,9 +54,12 @@ from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
 from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
     AnswerField, AnswerFields, PartialFormValidator, AskTextField, \
     AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
-    AskMultiChoiceField, AnswerTextField, AnswerIntField, AnswerPathField, \
-    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField
+    AskMultiChoiceField, AskDateField, AskDateTimeField, AnswerTextField, \
+    AnswerIntField, AnswerPathField, AnswerYesNoField, AnswerChoiceField, \
+    AnswerMultiChoiceField
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
+
+_CAL_TOKEN = '?'
 
 _T = TypeVar('_T')
 _INT_ERROR = 'Please enter an integer.'
@@ -89,13 +100,6 @@ class _NavApp(App[_T]):
         """Record a request to cancel the current level."""
         self.nav = WizardCancelLevel
         self.exit()
-
-
-def _header_widgets(messages: list[str], question: str) -> Iterator[Static]:
-    """Yield one static line per message and one for the question."""
-    for line in messages:
-        yield Static(line)
-    yield Static(question)
 
 
 class _TextApp(_NavApp[str]):
@@ -235,46 +239,6 @@ class _MultiApp(_NavApp[list[int]]):
         if count < self._min_select:
             return False
         return self._max_select is None or count <= self._max_select
-
-
-def _default_index(choices: Sequence[str],
-                   default: Optional[str]) -> Optional[int]:
-    """Return the index of default within choices, or None."""
-    if default is not None and default in choices:
-        return list(choices).index(default)
-    return None
-
-
-def _preselected(choices: Sequence[str],
-                 default: Optional[Sequence[str]]) -> list[int]:
-    """Return the indexes of the default values within choices."""
-    if default is None:
-        return []
-    wanted = set(default)
-    return [index for index, choice in enumerate(choices)
-            if choice in wanted]
-
-
-def _parse_cell_id(widget_id: Optional[str]) -> Optional[tuple[int, int]]:
-    """Return the (row, column) encoded in an editable cell id."""
-    if widget_id is None or not widget_id.startswith('cell_'):
-        return None
-    _, row, col = widget_id.split('_')
-    return (int(row), int(col))
-
-
-def _make_select(cell: TableCell, widget_id: str) -> Select[str]:
-    """Return a drop-down for one cell, blank only when nullable."""
-    assert cell.choices is not None
-    options = [(choice, choice) for choice in cell.choices]
-    value = cell.value
-    if value is not None and value in cell.choices:
-        return Select(options, value=value, allow_blank=cell.nullable,
-                      id=widget_id)
-    if cell.nullable:
-        return Select(options, allow_blank=True, id=widget_id)
-    return Select(options, value=cell.choices[0], allow_blank=False,
-                  id=widget_id)
 
 
 # pylint: disable-next=too-many-instance-attributes
@@ -463,83 +427,6 @@ class _TableApp(_NavApp[list[list[Optional[str]]]]):
         return text
 
 
-def _choice_select(field: AskChoiceField, widget_id: str) -> Select[str]:
-    """Return a drop-down for a choice field, blank when no default."""
-    options = [(choice, choice) for choice in field.choices]
-    if field.default is not None and field.default in field.choices:
-        return Select(options, value=field.default, allow_blank=False,
-                      id=widget_id)
-    return Select(options, allow_blank=True, id=widget_id)
-
-
-def _multi_selection(field: AskMultiChoiceField,
-                     widget_id: str) -> SelectionList[int]:
-    """Return a check-box list for a multi-choice field."""
-    chosen = set(_preselected(field.choices, field.default))
-    selections = [Selection(choice, index, index in chosen)
-                  for index, choice in enumerate(field.choices)]
-    return SelectionList[int](*selections, id=widget_id)
-
-
-def _path_field_row(value: str, index: int) -> Horizontal:
-    """Return a path input paired with a Browse button.
-
-    The input keeps the plain field id so the form reads and validates
-    it like any other field, while the button carries a browse class so
-    the form can open the directory picker for this row.
-    """
-    return Horizontal(Input(value=value, id=f'field_{index}'),
-                      Button('Browse', id=f'browse_{index}', classes='browse'),
-                      id=f'pathrow_{index}')
-
-
-def _make_field_widget(field: AskField, index: int) -> Widget:
-    """Return the input widget shown for one form field."""
-    widget_id = f'field_{index}'
-    if isinstance(field, AskTextField):
-        value = '' if field.default is None else field.default
-        return Input(value=value, password=field.sensitive, id=widget_id)
-    if isinstance(field, AskIntField):
-        value = '' if field.default is None else str(field.default)
-        return Input(value=value, id=widget_id)
-    if isinstance(field, AskPathField):
-        default = field.path_options.default
-        text = '' if default is None else str(default)
-        return _path_field_row(text, index)
-    if isinstance(field, AskYesNoField):
-        return Checkbox(value=field.default, id=widget_id)
-    if isinstance(field, AskChoiceField):
-        return _choice_select(field, widget_id)
-    assert isinstance(field, AskMultiChoiceField)
-    return _multi_selection(field, widget_id)
-
-
-def _id_index(widget_id: Optional[str], prefix: str) -> Optional[int]:
-    """Return the integer index following prefix in a widget id."""
-    if widget_id is None or not widget_id.startswith(prefix):
-        return None
-    return int(widget_id.split('_')[1])
-
-
-def _field_index(widget_id: Optional[str]) -> Optional[int]:
-    """Return the field index encoded in a field widget id."""
-    return _id_index(widget_id, 'field_')
-
-
-def _browse_index(widget_id: Optional[str]) -> Optional[int]:
-    """Return the field index encoded in a browse button id."""
-    return _id_index(widget_id, 'browse_')
-
-
-def _multi_error(count: int, field: AskMultiChoiceField) -> Optional[str]:
-    """Return the multi-choice count error, or None when acceptable."""
-    too_few = count < field.min_select
-    too_many = field.max_select is not None and count > field.max_select
-    if too_few or too_many:
-        return multi_count_error(field.min_select, field.max_select)
-    return None
-
-
 # pylint: disable-next=too-many-instance-attributes
 class _FormApp(_NavApp[list[AnswerField]]):
     """One screen showing every form field in a two-column grid.
@@ -636,10 +523,28 @@ class _FormApp(_NavApp[list[AnswerField]]):
         index = _field_index(widget_id)
         if index is None:
             return
+        if self._maybe_open_calendar(index):
+            return
         self._last_changed = index
         self._answers[index] = self._read_field(index)
         validator_message = self._apply_validator(index)
         self._set_status(self._live_message(index, validator_message))
+
+    def _maybe_open_calendar(self, index: int) -> bool:
+        """Open the calendar when a date field holds the pick token.
+
+        Typing the '?' token into a date or date-time input is an
+        alternative to pressing the Pick button. The token is left in the
+        input until the calendar closes, when it is replaced by the picked
+        date or cleared on cancel.
+        """
+        field = self._fields[index]
+        if not isinstance(field, (AskDateField, AskDateTimeField)):
+            return False
+        if self.query_one(f'#field_{index}', Input).value != _CAL_TOKEN:
+            return False
+        self._open_calendar(index)
+        return True
 
     def _apply_validator(self, index: int) -> str:
         """Apply the validator's disabled rows and prefills, return message."""
@@ -673,6 +578,8 @@ class _FormApp(_NavApp[list[AnswerField]]):
             self.query_one(f'#label_{index}').disabled = off
             for button in self.query(f'#browse_{index}'):
                 button.disabled = off
+            for button in self.query(f'#pick_{index}'):
+                button.disabled = off
 
     @on(Button.Pressed, '#submit')
     def _submit_clicked(self, _event: Button.Pressed) -> None:
@@ -686,6 +593,13 @@ class _FormApp(_NavApp[list[AnswerField]]):
         if index is not None:
             self._open_picker(index)
 
+    @on(Button.Pressed, '.pick')
+    def _pick_clicked(self, event: Button.Pressed) -> None:
+        """Open the calendar for the clicked date field."""
+        index = _pick_index(event.button.id)
+        if index is not None:
+            self._open_calendar(index)
+
     def _open_picker(self, index: int) -> None:
         """Push the picker seeded with the field's current text."""
         field = self._fields[index]
@@ -693,6 +607,15 @@ class _FormApp(_NavApp[list[AnswerField]]):
         text = self.query_one(f'#field_{index}', Input).value
         self.push_screen(_PickerScreen(field.path_options, text),
                          partial(self._path_picked, index))
+
+    def _open_calendar(self, index: int) -> None:
+        """Push the calendar seeded from the date field's current text."""
+        field = self._fields[index]
+        assert isinstance(field, (AskDateField, AskDateTimeField))
+        text = self.query_one(f'#field_{index}', Input).value
+        seed, minimum, maximum = _calendar_setup(field, text)
+        self.push_screen(_CalendarScreen(seed, minimum, maximum),
+                         partial(self._date_picked, index))
 
     def _path_picked(self, index: int, result: Optional[str]) -> None:
         """Fill the path input with the picked path, if any.
@@ -702,6 +625,22 @@ class _FormApp(_NavApp[list[AnswerField]]):
         """
         if result is not None:
             self.query_one(f'#field_{index}', Input).value = result
+
+    def _date_picked(self, index: int, result: Optional[date]) -> None:
+        """Fill the date input with the picked date, if any.
+
+        A cancelled calendar clears a lingering pick token; a picked date
+        replaces the input, keeping any time part of a date-time field.
+        Setting the value raises Input.Changed, so the answer refreshes.
+        """
+        field = self._fields[index]
+        assert isinstance(field, (AskDateField, AskDateTimeField))
+        widget = self.query_one(f'#field_{index}', Input)
+        if result is None:
+            if widget.value == _CAL_TOKEN:
+                widget.value = ''
+            return
+        widget.value = _combined_text(field, result, widget.value)
 
     def action_submit(self) -> None:
         """Validate every enabled field and exit with the answers."""
@@ -742,6 +681,20 @@ class _FormApp(_NavApp[list[AnswerField]]):
     def _read_field(self, index: int) -> AnswerField:
         """Return the current answer of one field read from its widget."""
         field = self._fields[index]
+        answer = self._read_new_field(index, field)
+        return answer if answer is not None \
+            else self._read_basic_field(index, field)
+
+    def _read_new_field(self, index: int,
+                        field: AskField) -> Optional[AnswerField]:
+        """Return a typed field's answer from its text input, else None."""
+        if not isinstance(field, NEW_FIELD_TYPES):
+            return None
+        text = self.query_one(f'#field_{index}', Input).value
+        return new_answer(field, value_from_text(field, text))
+
+    def _read_basic_field(self, index: int, field: AskField) -> AnswerField:
+        """Return one original field kind's answer read from its widget."""
         widget_id = f'#field_{index}'
         if isinstance(field, AskTextField):
             text = self.query_one(widget_id, Input).value
@@ -776,6 +729,9 @@ class _FormApp(_NavApp[list[AnswerField]]):
     def _field_error(self, index: int, field: AskField) -> Optional[str]:
         """Return one field's own validation error, or None when valid."""
         widget_id = f'#field_{index}'
+        if isinstance(field, NEW_FIELD_TYPES):
+            text = self.query_one(widget_id, Input).value
+            return error_from_text(field, text)
         if isinstance(field, AskIntField):
             return self._int_error(widget_id, field)
         if isinstance(field, AskPathField):
@@ -900,6 +856,16 @@ class WizardUiBridgeTextual(WizardUiBridge):
         messages = self._collect(re_ask_reason)
         return self._run(_FormApp(long_question, list(ask_fields), messages,
                                   partial_validator))
+
+    def supports_form_field(self, field: AskField) -> bool:
+        """Show every form field type; see WizardUiBridge.
+
+        The Textual form has a widget for each field type, including a
+        text input for float, time and duration fields and a text input
+        with a calendar Pick button for date and date-time fields.
+        """
+        assert field is not None
+        return True
 
     def _run(self, app: _NavApp[_T]) -> _T:
         """Run one screen and translate its outcome.

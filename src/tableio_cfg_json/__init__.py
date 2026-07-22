@@ -19,8 +19,11 @@ from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
     AnswerField, AnswerFields, PartialFormValidator, \
     PartFormValidationResult, PrefillValues, PrefillValueType, AskTextField, \
     AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
-    AskMultiChoiceField, AnswerTextField, AnswerIntField, AnswerPathField, \
-    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField
+    AskMultiChoiceField, AskFloatField, AskDateField, AskTimeField, \
+    AskDateTimeField, AskDurationField, AnswerTextField, AnswerIntField, \
+    AnswerPathField, AnswerYesNoField, AnswerChoiceField, \
+    AnswerMultiChoiceField, AnswerFloatField, AnswerDateField, \
+    AnswerTimeField, AnswerDateTimeField, AnswerDurationField
 from tableio_cfg_json.wizard_ui_factory import make_text_ui_bridge, \
     UiBridgeType
 try:
@@ -43,6 +46,10 @@ __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
            'PartialFormValidator', 'PartFormValidationResult',
            'PrefillValues', 'PrefillValueType',
            'AskTextField', 'AskIntField', 'AskPathField', 'AskYesNoField',
-           'AskChoiceField', 'AskMultiChoiceField', 'AnswerTextField',
+           'AskChoiceField', 'AskMultiChoiceField', 'AskFloatField',
+           'AskDateField', 'AskTimeField', 'AskDateTimeField',
+           'AskDurationField', 'AnswerTextField',
            'AnswerIntField', 'AnswerPathField', 'AnswerYesNoField',
-           'AnswerChoiceField', 'AnswerMultiChoiceField']
+           'AnswerChoiceField', 'AnswerMultiChoiceField', 'AnswerFloatField',
+           'AnswerDateField', 'AnswerTimeField', 'AnswerDateTimeField',
+           'AnswerDurationField']

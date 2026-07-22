@@ -21,9 +21,48 @@ answers of a partly filled form.
 """
 
 from dataclasses import dataclass
-from typing import Callable, NamedTuple, Optional, Sequence, Union
+from typing import Any, Callable, NamedTuple, Optional, Protocol, Sequence, \
+    TypeVar, Union
 from pathlib import Path
+from datetime import datetime, date, time, timedelta
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PathAskOptions
+
+
+class _OrderedValue(Protocol):
+    """A value comparable to values of its own type with < and >.
+
+    Float, date, time, datetime and timedelta all satisfy this, so a
+    single helper can range-check every ordered form field. The other
+    operand is Any because each concrete type only compares with itself,
+    which is exactly how the standard library types are annotated.
+    """
+
+    def __lt__(self, other: Any) -> bool:
+        """Return whether this value sorts before other."""
+
+    def __gt__(self, other: Any) -> bool:
+        """Return whether this value sorts after other."""
+
+
+_OrderedT = TypeVar('_OrderedT', bound=_OrderedValue)
+
+
+def value_out_of_range(value: _OrderedT, minimum: Optional[_OrderedT],
+                       maximum: Optional[_OrderedT]) -> bool:
+    """Return whether value lies outside the inclusive bounds."""
+    below = minimum is not None and value < minimum
+    above = maximum is not None and value > maximum
+    return below or above
+
+
+def _check_bounds(minimum: Optional[_OrderedValue],
+                  maximum: Optional[_OrderedValue],
+                  default: Optional[_OrderedValue]) -> None:
+    """Raise ValueError when ordered bounds or the default disagree."""
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise ValueError('min_value must not exceed max_value')
+    if default is not None and value_out_of_range(default, minimum, maximum):
+        raise ValueError('default is out of the allowed range')
 
 
 @dataclass
@@ -184,8 +223,157 @@ class AskMultiChoiceField(AskFieldCommon):
     max_select: Optional[int] = None
 
 
+@dataclass
+class AskFloatField(AskFieldCommon):
+    """A float field in a form.
+
+    Attributes:
+        nullable: When True an empty answer with no default is reported
+                  as None. When False an empty answer with no default will
+                  be re-asked until the user fills in a valid number.
+        default: The value returned when user fills in nothing, or None for
+                 no default. In a GUI implementation this is typically shown
+                 as the starting value in the input field, and the user can
+                 change it.
+        min_value: The minimum allowed value, or None for no minimum.
+                   The min value is inclusive.
+        max_value: The maximum allowed value, or None for no maximum.
+                   The max value is inclusive.
+    """
+
+    nullable: bool = False
+    default: Optional[float] = None
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        """Check that the float bounds and default agree."""
+        _check_bounds(self.min_value, self.max_value, self.default)
+
+
+@dataclass
+class AskDateField(AskFieldCommon):
+    """A date field in a form.
+
+    In a GUI implementation this is typically displayed as a text input field
+    with a button next to it that opens a date chooser dialog.
+
+    Attributes:
+        nullable: When True an empty answer with no default is reported
+                  as None. When False an empty answer with no default will
+                  be re-asked until the user fills in a valid date.
+        default: The value returned when user fills in nothing, or None for
+                 no default. In a GUI implementation this is typically shown
+                 as the starting value in the input field, and the user can
+                 change it.
+        min_value: The minimum allowed value, or None for no minimum.
+                   The min value is inclusive.
+        max_value: The maximum allowed value, or None for no maximum.
+                   The max value is inclusive.
+    """
+
+    nullable: bool = False
+    default: Optional[date] = None
+    min_value: Optional[date] = None
+    max_value: Optional[date] = None
+
+    def __post_init__(self) -> None:
+        """Check that the date bounds and default agree."""
+        _check_bounds(self.min_value, self.max_value, self.default)
+
+
+@dataclass
+class AskTimeField(AskFieldCommon):
+    """A time field in a form.
+
+    Attributes:
+        nullable: When True an empty answer with no default is reported
+                  as None. When False an empty answer with no default will
+                  be re-asked until the user fills in a valid time.
+        default: The value returned when user fills in nothing, or None for
+                 no default. In a GUI implementation this is typically shown
+                 as the starting value in the input field, and the user can
+                 change it.
+        min_value: The minimum allowed value, or None for no minimum.
+                   The min value is inclusive.
+        max_value: The maximum allowed value, or None for no maximum.
+                   The max value is inclusive.
+    """
+
+    nullable: bool = False
+    default: Optional[time] = None
+    min_value: Optional[time] = None
+    max_value: Optional[time] = None
+
+    def __post_init__(self) -> None:
+        """Check that the time bounds and default agree."""
+        _check_bounds(self.min_value, self.max_value, self.default)
+
+
+@dataclass
+class AskDateTimeField(AskFieldCommon):
+    """A date-time field in a form.
+
+    In a GUI implementation this is typically displayed as a text input field
+    with a button next to it that opens a date-time chooser dialog for the
+    date part.
+
+    Attributes:
+        nullable: When True an empty answer with no default is reported
+                  as None. When False an empty answer with no default will
+                  be re-asked until the user fills in a valid date-time.
+        default: The value returned when user fills in nothing, or None for
+                 no default. In a GUI implementation this is typically shown
+                 as the starting value in the input field, and the user can
+                 change it.
+        min_value: The minimum allowed value, or None for no minimum.
+                   The min value is inclusive.
+        max_value: The maximum allowed value, or None for no maximum.
+                   The max value is inclusive.
+    """
+
+    nullable: bool = False
+    default: Optional[datetime] = None
+    min_value: Optional[datetime] = None
+    max_value: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        """Check that the date-time bounds and default agree."""
+        _check_bounds(self.min_value, self.max_value, self.default)
+
+
+@dataclass
+class AskDurationField(AskFieldCommon):
+    """A duration field in a form.
+
+    Attributes:
+        nullable: When True an empty answer with no default is reported
+                  as None. When False an empty answer with no default will
+                  be re-asked until the user fills in a valid duration.
+        default: The value returned when user fills in nothing, or None for
+                 no default. In a GUI implementation this is typically shown
+                 as the starting value in the input field, and the user can
+                 change it.
+        min_value: The minimum allowed value, or None for no minimum.
+                   The min value is inclusive.
+        max_value: The maximum allowed value, or None for no maximum.
+                   The max value is inclusive.
+    """
+
+    nullable: bool = False
+    default: Optional[timedelta] = None
+    min_value: Optional[timedelta] = None
+    max_value: Optional[timedelta] = None
+
+    def __post_init__(self) -> None:
+        """Check that the duration bounds and default agree."""
+        _check_bounds(self.min_value, self.max_value, self.default)
+
+
 type AskField = Union[AskTextField, AskIntField, AskPathField, AskYesNoField,
-                      AskChoiceField, AskMultiChoiceField]
+                      AskChoiceField, AskMultiChoiceField, AskFloatField,
+                      AskDateField, AskTimeField, AskDateTimeField,
+                      AskDurationField]
 """An AskField is the question asked in a row in a form in a wizard UI bridge.
 
    The AskField is one of the Ask*Field dataclasses. It holds the actual
@@ -289,9 +477,86 @@ class AnswerMultiChoiceField:
     value: Sequence[str]
 
 
+@dataclass
+class AnswerFloatField:
+    """An answer to a float field in a form.
+
+    Attributes:
+        asking: How the question was asked, including the question text, help
+                text, and other attributes of the question.
+        value: The value of the answer, or None when the user did not fill in
+               anything and the field is nullable.
+    """
+
+    asking: AskFloatField
+    value: Optional[float]
+
+
+@dataclass
+class AnswerDateField:
+    """An answer to a date field in a form.
+
+    Attributes:
+        asking: How the question was asked, including the question text, help
+                text, and other attributes of the question.
+        value: The value of the answer, or None when the user did not fill in
+               anything and the field is nullable.
+    """
+
+    asking: AskDateField
+    value: Optional[date]
+
+
+@dataclass
+class AnswerTimeField:
+    """An answer to a time field in a form.
+
+    Attributes:
+        asking: How the question was asked, including the question text, help
+                text, and other attributes of the question.
+        value: The value of the answer, or None when the user did not fill in
+               anything and the field is nullable.
+    """
+
+    asking: AskTimeField
+    value: Optional[time]
+
+
+@dataclass
+class AnswerDateTimeField:
+    """An answer to a date-time field in a form.
+
+    Attributes:
+        asking: How the question was asked, including the question text, help
+                text, and other attributes of the question.
+        value: The value of the answer, or None when the user did not fill in
+               anything and the field is nullable.
+    """
+
+    asking: AskDateTimeField
+    value: Optional[datetime]
+
+
+@dataclass
+class AnswerDurationField:
+    """An answer to a duration field in a form.
+
+    Attributes:
+        asking: How the question was asked, including the question text, help
+                text, and other attributes of the question.
+        value: The value of the answer, or None when the user did not fill in
+               anything and the field is nullable.
+    """
+
+    asking: AskDurationField
+    value: Optional[timedelta]
+
+
 type AnswerField = Union[AnswerTextField, AnswerIntField, AnswerPathField,
                          AnswerYesNoField, AnswerChoiceField,
-                         AnswerMultiChoiceField]
+                         AnswerMultiChoiceField, AnswerFloatField,
+                         AnswerDateField, AnswerTimeField,
+                         AnswerDateTimeField, AnswerDurationField]
 """An AnswerField is the answer to a question in a row in a form.
 
    The AnswerField is one of the Answer*Field dataclasses. It holds the actual
@@ -306,13 +571,15 @@ type AnswerFields = Sequence[AnswerField]
    """
 
 
-type PrefillValueType = Union[str, int, Path, bool, Sequence[str]]
+type PrefillValueType = Union[str, int, Path, bool, Sequence[str], float, date,
+                              time, datetime, timedelta]
 """The type of a value a partial validator may prefill into a field.
 
 The value must match the answer type of the target field: a str for a
 text or choice field, an int for an integer field, a Path for a path
-field, a bool for a yes/no field, and a sequence of str for a
-multi-choice field.
+field, a bool for a yes/no field, a sequence of str for a multi-choice
+field, a float for a float field, and a date, time, datetime or
+timedelta for a date, time, date-time or duration field respectively.
 """
 
 

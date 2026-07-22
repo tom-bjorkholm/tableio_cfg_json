@@ -21,7 +21,9 @@ from textual.widgets import Button, DirectoryTree, Input
 from tableio_cfg_json import AskPathField, PathAskOptions, WizardAbort, \
     WizardBack, WizardCancelLevel, WizardNavigation, WizardPathKind
 from tableio_cfg_json.wizard_ui_bridge_textual import _ChoiceApp, _FormApp, \
-    _MultiApp, _PathApp, _TextApp, _default_index, _preselected
+    _MultiApp, _PathApp, _TextApp
+from tableio_cfg_json._wizard_ui_bridge_textual_widgets import \
+    _default_index, _preselected
 from tableio_cfg_json._wizard_ui_bridge_path import _PickerScreen, \
     _PathPick, _selection_text, _start_dir
 from .ui_textual_support import drive, open_picker, _CannedBridge, _submitted

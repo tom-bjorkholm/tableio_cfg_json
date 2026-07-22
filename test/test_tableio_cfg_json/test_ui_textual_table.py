@@ -12,8 +12,8 @@ from typing import Optional
 import pytest
 from tableio_cfg_json import TableCell, TableColumn, WizardBack, \
     WizardCancelLevel
-from tableio_cfg_json.wizard_ui_bridge_textual import _TableApp, \
-    _parse_cell_id
+from tableio_cfg_json.wizard_ui_bridge_textual import _TableApp
+from tableio_cfg_json._wizard_ui_bridge_textual_widgets import _parse_cell_id
 from tableio_cfg_json.wizard_ui_bridge_table import _new_row_template
 from .ui_textual_support import drive, _CannedBridge
 

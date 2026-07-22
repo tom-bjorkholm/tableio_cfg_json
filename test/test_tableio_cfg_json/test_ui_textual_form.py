@@ -24,7 +24,8 @@ from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
     AnswerField, AnswerTextField, AnswerYesNoField, \
     PartFormValidationResult, PartialFormValidator, PathAskOptions, \
     PrefillValues, WizardBack, WizardCancelLevel, WizardPathKind
-from tableio_cfg_json.wizard_ui_bridge_textual import _FormApp, \
+from tableio_cfg_json.wizard_ui_bridge_textual import _FormApp
+from tableio_cfg_json._wizard_ui_bridge_textual_widgets import \
     _browse_index, _field_index
 from .ui_textual_support import drive, open_picker, _CannedBridge, _submitted
 

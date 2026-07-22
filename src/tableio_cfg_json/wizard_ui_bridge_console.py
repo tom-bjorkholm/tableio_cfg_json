@@ -15,6 +15,7 @@ from typing import Optional, Sequence, TextIO
 from tableio_cfg_json.wizard_ui_bridge_arg_types import PartialCheck, \
     WizardBack, WizardCancelLevel, WizardAbort, TableColumn, TableCell
 from tableio_cfg_json.wizard_ui_bridge import WizardUiBridge
+from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField
 from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     text_answer, ask_yes_no, ask_one, ask_many, run_table, int_text, \
     question_with_default
@@ -53,6 +54,16 @@ class WizardUiBridgeConsole(WizardUiBridge):
         text = self._read_sensitive(prompt) if sensitive \
             else self._read_answer(prompt)
         return text_answer(text, nullable, default)
+
+    def supports_form_field(self, field: AskField) -> bool:
+        """Show every form field type; see WizardUiBridge.
+
+        The inherited base ask_form() asks each field with the typed ask
+        methods, so the console form handles the typed float, date, time,
+        date-time and duration fields as well as the original kinds.
+        """
+        assert field is not None
+        return True
 
     def ask_yes_no(self, question: str, default: bool,
                    re_ask_reason: Optional[str] = None) -> bool:

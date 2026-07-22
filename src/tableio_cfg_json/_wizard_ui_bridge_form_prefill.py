@@ -18,6 +18,8 @@ from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, \
     AskTextField, AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
     AskMultiChoiceField, PrefillValues, PrefillValueType
 from tableio_cfg_json._wizard_ui_bridge_form import valid_prefills
+from tableio_cfg_json._wizard_ui_bridge_parse import NEW_FIELD_TYPES, \
+    format_new_value
 
 
 def apply_prefills(form: DOMNode, fields: Sequence[AskField], changed: int,
@@ -41,7 +43,9 @@ def _set_field(form: DOMNode, field: AskField, index: int,
     user had typed it, exactly like the directory picker write-back.
     """
     widget_id = f'#field_{index}'
-    if isinstance(field, AskTextField):
+    if isinstance(field, NEW_FIELD_TYPES):
+        form.query_one(widget_id, Input).value = format_new_value(value)
+    elif isinstance(field, AskTextField):
         assert isinstance(value, str)
         form.query_one(widget_id, Input).value = value
     elif isinstance(field, AskIntField):

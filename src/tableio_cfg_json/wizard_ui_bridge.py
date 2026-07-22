@@ -41,11 +41,18 @@ from tableio_cfg_json._wizard_ui_bridge_helpers import check_text_args, \
     ask_many, run_table, int_text, out_of_range, range_error, path_answer
 from tableio_cfg_json._wizard_ui_bridge_form import initial_answer, \
     valid_prefills, prefilled_field
+from tableio_cfg_json._wizard_ui_bridge_parse import ask_typed, parse_float, \
+    parse_date, parse_time, parse_datetime, parse_duration, FLOAT_HINT, \
+    DATE_HINT, TIME_HINT, DATETIME_HINT, DURATION_HINT
+from tableio_cfg_json._wizard_ui_bridge_fake import ask_form_faking
 from tableio_cfg_json.wizard_ui_bridge_form_defs import AskField, AskFields, \
     AnswerField, AnswerFields, PartialFormValidator, AskTextField, \
     AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
-    AskMultiChoiceField, AnswerTextField, AnswerIntField, AnswerPathField, \
-    AnswerYesNoField, AnswerChoiceField, AnswerMultiChoiceField, \
+    AskMultiChoiceField, AskFloatField, AskDateField, AskTimeField, \
+    AskDateTimeField, AskDurationField, AnswerTextField, AnswerIntField, \
+    AnswerPathField, AnswerYesNoField, AnswerChoiceField, \
+    AnswerMultiChoiceField, AnswerFloatField, AnswerDateField, \
+    AnswerTimeField, AnswerDateTimeField, AnswerDurationField, \
     PrefillValueType
 
 
@@ -500,6 +507,66 @@ class WizardUiBridge:
         self._fill_form(ask_fields, answers, partial_validator)
         return answers
 
+    def supports_form_field(self, field: AskField) -> bool:
+        """Return True when the bridge can show the given form field.
+
+        A bridge that overrides ask_form() may not yet support all
+        the AskField types. This method returns True when the bridge can
+        show the given field, and False when it cannot. The base implementation
+        returns True only for the field types that oldest form bridges support,
+        so a bridge that overrides ask_form() should override this method as
+        well.
+
+        Args:
+            field: The form field to check.
+        Returns:
+            True if the bridge can show the field, False otherwise.
+        """
+        return isinstance(field, (AskTextField, AskIntField, AskPathField,
+                                  AskYesNoField, AskChoiceField,
+                                  AskMultiChoiceField))
+
+    def ask_form_w_fake(self, long_question: str, ask_fields: AskFields, *,
+                        re_ask_reason: Optional[str] = None,
+                        partial_validator: Optional[PartialFormValidator]
+                        = None) -> AnswerFields:
+        """Ask the user to fill in a form faking unsupported field types.
+
+        This is a temporary migration aid for a wizard that uses field types
+        the bridge does not yet support. It replaces each unsupported field
+        with a supported field that asks the question and inserts a partial
+        form validator that guides the answer to something that can be
+        converted to the unsupported field type. ask_form() is then called
+        with the modified fields and validator, and the answers are converted
+        back to the original field types before returning.
+
+        Args:
+            long_question: The main question or instruction to the user,
+                           typically shown above the form. It may be long
+                           string that the UI bridge is responsible for
+                           wrapping and displaying nicely.
+            ask_fields: Description of each field in the form.
+            re_ask_reason: The reason for re-asking, for instance how a
+                           value failed validation.
+            partial_validator: Optional callback for early per-field
+                               feedback. It receives the current answers
+                               and the changed field index, and returns a
+                               PartFormValidationResult.
+
+        Returns:
+            One AnswerField per AskField, in the order of ask_fields.
+        Raises:
+            WizardBack: The user asked to return to the previous question.
+            WizardCancelLevel: The user cancelled the current level.
+            WizardAbort: The user abandoned the whole configuration.
+            RuntimeError: The bridge cannot show any field type that would
+                          allow the requested field types to be faked, so
+                          the form cannot be shown at all.
+        """
+        return ask_form_faking(self, long_question, ask_fields,
+                               re_ask_reason=re_ask_reason,
+                               partial_validator=partial_validator)
+
     def _fill_form(self, ask_fields: AskFields, answers: list[AnswerField],
                    validator: Optional[PartialFormValidator]) -> None:
         """Ask each enabled field in turn, stepping back on WizardBack.
@@ -565,6 +632,37 @@ class WizardUiBridge:
             field = prefilled_field(field, prefill)
         if field.help_text is not None:
             self.show(field.help_text)
+        answer = self._ask_new_field(field)
+        return answer if answer is not None else self._ask_basic_field(field)
+
+    def _ask_new_field(self, field: AskField) -> Optional[AnswerField]:
+        """Ask a float, date, time, date-time or duration field, else None.
+
+        Each typed field is read through the shared text re-ask loop, which
+        parses the entered text, checks the inclusive bounds and shows the
+        format hint until the value is accepted.
+        """
+        if isinstance(field, AskFloatField):
+            number = ask_typed(self.ask_text, field, parse_float, FLOAT_HINT)
+            return AnswerFloatField(field, number)
+        if isinstance(field, AskDateField):
+            day = ask_typed(self.ask_text, field, parse_date, DATE_HINT)
+            return AnswerDateField(field, day)
+        if isinstance(field, AskTimeField):
+            clock = ask_typed(self.ask_text, field, parse_time, TIME_HINT)
+            return AnswerTimeField(field, clock)
+        if isinstance(field, AskDateTimeField):
+            moment = ask_typed(self.ask_text, field, parse_datetime,
+                               DATETIME_HINT)
+            return AnswerDateTimeField(field, moment)
+        if isinstance(field, AskDurationField):
+            span = ask_typed(self.ask_text, field, parse_duration,
+                             DURATION_HINT)
+            return AnswerDurationField(field, span)
+        return None
+
+    def _ask_basic_field(self, field: AskField) -> AnswerField:
+        """Ask one of the original field kinds with its typed ask method."""
         if isinstance(field, AskTextField):
             return AnswerTextField(field, self.ask_text(
                 field.short_question, nullable=field.nullable,

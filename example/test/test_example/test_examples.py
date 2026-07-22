@@ -17,12 +17,13 @@ from tableio import FileAccess, access_capabilities, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio
 from tableio_cfg_json import get_config_member_names, UiBridgeType, \
-    AskPathField, AskMultiChoiceField, WizardPathKind
+    AskPathField, AskMultiChoiceField, AskDateField, AskDateTimeField, \
+    AskDurationField, WizardPathKind
 
 from example import e01_create_config, e02_write_table, e03_read_table, \
     e04_create_custom_config, e05_split_cities_wizard, e06_split_cities, \
     e07_split_cities_textual, e08_rename_wizard, e09_split_cities_rename, \
-    e10_edit_config_wizard, e11_ask_form
+    e10_edit_config_wizard, e11_ask_form, e12_schedule_form
 
 
 def _read_json(json_file: Path) -> dict[str, object]:
@@ -687,3 +688,63 @@ def test_form_fields() -> None:
     assert isinstance(columns_field, AskMultiChoiceField)
     assert columns_field.min_select == 1
     assert e11_ask_form.build_parser().parse_args([]).ui == 'auto'
+
+
+def _run_schedule(lines: list[str]) -> tuple[Optional[str], str]:
+    """Run the scheduling-form example on the console with scripted lines."""
+    out_file = StringIO()
+    summary = e12_schedule_form.collect_and_summarize(
+        stdin_file=StringIO('\n'.join(lines) + '\n'), stdout_file=out_file,
+        stderr_file=StringIO(), bridge_type=UiBridgeType.CONSOLE)
+    return summary, out_file.getvalue()
+
+
+def test_schedule_prefill() -> None:
+    """The end time is prefilled from the date, start and duration."""
+    summary, _ = _run_schedule(['', '2024-06-15', '', '', '', '', ''])
+    assert summary is not None
+    assert 'Date: 2024-06-15' in summary
+    assert 'Ends at: 2024-06-15 10:00:00' in summary
+    assert 'Price: 0.0' in summary
+
+
+def test_schedule_free() -> None:
+    """A free event disables the price row and shows it as free."""
+    summary, _ = _run_schedule(['', '2024-06-15', '', '', '', 'yes'])
+    assert summary is not None
+    assert 'Price: free' in summary
+    assert 'Ends at: 2024-06-15 10:00:00' in summary
+
+
+def test_schedule_duration() -> None:
+    """A typed duration extends the computed end time."""
+    lines = ['Talk', '2024-06-15', '10:00', '02:30:00', '', '', '5']
+    summary, _ = _run_schedule(lines)
+    assert summary is not None
+    assert 'Ends at: 2024-06-15 12:30:00' in summary
+    assert 'Price: 5.0' in summary
+
+
+def test_schedule_date_reask() -> None:
+    """A bad date is re-asked before the schedule is summarized."""
+    lines = ['', 'not-a-date', '2024-06-15', '', '', '', '', '']
+    summary, _ = _run_schedule(lines)
+    assert summary is not None
+    assert 'Date: 2024-06-15' in summary
+
+
+def test_schedule_cancel() -> None:
+    """Aborting at the first field returns no summary."""
+    summary, output = _run_schedule([':q'])
+    assert summary is None
+    assert 'cancelled' in output
+
+
+def test_schedule_fields() -> None:
+    """The scheduling form has the typed field kinds in order."""
+    fields = e12_schedule_form.build_schedule_form()
+    assert len(fields) == 7
+    assert isinstance(fields[1], AskDateField)
+    assert isinstance(fields[3], AskDurationField)
+    assert isinstance(fields[4], AskDateTimeField)
+    assert e12_schedule_form.build_parser().parse_args([]).ui == 'auto'

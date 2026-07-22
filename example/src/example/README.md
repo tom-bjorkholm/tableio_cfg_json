@@ -423,3 +423,70 @@ overrides `ask_form()` to show the whole form on one screen; the Textual bridge
 in this package already does. Because the console fallback treats validator
 messages as advisory, a caller that must reject a bad final value re-calls
 `ask_form()` with a `re_ask_reason`, which `e11_ask_form.py` demonstrates.
+
+## Typed Form Fields And Prefills: `e12_schedule_form.py`
+
+On top of the six fields above, `ask_form()` supports five *typed* fields whose
+answer is a real Python object, so a graphical or textual bridge can offer a
+better editor and no string parsing leaks into the application:
+
+| Field class | Answer type | Accepted text / widget |
+| ----------- | ----------- | ---------------------- |
+| `AskFloatField` | `float` | a number, optionally bounded |
+| `AskDateField` | `date` | `YYYY-MM-DD`; the Textual bridge opens a calendar |
+| `AskTimeField` | `time` | `HH:MM` or `HH:MM:SS` |
+| `AskDateTimeField` | `datetime` | `YYYY-MM-DD HH:MM:SS`; calendar for the date part |
+| `AskDurationField` | `timedelta` | `<days> d HH:MM:SS`, or a number of seconds |
+
+Each typed field takes the same `short_question`, `help_text`, `nullable` and
+`default` as the other fields, and the date-like and numeric fields also take
+inclusive `min_value` and `max_value` bounds. A duration is written as an
+optional day count and a clock part, so `1 d 02:30:00` and a plain `9000`
+(seconds) both work, which is friendlier than one large second count.
+
+- [`e12_schedule_form.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/src/example/e12_schedule_form.py)
+  asks a small event-scheduling form that uses every typed field, and it shows a
+  partial validator that *prefills* one field from others. It is self-contained
+  and writes nothing to disk, so it isolates the typed fields and prefills.
+
+```sh
+python -m example.e12_schedule_form
+python -m example.e12_schedule_form --ui console
+```
+
+In a real terminal the date and "Ends at" fields show a **Pick** button (or
+accept the `?` token) that opens a full-screen calendar; on the console every
+field is asked as text and parsed, so the same program stays scriptable.
+
+### Prefilling A Field From Others
+
+`PartFormValidationResult` has a fourth part, `prefill_values`: a tuple of
+`(row_index, value)` pairs the validator asks the bridge to place into other
+rows, exactly as if the user had typed them. `e12_schedule_form.py` uses it to
+fill the "Ends at" date-time from the event date, the start time and the
+duration whenever any of those change:
+
+```python
+def schedule_validator(answers, changed):
+    disable = () if not _is_free(answers) else (_PRICE,)   # hide an irrelevant row
+    end = _computed_end(answers)                            # date + time + duration
+    prefill = () if end is None else ((_END, end),)         # offer it in "Ends at"
+    return PartFormValidationResult(True, '', disable, prefill)
+```
+
+The prefilled value is only a starting point the user may edit. A prefill aimed
+at the row that just changed is ignored, so writing back never fights the user's
+own edit, and emitting a stable value (the same computed end) does not loop. The
+value must match the target field's answer type: a `date` for a date field, a
+`datetime` for a date-time field, a `float` for a float field, and so on.
+
+### Working With Older Bridges: `ask_form_w_fake()`
+
+A bridge that overrides `ask_form()` but predates the typed fields reports
+through `supports_form_field()` that it cannot show them. A wizard that wants
+the typed fields anyway can call `bridge.ask_form_w_fake(...)` instead of
+`ask_form()`: each unsupported field is shown as a text field with the format in
+its help text, a wrapping validator guides the entry and converts it, and the
+answers come back as the requested typed answers. On a bridge that already
+supports the typed fields — the console and Textual bridges here both do —
+`ask_form_w_fake()` simply calls `ask_form()`.

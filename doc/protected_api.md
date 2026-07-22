@@ -39,14 +39,18 @@
   * [multi\_count\_error](#tableio_cfg_json._wizard_ui_bridge_helpers.multi_count_error)
 * [tableio\_cfg\_json.\_wizard\_ui\_bridge\_form](#tableio_cfg_json._wizard_ui_bridge_form)
   * [initial\_answer](#tableio_cfg_json._wizard_ui_bridge_form.initial_answer)
+  * [\_new\_initial](#tableio_cfg_json._wizard_ui_bridge_form._new_initial)
+  * [\_basic\_initial](#tableio_cfg_json._wizard_ui_bridge_form._basic_initial)
   * [valid\_prefills](#tableio_cfg_json._wizard_ui_bridge_form.valid_prefills)
   * [\_check\_row](#tableio_cfg_json._wizard_ui_bridge_form._check_row)
   * [\_prefill\_value](#tableio_cfg_json._wizard_ui_bridge_form._prefill_value)
+  * [\_ordered\_prefill](#tableio_cfg_json._wizard_ui_bridge_form._ordered_prefill)
   * [\_multi\_prefill](#tableio_cfg_json._wizard_ui_bridge_form._multi_prefill)
   * [\_need](#tableio_cfg_json._wizard_ui_bridge_form._need)
   * [\_bad\_type](#tableio_cfg_json._wizard_ui_bridge_form._bad_type)
   * [prefilled\_field](#tableio_cfg_json._wizard_ui_bridge_form.prefilled_field)
-  * [\_int\_prefilled](#tableio_cfg_json._wizard_ui_bridge_form._int_prefilled)
+  * [\_default\_a](#tableio_cfg_json._wizard_ui_bridge_form._default_a)
+  * [\_default\_b](#tableio_cfg_json._wizard_ui_bridge_form._default_b)
 * [tableio\_cfg\_json.describe](#tableio_cfg_json.describe)
   * [\_DescriptionContext](#tableio_cfg_json.describe._DescriptionContext)
   * [\_wrapped](#tableio_cfg_json.describe._wrapped)
@@ -123,10 +127,14 @@
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_multi)
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_table)
     * [ask\_form](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_form)
+    * [supports\_form\_field](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.supports_form_field)
+    * [ask\_form\_w\_fake](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_form_w_fake)
     * [\_fill\_form](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_form)
     * [\_prev\_field](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._prev_field)
     * [\_form\_feedback](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._form_feedback)
     * [\_ask\_field](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._ask_field)
+    * [\_ask\_new\_field](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._ask_new_field)
+    * [\_ask\_basic\_field](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._ask_basic_field)
     * [\_guard\_fallback](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._guard_fallback)
     * [error\_file](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.error_file)
     * [show](#tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.show)
@@ -135,7 +143,6 @@
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._NavApp.__init__)
     * [action\_nav\_back](#tableio_cfg_json.wizard_ui_bridge_textual._NavApp.action_nav_back)
     * [action\_nav\_cancel](#tableio_cfg_json.wizard_ui_bridge_textual._NavApp.action_nav_cancel)
-  * [\_header\_widgets](#tableio_cfg_json.wizard_ui_bridge_textual._header_widgets)
   * [\_TextApp](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._TextApp.compose)
@@ -157,10 +164,6 @@
     * [\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._MultiApp._clicked)
     * [action\_submit](#tableio_cfg_json.wizard_ui_bridge_textual._MultiApp.action_submit)
     * [\_count\_ok](#tableio_cfg_json.wizard_ui_bridge_textual._MultiApp._count_ok)
-  * [\_default\_index](#tableio_cfg_json.wizard_ui_bridge_textual._default_index)
-  * [\_preselected](#tableio_cfg_json.wizard_ui_bridge_textual._preselected)
-  * [\_parse\_cell\_id](#tableio_cfg_json.wizard_ui_bridge_textual._parse_cell_id)
-  * [\_make\_select](#tableio_cfg_json.wizard_ui_bridge_textual._make_select)
   * [\_TableApp](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp.compose)
@@ -181,14 +184,6 @@
     * [\_remove\_row](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._remove_row)
     * [\_set\_status](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._set_status)
     * [\_read\_cell](#tableio_cfg_json.wizard_ui_bridge_textual._TableApp._read_cell)
-  * [\_choice\_select](#tableio_cfg_json.wizard_ui_bridge_textual._choice_select)
-  * [\_multi\_selection](#tableio_cfg_json.wizard_ui_bridge_textual._multi_selection)
-  * [\_path\_field\_row](#tableio_cfg_json.wizard_ui_bridge_textual._path_field_row)
-  * [\_make\_field\_widget](#tableio_cfg_json.wizard_ui_bridge_textual._make_field_widget)
-  * [\_id\_index](#tableio_cfg_json.wizard_ui_bridge_textual._id_index)
-  * [\_field\_index](#tableio_cfg_json.wizard_ui_bridge_textual._field_index)
-  * [\_browse\_index](#tableio_cfg_json.wizard_ui_bridge_textual._browse_index)
-  * [\_multi\_error](#tableio_cfg_json.wizard_ui_bridge_textual._multi_error)
   * [\_FormApp](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp.__init__)
     * [compose](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp.compose)
@@ -199,18 +194,24 @@
     * [\_checkbox\_changed](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._checkbox_changed)
     * [\_multi\_changed](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._multi_changed)
     * [\_changed](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._changed)
+    * [\_maybe\_open\_calendar](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._maybe_open_calendar)
     * [\_apply\_validator](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_validator)
     * [\_live\_message](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._live_message)
     * [\_apply\_disabled](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_disabled)
     * [\_submit\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._submit_clicked)
     * [\_browse\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._browse_clicked)
+    * [\_pick\_clicked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._pick_clicked)
     * [\_open\_picker](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._open_picker)
+    * [\_open\_calendar](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._open_calendar)
     * [\_path\_picked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._path_picked)
+    * [\_date\_picked](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._date_picked)
     * [action\_submit](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp.action_submit)
     * [\_validator\_accepts](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._validator_accepts)
     * [\_first\_error](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._first_error)
     * [\_set\_status](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._set_status)
     * [\_read\_field](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._read_field)
+    * [\_read\_new\_field](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._read_new_field)
+    * [\_read\_basic\_field](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._read_basic_field)
     * [\_int\_value](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._int_value)
     * [\_field\_error](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._field_error)
     * [\_int\_error](#tableio_cfg_json.wizard_ui_bridge_textual._FormApp._int_error)
@@ -223,6 +224,7 @@
     * [ask\_multi](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_multi)
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_table)
     * [ask\_form](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.ask_form)
+    * [supports\_form\_field](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.supports_form_field)
     * [\_run](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._run)
     * [\_launch](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._launch)
     * [\_collect](#tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._collect)
@@ -233,6 +235,7 @@
   * [WizardUiBridgeConsole](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole)
     * [\_\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.__init__)
     * [ask\_text](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_text)
+    * [supports\_form\_field](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.supports_form_field)
     * [ask\_yes\_no](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_yes_no)
     * [ask\_table](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_table)
     * [\_ask\_raw](#tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole._ask_raw)
@@ -316,6 +319,37 @@
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_get\_json\_member](#tableio_cfg_json.wizard._get_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_textual\_widgets](#tableio_cfg_json._wizard_ui_bridge_textual_widgets)
+  * [\_header\_widgets](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._header_widgets)
+  * [\_default\_index](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._default_index)
+  * [\_preselected](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._preselected)
+  * [\_parse\_cell\_id](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._parse_cell_id)
+  * [\_make\_select](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._make_select)
+  * [\_choice\_select](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._choice_select)
+  * [\_multi\_selection](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._multi_selection)
+  * [\_path\_field\_row](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._path_field_row)
+  * [\_pick\_field\_row](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._pick_field_row)
+  * [\_make\_field\_widget](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._make_field_widget)
+  * [\_new\_field\_widget](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._new_field_widget)
+  * [\_basic\_field\_widget](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._basic_field_widget)
+  * [\_id\_index](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._id_index)
+  * [\_field\_index](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._field_index)
+  * [\_browse\_index](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._browse_index)
+  * [\_pick\_index](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._pick_index)
+  * [\_multi\_error](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._multi_error)
+  * [\_date\_of](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._date_of)
+  * [\_calendar\_setup](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._calendar_setup)
+  * [\_combined\_text](#tableio_cfg_json._wizard_ui_bridge_textual_widgets._combined_text)
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_fake](#tableio_cfg_json._wizard_ui_bridge_fake)
+  * [\_FakeableBridge](#tableio_cfg_json._wizard_ui_bridge_fake._FakeableBridge)
+    * [supports\_form\_field](#tableio_cfg_json._wizard_ui_bridge_fake._FakeableBridge.supports_form_field)
+    * [ask\_form](#tableio_cfg_json._wizard_ui_bridge_fake._FakeableBridge.ask_form)
+  * [ask\_form\_faking](#tableio_cfg_json._wizard_ui_bridge_fake.ask_form_faking)
+  * [\_plan](#tableio_cfg_json._wizard_ui_bridge_fake._plan)
+  * [\_real\_answer](#tableio_cfg_json._wizard_ui_bridge_fake._real_answer)
+  * [\_wrap\_validator](#tableio_cfg_json._wizard_ui_bridge_fake._wrap_validator)
+  * [\_convert\_prefills](#tableio_cfg_json._wizard_ui_bridge_fake._convert_prefills)
+  * [\_fake\_guidance](#tableio_cfg_json._wizard_ui_bridge_fake._fake_guidance)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_table](#tableio_cfg_json.wizard_ui_bridge_table)
   * [\_ADD\_ROW](#tableio_cfg_json.wizard_ui_bridge_table._ADD_ROW)
   * [\_DEL\_ROW](#tableio_cfg_json.wizard_ui_bridge_table._DEL_ROW)
@@ -341,6 +375,11 @@
   * [\_set\_field](#tableio_cfg_json._wizard_ui_bridge_form_prefill._set_field)
   * [\_set\_multi](#tableio_cfg_json._wizard_ui_bridge_form_prefill._set_multi)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs](#tableio_cfg_json.wizard_ui_bridge_form_defs)
+  * [\_OrderedValue](#tableio_cfg_json.wizard_ui_bridge_form_defs._OrderedValue)
+    * [\_\_lt\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs._OrderedValue.__lt__)
+    * [\_\_gt\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs._OrderedValue.__gt__)
+  * [value\_out\_of\_range](#tableio_cfg_json.wizard_ui_bridge_form_defs.value_out_of_range)
+  * [\_check\_bounds](#tableio_cfg_json.wizard_ui_bridge_form_defs._check_bounds)
   * [AskFieldCommon](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskFieldCommon)
   * [AskTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTextField)
     * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTextField.__post_init__)
@@ -350,17 +389,67 @@
   * [AskYesNoField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskYesNoField)
   * [AskChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskChoiceField)
   * [AskMultiChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskMultiChoiceField)
+  * [AskFloatField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskFloatField)
+    * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskFloatField.__post_init__)
+  * [AskDateField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateField)
+    * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateField.__post_init__)
+  * [AskTimeField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTimeField)
+    * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskTimeField.__post_init__)
+  * [AskDateTimeField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateTimeField)
+    * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateTimeField.__post_init__)
+  * [AskDurationField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDurationField)
+    * [\_\_post\_init\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.AskDurationField.__post_init__)
   * [AnswerTextField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField)
   * [AnswerIntField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerIntField)
   * [AnswerPathField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerPathField)
   * [AnswerYesNoField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerYesNoField)
   * [AnswerChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerChoiceField)
   * [AnswerMultiChoiceField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerMultiChoiceField)
+  * [AnswerFloatField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerFloatField)
+  * [AnswerDateField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerDateField)
+  * [AnswerTimeField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTimeField)
+  * [AnswerDateTimeField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerDateTimeField)
+  * [AnswerDurationField](#tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerDurationField)
   * [PartFormValidationResult](#tableio_cfg_json.wizard_ui_bridge_form_defs.PartFormValidationResult)
 * [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
   * [UiBridgeType](#tableio_cfg_json.wizard_ui_factory.UiBridgeType)
   * [make\_text\_ui\_bridge](#tableio_cfg_json.wizard_ui_factory.make_text_ui_bridge)
   * [\_is\_tty](#tableio_cfg_json.wizard_ui_factory._is_tty)
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_parse](#tableio_cfg_json._wizard_ui_bridge_parse)
+  * [NEW\_FIELD\_TYPES](#tableio_cfg_json._wizard_ui_bridge_parse.NEW_FIELD_TYPES)
+  * [parse\_float](#tableio_cfg_json._wizard_ui_bridge_parse.parse_float)
+  * [parse\_date](#tableio_cfg_json._wizard_ui_bridge_parse.parse_date)
+  * [parse\_time](#tableio_cfg_json._wizard_ui_bridge_parse.parse_time)
+  * [parse\_datetime](#tableio_cfg_json._wizard_ui_bridge_parse.parse_datetime)
+  * [parse\_duration](#tableio_cfg_json._wizard_ui_bridge_parse.parse_duration)
+  * [\_timedelta\_seconds](#tableio_cfg_json._wizard_ui_bridge_parse._timedelta_seconds)
+  * [\_timedelta\_parts](#tableio_cfg_json._wizard_ui_bridge_parse._timedelta_parts)
+  * [format\_duration](#tableio_cfg_json._wizard_ui_bridge_parse.format_duration)
+  * [format\_new\_value](#tableio_cfg_json._wizard_ui_bridge_parse.format_new_value)
+  * [ordered\_range\_error](#tableio_cfg_json._wizard_ui_bridge_parse.ordered_range_error)
+  * [\_AskText](#tableio_cfg_json._wizard_ui_bridge_parse._AskText)
+    * [\_\_call\_\_](#tableio_cfg_json._wizard_ui_bridge_parse._AskText.__call__)
+  * [\_TypedField](#tableio_cfg_json._wizard_ui_bridge_parse._TypedField)
+  * [ask\_typed](#tableio_cfg_json._wizard_ui_bridge_parse.ask_typed)
+  * [\_resolve](#tableio_cfg_json._wizard_ui_bridge_parse._resolve)
+  * [resolve\_new](#tableio_cfg_json._wizard_ui_bridge_parse.resolve_new)
+  * [new\_answer](#tableio_cfg_json._wizard_ui_bridge_parse.new_answer)
+  * [field\_hint](#tableio_cfg_json._wizard_ui_bridge_parse.field_hint)
+  * [\_new\_bounds](#tableio_cfg_json._wizard_ui_bridge_parse._new_bounds)
+  * [value\_from\_text](#tableio_cfg_json._wizard_ui_bridge_parse.value_from_text)
+  * [error\_from\_text](#tableio_cfg_json._wizard_ui_bridge_parse.error_from_text)
+  * [fake\_field](#tableio_cfg_json._wizard_ui_bridge_parse.fake_field)
+* [tableio\_cfg\_json.\_wizard\_ui\_bridge\_calendar](#tableio_cfg_json._wizard_ui_bridge_calendar)
+  * [\_shift](#tableio_cfg_json._wizard_ui_bridge_calendar._shift)
+  * [\_CalendarScreen](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen)
+    * [\_\_init\_\_](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.__init__)
+    * [compose](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.compose)
+    * [on\_mount](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.on_mount)
+    * [\_show\_month](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._show_month)
+    * [\_grid\_widgets](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._grid_widgets)
+    * [\_day\_widget](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._day_widget)
+    * [\_pressed](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._pressed)
+    * [action\_cancel](#tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.action_cancel)
 
 <a id="tableio_cfg_json._wizard_ui_bridge_helpers"></a>
 
@@ -808,6 +897,26 @@ state when the field has no default. A choice field with no default
 starts as None, which tells a partial validator the choice is not
 answered yet; a bridge must not leave that None in a submitted form.
 
+<a id="tableio_cfg_json._wizard_ui_bridge_form._new_initial"></a>
+
+#### \_new\_initial
+
+```python
+def _new_initial(field: AskField) -> Optional[AnswerField]
+```
+
+Return the starting answer for a typed field, else None.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_form._basic_initial"></a>
+
+#### \_basic\_initial
+
+```python
+def _basic_initial(field: AskField) -> AnswerField
+```
+
+Return the starting answer for one of the original field kinds.
+
 <a id="tableio_cfg_json._wizard_ui_bridge_form.valid_prefills"></a>
 
 #### valid\_prefills
@@ -853,6 +962,21 @@ Return the value to apply for a prefill, or None to drop it.
 
 Raises TypeError when value's Python type does not match field.
 
+<a id="tableio_cfg_json._wizard_ui_bridge_form._ordered_prefill"></a>
+
+#### \_ordered\_prefill
+
+```python
+def _ordered_prefill(field: AskField, value: PrefillValueType,
+                     index: int) -> PrefillValueType
+```
+
+Return an ordered field's prefill, or raise TypeError for it.
+
+An integer or float field takes a number, and a date field takes a
+date that is not a datetime, so a datetime is never mistaken for a
+plain date. Each temporal field takes exactly its own type.
+
 <a id="tableio_cfg_json._wizard_ui_bridge_form._multi_prefill"></a>
 
 #### \_multi\_prefill
@@ -896,18 +1020,30 @@ Return field with prefill as its default.
 
 The console bridge offers a prefill as the row's default when the row
 is asked. A prefill that cannot serve as a valid default, such as an
-integer outside the field's bounds, is ignored so the field keeps its
-own default.
+integer or date outside the field's bounds, is ignored so the field
+keeps its own default. The prefill has already been checked against
+the field type by valid_prefills().
 
-<a id="tableio_cfg_json._wizard_ui_bridge_form._int_prefilled"></a>
+<a id="tableio_cfg_json._wizard_ui_bridge_form._default_a"></a>
 
-#### \_int\_prefilled
+#### \_default\_a
 
 ```python
-def _int_prefilled(field: AskIntField, value: int) -> AskIntField
+def _default_a(field: AskField,
+               prefill: PrefillValueType) -> Optional[AskField]
 ```
 
-Return field with value as default, or field if out of range.
+Return field with prefill as default for the first field group.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_form._default_b"></a>
+
+#### \_default\_b
+
+```python
+def _default_b(field: AskField, prefill: PrefillValueType) -> AskField
+```
+
+Return field with prefill as default for the second field group.
 
 <a id="tableio_cfg_json.describe"></a>
 
@@ -2936,6 +3072,83 @@ propagates so the wizard steps to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
 - `WizardAbort` - The user abandoned the whole configuration.
 
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.supports_form_field"></a>
+
+#### supports\_form\_field
+
+```python
+def supports_form_field(field: AskField) -> bool
+```
+
+Return True when the bridge can show the given form field.
+
+A bridge that overrides ask_form() may not yet support all
+the AskField types. This method returns True when the bridge can
+show the given field, and False when it cannot. The base implementation
+returns True only for the field types that oldest form bridges support,
+so a bridge that overrides ask_form() should override this method as
+well.
+
+**Arguments**:
+
+- `field` - The form field to check.
+
+**Returns**:
+
+  True if the bridge can show the field, False otherwise.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge.ask_form_w_fake"></a>
+
+#### ask\_form\_w\_fake
+
+```python
+def ask_form_w_fake(
+        long_question: str,
+        ask_fields: AskFields,
+        *,
+        re_ask_reason: Optional[str] = None,
+        partial_validator: Optional[PartialFormValidator] = None
+) -> AnswerFields
+```
+
+Ask the user to fill in a form faking unsupported field types.
+
+This is a temporary migration aid for a wizard that uses field types
+the bridge does not yet support. It replaces each unsupported field
+with a supported field that asks the question and inserts a partial
+form validator that guides the answer to something that can be
+converted to the unsupported field type. ask_form() is then called
+with the modified fields and validator, and the answers are converted
+back to the original field types before returning.
+
+**Arguments**:
+
+- `long_question` - The main question or instruction to the user,
+  typically shown above the form. It may be long
+  string that the UI bridge is responsible for
+  wrapping and displaying nicely.
+- `ask_fields` - Description of each field in the form.
+- `re_ask_reason` - The reason for re-asking, for instance how a
+  value failed validation.
+- `partial_validator` - Optional callback for early per-field
+  feedback. It receives the current answers
+  and the changed field index, and returns a
+  PartFormValidationResult.
+  
+
+**Returns**:
+
+  One AnswerField per AskField, in the order of ask_fields.
+
+**Raises**:
+
+- `WizardBack` - The user asked to return to the previous question.
+- `WizardCancelLevel` - The user cancelled the current level.
+- `WizardAbort` - The user abandoned the whole configuration.
+- `RuntimeError` - The bridge cannot show any field type that would
+  allow the requested field types to be faked, so
+  the form cannot be shown at all.
+
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._fill_form"></a>
 
 #### \_fill\_form
@@ -2989,6 +3202,30 @@ Ask one form field with the matching typed ask method.
 
 When prefill is given it replaces the field's default, so the value
 is offered as the starting answer the user can accept or edit.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._ask_new_field"></a>
+
+#### \_ask\_new\_field
+
+```python
+def _ask_new_field(field: AskField) -> Optional[AnswerField]
+```
+
+Ask a float, date, time, date-time or duration field, else None.
+
+Each typed field is read through the shared text re-ask loop, which
+parses the entered text, checks the inclusive bounds and shows the
+format hint until the value is accepted.
+
+<a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._ask_basic_field"></a>
+
+#### \_ask\_basic\_field
+
+```python
+def _ask_basic_field(field: AskField) -> AnswerField
+```
+
+Ask one of the original field kinds with its typed ask method.
 
 <a id="tableio_cfg_json.wizard_ui_bridge.WizardUiBridge._guard_fallback"></a>
 
@@ -3105,16 +3342,6 @@ def action_nav_cancel() -> None
 ```
 
 Record a request to cancel the current level.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._header_widgets"></a>
-
-#### \_header\_widgets
-
-```python
-def _header_widgets(messages: list[str], question: str) -> Iterator[Static]
-```
-
-Yield one static line per message and one for the question.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TextApp"></a>
 
@@ -3336,48 +3563,6 @@ def _count_ok(count: int) -> bool
 ```
 
 Return whether count is within the allowed selection range.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._default_index"></a>
-
-#### \_default\_index
-
-```python
-def _default_index(choices: Sequence[str],
-                   default: Optional[str]) -> Optional[int]
-```
-
-Return the index of default within choices, or None.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._preselected"></a>
-
-#### \_preselected
-
-```python
-def _preselected(choices: Sequence[str],
-                 default: Optional[Sequence[str]]) -> list[int]
-```
-
-Return the indexes of the default values within choices.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._parse_cell_id"></a>
-
-#### \_parse\_cell\_id
-
-```python
-def _parse_cell_id(widget_id: Optional[str]) -> Optional[tuple[int, int]]
-```
-
-Return the (row, column) encoded in an editable cell id.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._make_select"></a>
-
-#### \_make\_select
-
-```python
-def _make_select(cell: TableCell, widget_id: str) -> Select[str]
-```
-
-Return a drop-down for one cell, blank only when nullable.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._TableApp"></a>
 
@@ -3605,91 +3790,6 @@ def _read_cell(row: int, col: int) -> Optional[str]
 
 Return the current value of one cell for the result table.
 
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._choice_select"></a>
-
-#### \_choice\_select
-
-```python
-def _choice_select(field: AskChoiceField, widget_id: str) -> Select[str]
-```
-
-Return a drop-down for a choice field, blank when no default.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._multi_selection"></a>
-
-#### \_multi\_selection
-
-```python
-def _multi_selection(field: AskMultiChoiceField,
-                     widget_id: str) -> SelectionList[int]
-```
-
-Return a check-box list for a multi-choice field.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._path_field_row"></a>
-
-#### \_path\_field\_row
-
-```python
-def _path_field_row(value: str, index: int) -> Horizontal
-```
-
-Return a path input paired with a Browse button.
-
-The input keeps the plain field id so the form reads and validates
-it like any other field, while the button carries a browse class so
-the form can open the directory picker for this row.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._make_field_widget"></a>
-
-#### \_make\_field\_widget
-
-```python
-def _make_field_widget(field: AskField, index: int) -> Widget
-```
-
-Return the input widget shown for one form field.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._id_index"></a>
-
-#### \_id\_index
-
-```python
-def _id_index(widget_id: Optional[str], prefix: str) -> Optional[int]
-```
-
-Return the integer index following prefix in a widget id.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._field_index"></a>
-
-#### \_field\_index
-
-```python
-def _field_index(widget_id: Optional[str]) -> Optional[int]
-```
-
-Return the field index encoded in a field widget id.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._browse_index"></a>
-
-#### \_browse\_index
-
-```python
-def _browse_index(widget_id: Optional[str]) -> Optional[int]
-```
-
-Return the field index encoded in a browse button id.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual._multi_error"></a>
-
-#### \_multi\_error
-
-```python
-def _multi_error(count: int, field: AskMultiChoiceField) -> Optional[str]
-```
-
-Return the multi-choice count error, or None when acceptable.
-
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp"></a>
 
 ## \_FormApp Objects
@@ -3804,6 +3904,21 @@ def _changed(widget_id: Optional[str]) -> None
 
 Update the changed answer and refresh the shown feedback.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._maybe_open_calendar"></a>
+
+#### \_maybe\_open\_calendar
+
+```python
+def _maybe_open_calendar(index: int) -> bool
+```
+
+Open the calendar when a date field holds the pick token.
+
+Typing the '?' token into a date or date-time input is an
+alternative to pressing the Pick button. The token is left in the
+input until the calendar closes, when it is replaced by the picked
+date or cleared on cancel.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._apply_validator"></a>
 
 #### \_apply\_validator
@@ -3862,6 +3977,17 @@ def _browse_clicked(event: Button.Pressed) -> None
 
 Open the directory picker for the clicked path field.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._pick_clicked"></a>
+
+#### \_pick\_clicked
+
+```python
+@on(Button.Pressed, '.pick')
+def _pick_clicked(event: Button.Pressed) -> None
+```
+
+Open the calendar for the clicked date field.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._open_picker"></a>
 
 #### \_open\_picker
@@ -3871,6 +3997,16 @@ def _open_picker(index: int) -> None
 ```
 
 Push the picker seeded with the field's current text.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._open_calendar"></a>
+
+#### \_open\_calendar
+
+```python
+def _open_calendar(index: int) -> None
+```
+
+Push the calendar seeded from the date field's current text.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._path_picked"></a>
 
@@ -3884,6 +4020,20 @@ Fill the path input with the picked path, if any.
 
 Setting the input value raises Input.Changed, so the answer and
 the partial validator update as if the user had typed the path.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._date_picked"></a>
+
+#### \_date\_picked
+
+```python
+def _date_picked(index: int, result: Optional[date]) -> None
+```
+
+Fill the date input with the picked date, if any.
+
+A cancelled calendar clears a lingering pick token; a picked date
+replaces the input, keeping any time part of a date-time field.
+Setting the value raises Input.Changed, so the answer refreshes.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp.action_submit"></a>
 
@@ -3934,6 +4084,26 @@ def _read_field(index: int) -> AnswerField
 ```
 
 Return the current answer of one field read from its widget.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._read_new_field"></a>
+
+#### \_read\_new\_field
+
+```python
+def _read_new_field(index: int, field: AskField) -> Optional[AnswerField]
+```
+
+Return a typed field's answer from its text input, else None.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._read_basic_field"></a>
+
+#### \_read\_basic\_field
+
+```python
+def _read_basic_field(index: int, field: AskField) -> AnswerField
+```
+
+Return one original field kind's answer read from its widget.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_textual._FormApp._int_value"></a>
 
@@ -4098,6 +4268,20 @@ def ask_form(
 
 Ask the user to fill a whole form on one screen; see ask_form.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual.supports_form_field"></a>
+
+#### supports\_form\_field
+
+```python
+def supports_form_field(field: AskField) -> bool
+```
+
+Show every form field type; see WizardUiBridge.
+
+The Textual form has a widget for each field type, including a
+text input for float, time and duration fields and a text input
+with a calendar Pick button for date and date-time fields.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_textual.WizardUiBridgeTextual._run"></a>
 
 #### \_run
@@ -4220,6 +4404,20 @@ def ask_text(question: str,
 ```
 
 Ask for free text on the console; see WizardUiBridge.ask_text.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.supports_form_field"></a>
+
+#### supports\_form\_field
+
+```python
+def supports_form_field(field: AskField) -> bool
+```
+
+Show every form field type; see WizardUiBridge.
+
+The inherited base ask_form() asks each field with the typed ask
+methods, so the console form handles the typed float, date, time,
+date-time and duration fields as well as the original kinds.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_console.WizardUiBridgeConsole.ask_yes_no"></a>
 
@@ -5255,6 +5453,369 @@ def _config_from_data(data: dict[str, object], capabilities: Capabilities,
 
 Validate JSON data and return it as a TableIO JSON config.
 
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_textual\_widgets
+
+Widget builders and id helpers for the Textual wizard bridge.
+
+The Textual bridge builds one input widget per form field and per menu,
+and it maps widget ids back to field indexes and table positions. These
+pure builders and id helpers are kept apart from the screen classes so
+the main bridge module stays small; they hold no screen state and only
+turn field descriptions into widgets and widget ids into indexes.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._header_widgets"></a>
+
+#### \_header\_widgets
+
+```python
+def _header_widgets(messages: list[str], question: str) -> Iterator[Static]
+```
+
+Yield one static line per message and one for the question.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._default_index"></a>
+
+#### \_default\_index
+
+```python
+def _default_index(choices: Sequence[str],
+                   default: Optional[str]) -> Optional[int]
+```
+
+Return the index of default within choices, or None.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._preselected"></a>
+
+#### \_preselected
+
+```python
+def _preselected(choices: Sequence[str],
+                 default: Optional[Sequence[str]]) -> list[int]
+```
+
+Return the indexes of the default values within choices.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._parse_cell_id"></a>
+
+#### \_parse\_cell\_id
+
+```python
+def _parse_cell_id(widget_id: Optional[str]) -> Optional[tuple[int, int]]
+```
+
+Return the (row, column) encoded in an editable cell id.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._make_select"></a>
+
+#### \_make\_select
+
+```python
+def _make_select(cell: TableCell, widget_id: str) -> Select[str]
+```
+
+Return a drop-down for one cell, blank only when nullable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._choice_select"></a>
+
+#### \_choice\_select
+
+```python
+def _choice_select(field: AskChoiceField, widget_id: str) -> Select[str]
+```
+
+Return a drop-down for a choice field, blank when no default.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._multi_selection"></a>
+
+#### \_multi\_selection
+
+```python
+def _multi_selection(field: AskMultiChoiceField,
+                     widget_id: str) -> SelectionList[int]
+```
+
+Return a check-box list for a multi-choice field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._path_field_row"></a>
+
+#### \_path\_field\_row
+
+```python
+def _path_field_row(value: str, index: int) -> Horizontal
+```
+
+Return a path input paired with a Browse button.
+
+The input keeps the plain field id so the form reads and validates
+it like any other field, while the button carries a browse class so
+the form can open the directory picker for this row.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._pick_field_row"></a>
+
+#### \_pick\_field\_row
+
+```python
+def _pick_field_row(value: str, index: int) -> Horizontal
+```
+
+Return a text input paired with a calendar Pick button.
+
+The input keeps the plain field id so the form reads and validates it
+like any other text field, while the button carries a pick class so
+the form can open the calendar for this row.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._make_field_widget"></a>
+
+#### \_make\_field\_widget
+
+```python
+def _make_field_widget(field: AskField, index: int) -> Widget
+```
+
+Return the input widget shown for one form field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._new_field_widget"></a>
+
+#### \_new\_field\_widget
+
+```python
+def _new_field_widget(field: AskField, index: int) -> Optional[Widget]
+```
+
+Return the widget for a typed field, or None for the basic kinds.
+
+A date or date-time field shows a text input with a Pick button that
+opens the calendar; a float, time or duration field shows a plain
+text input parsed on change. Each starts from its formatted default.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._basic_field_widget"></a>
+
+#### \_basic\_field\_widget
+
+```python
+def _basic_field_widget(field: AskField, index: int) -> Widget
+```
+
+Return the input widget for one of the original field kinds.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._id_index"></a>
+
+#### \_id\_index
+
+```python
+def _id_index(widget_id: Optional[str], prefix: str) -> Optional[int]
+```
+
+Return the integer index following prefix in a widget id.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._field_index"></a>
+
+#### \_field\_index
+
+```python
+def _field_index(widget_id: Optional[str]) -> Optional[int]
+```
+
+Return the field index encoded in a field widget id.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._browse_index"></a>
+
+#### \_browse\_index
+
+```python
+def _browse_index(widget_id: Optional[str]) -> Optional[int]
+```
+
+Return the field index encoded in a browse button id.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._pick_index"></a>
+
+#### \_pick\_index
+
+```python
+def _pick_index(widget_id: Optional[str]) -> Optional[int]
+```
+
+Return the field index encoded in a calendar Pick button id.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._multi_error"></a>
+
+#### \_multi\_error
+
+```python
+def _multi_error(count: int, field: AskMultiChoiceField) -> Optional[str]
+```
+
+Return the multi-choice count error, or None when acceptable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._date_of"></a>
+
+#### \_date\_of
+
+```python
+def _date_of(value: Optional[date]) -> Optional[date]
+```
+
+Return the date part of a date or datetime, or None.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._calendar_setup"></a>
+
+#### \_calendar\_setup
+
+```python
+def _calendar_setup(field: AskField,
+                    text: str) -> tuple[date, Optional[date], Optional[date]]
+```
+
+Return the calendar seed date and its inclusive day bounds.
+
+A date-time field's bounds are its date parts, so the calendar offers
+the acceptable days and the field validates the exact date-time.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_textual_widgets._combined_text"></a>
+
+#### \_combined\_text
+
+```python
+def _combined_text(field: AskField, picked: date, current: str) -> str
+```
+
+Return the input text for a picked date, keeping any typed time.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_fake
+
+Fake unsupported typed form fields as text fields.
+
+A wizard may use the float, date, time, date-time or duration form
+fields with a bridge that overrides ask_form() but was written before
+those field types existed. Such a bridge reports through
+supports_form_field() that it cannot show them. This module lets the
+wizard still use one form: each unsupported field is shown as a text
+field, a wrapping validator parses the text and guides the user to a
+convertible value, and the text answers are converted back to the
+requested typed answers.
+
+The whole form is shown once by the bridge's own ask_form(), so the user
+still sees and edits every field together. The parsing, formatting and
+range messages are shared with the console and Textual forms through the
+_wizard_ui_bridge_parse module, so the faked fields accept exactly the
+same text.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._FakeableBridge"></a>
+
+## \_FakeableBridge Objects
+
+```python
+class _FakeableBridge(Protocol)
+```
+
+The bridge methods ask_form_faking() relies on.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._FakeableBridge.supports_form_field"></a>
+
+#### supports\_form\_field
+
+```python
+def supports_form_field(field: AskField) -> bool
+```
+
+Return whether the bridge can show the field directly.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._FakeableBridge.ask_form"></a>
+
+#### ask\_form
+
+```python
+def ask_form(
+        long_question: str,
+        ask_fields: AskFields,
+        *,
+        re_ask_reason: Optional[str] = None,
+        partial_validator: Optional[PartialFormValidator] = None
+) -> AnswerFields
+```
+
+Show the whole form and return one answer per field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake.ask_form_faking"></a>
+
+#### ask\_form\_faking
+
+```python
+def ask_form_faking(
+        bridge: _FakeableBridge, long_question: str, ask_fields: AskFields, *,
+        re_ask_reason: Optional[str],
+        partial_validator: Optional[PartialFormValidator]) -> AnswerFields
+```
+
+Show a form, faking the fields the bridge cannot show as text.
+
+Raises RuntimeError when a field is unsupported and cannot be faked.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._plan"></a>
+
+#### \_plan
+
+```python
+def _plan(bridge: _FakeableBridge, field: AskField) -> tuple[AskField, bool]
+```
+
+Return the field to show and whether it is a faked text field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._real_answer"></a>
+
+#### \_real\_answer
+
+```python
+def _real_answer(field: AskField, is_fake: bool,
+                 answer: AnswerField) -> AnswerField
+```
+
+Return the answer of a field, converting a faked text answer.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._wrap_validator"></a>
+
+#### \_wrap\_validator
+
+```python
+def _wrap_validator(
+        fields: list[AskField], is_fake: list[bool],
+        caller: Optional[PartialFormValidator]) -> PartialFormValidator
+```
+
+Return a validator over faked answers wrapping the caller's one.
+
+It converts the faked text answers back to typed answers for the
+caller, converts the caller's typed prefills to text for the faked
+rows, and blocks submit while any enabled faked field holds text that
+cannot be converted.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._convert_prefills"></a>
+
+#### \_convert\_prefills
+
+```python
+def _convert_prefills(is_fake: list[bool],
+                      prefills: PrefillValues) -> PrefillValues
+```
+
+Return prefills with faked rows' typed values turned into text.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_fake._fake_guidance"></a>
+
+#### \_fake\_guidance
+
+```python
+def _fake_guidance(fields: list[AskField], is_fake: list[bool],
+                   answers: AnswerFields, disabled: set[int]) -> Optional[str]
+```
+
+Return the first enabled faked field's parse error, or None.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_table"></a>
 
 # tableio\_cfg\_json.wizard\_ui\_bridge\_table
@@ -5551,6 +6112,64 @@ This file defines the data types used to describe the questions and answers of
 a form, and the validation callback function that is used to validate the
 answers of a partly filled form.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs._OrderedValue"></a>
+
+## \_OrderedValue Objects
+
+```python
+class _OrderedValue(Protocol)
+```
+
+A value comparable to values of its own type with < and >.
+
+Float, date, time, datetime and timedelta all satisfy this, so a
+single helper can range-check every ordered form field. The other
+operand is Any because each concrete type only compares with itself,
+which is exactly how the standard library types are annotated.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs._OrderedValue.__lt__"></a>
+
+#### \_\_lt\_\_
+
+```python
+def __lt__(other: Any) -> bool
+```
+
+Return whether this value sorts before other.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs._OrderedValue.__gt__"></a>
+
+#### \_\_gt\_\_
+
+```python
+def __gt__(other: Any) -> bool
+```
+
+Return whether this value sorts after other.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.value_out_of_range"></a>
+
+#### value\_out\_of\_range
+
+```python
+def value_out_of_range(value: _OrderedT, minimum: Optional[_OrderedT],
+                       maximum: Optional[_OrderedT]) -> bool
+```
+
+Return whether value lies outside the inclusive bounds.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs._check_bounds"></a>
+
+#### \_check\_bounds
+
+```python
+def _check_bounds(minimum: Optional[_OrderedValue],
+                  maximum: Optional[_OrderedValue],
+                  default: Optional[_OrderedValue]) -> None
+```
+
+Raise ValueError when ordered bounds or the default disagree.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskFieldCommon"></a>
 
 ## AskFieldCommon Objects
@@ -5731,6 +6350,188 @@ or a list of items with multiple selection enabled.
 - `max_select` - The maximum number of choices that can be selected,
   or None for no maximum.
 
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskFloatField"></a>
+
+## AskFloatField Objects
+
+```python
+@dataclass
+class AskFloatField(AskFieldCommon)
+```
+
+A float field in a form.
+
+**Attributes**:
+
+- `nullable` - When True an empty answer with no default is reported
+  as None. When False an empty answer with no default will
+  be re-asked until the user fills in a valid number.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `min_value` - The minimum allowed value, or None for no minimum.
+  The min value is inclusive.
+- `max_value` - The maximum allowed value, or None for no maximum.
+  The max value is inclusive.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskFloatField.__post_init__"></a>
+
+#### \_\_post\_init\_\_
+
+```python
+def __post_init__() -> None
+```
+
+Check that the float bounds and default agree.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateField"></a>
+
+## AskDateField Objects
+
+```python
+@dataclass
+class AskDateField(AskFieldCommon)
+```
+
+A date field in a form.
+
+In a GUI implementation this is typically displayed as a text input field
+with a button next to it that opens a date chooser dialog.
+
+**Attributes**:
+
+- `nullable` - When True an empty answer with no default is reported
+  as None. When False an empty answer with no default will
+  be re-asked until the user fills in a valid date.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `min_value` - The minimum allowed value, or None for no minimum.
+  The min value is inclusive.
+- `max_value` - The maximum allowed value, or None for no maximum.
+  The max value is inclusive.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateField.__post_init__"></a>
+
+#### \_\_post\_init\_\_
+
+```python
+def __post_init__() -> None
+```
+
+Check that the date bounds and default agree.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskTimeField"></a>
+
+## AskTimeField Objects
+
+```python
+@dataclass
+class AskTimeField(AskFieldCommon)
+```
+
+A time field in a form.
+
+**Attributes**:
+
+- `nullable` - When True an empty answer with no default is reported
+  as None. When False an empty answer with no default will
+  be re-asked until the user fills in a valid time.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `min_value` - The minimum allowed value, or None for no minimum.
+  The min value is inclusive.
+- `max_value` - The maximum allowed value, or None for no maximum.
+  The max value is inclusive.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskTimeField.__post_init__"></a>
+
+#### \_\_post\_init\_\_
+
+```python
+def __post_init__() -> None
+```
+
+Check that the time bounds and default agree.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateTimeField"></a>
+
+## AskDateTimeField Objects
+
+```python
+@dataclass
+class AskDateTimeField(AskFieldCommon)
+```
+
+A date-time field in a form.
+
+In a GUI implementation this is typically displayed as a text input field
+with a button next to it that opens a date-time chooser dialog for the
+date part.
+
+**Attributes**:
+
+- `nullable` - When True an empty answer with no default is reported
+  as None. When False an empty answer with no default will
+  be re-asked until the user fills in a valid date-time.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `min_value` - The minimum allowed value, or None for no minimum.
+  The min value is inclusive.
+- `max_value` - The maximum allowed value, or None for no maximum.
+  The max value is inclusive.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskDateTimeField.__post_init__"></a>
+
+#### \_\_post\_init\_\_
+
+```python
+def __post_init__() -> None
+```
+
+Check that the date-time bounds and default agree.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskDurationField"></a>
+
+## AskDurationField Objects
+
+```python
+@dataclass
+class AskDurationField(AskFieldCommon)
+```
+
+A duration field in a form.
+
+**Attributes**:
+
+- `nullable` - When True an empty answer with no default is reported
+  as None. When False an empty answer with no default will
+  be re-asked until the user fills in a valid duration.
+- `default` - The value returned when user fills in nothing, or None for
+  no default. In a GUI implementation this is typically shown
+  as the starting value in the input field, and the user can
+  change it.
+- `min_value` - The minimum allowed value, or None for no minimum.
+  The min value is inclusive.
+- `max_value` - The maximum allowed value, or None for no maximum.
+  The max value is inclusive.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AskDurationField.__post_init__"></a>
+
+#### \_\_post\_init\_\_
+
+```python
+def __post_init__() -> None
+```
+
+Check that the duration bounds and default agree.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTextField"></a>
 
 ## AnswerTextField Objects
@@ -5841,6 +6642,96 @@ An answer to a multi-choice field in a form.
 - `asking` - How the question was asked, including the question text, help
   text, and other attributes of the question.
 - `value` - The values of the answer.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerFloatField"></a>
+
+## AnswerFloatField Objects
+
+```python
+@dataclass
+class AnswerFloatField()
+```
+
+An answer to a float field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerDateField"></a>
+
+## AnswerDateField Objects
+
+```python
+@dataclass
+class AnswerDateField()
+```
+
+An answer to a date field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerTimeField"></a>
+
+## AnswerTimeField Objects
+
+```python
+@dataclass
+class AnswerTimeField()
+```
+
+An answer to a time field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerDateTimeField"></a>
+
+## AnswerDateTimeField Objects
+
+```python
+@dataclass
+class AnswerDateTimeField()
+```
+
+An answer to a date-time field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
+
+<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.AnswerDurationField"></a>
+
+## AnswerDurationField Objects
+
+```python
+@dataclass
+class AnswerDurationField()
+```
+
+An answer to a duration field in a form.
+
+**Attributes**:
+
+- `asking` - How the question was asked, including the question text, help
+  text, and other attributes of the question.
+- `value` - The value of the answer, or None when the user did not fill in
+  anything and the field is nullable.
 
 <a id="tableio_cfg_json.wizard_ui_bridge_form_defs.PartFormValidationResult"></a>
 
@@ -5968,4 +6859,402 @@ def _is_tty(stream: TextIO) -> bool
 ```
 
 Return whether a stream reports that it is a terminal.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_parse
+
+Text parsing and formatting for the typed form fields.
+
+The float, date, time, date-time and duration form fields all need to
+turn user text into a typed value and a typed value back into text. This
+module holds that shared conversion, together with the human-readable
+hints and error messages, so the console form, the Textual form and the
+ask_form_w_fake() fallback all agree on the accepted text.
+
+A duration is written as an optional day count and a clock part,
+``<days> d <hours>:<minutes>:<seconds>``, where the seconds may carry a
+decimal fraction, or as a single non-negative number of seconds. Dates,
+times and date-times use the ISO 8601 forms accepted by the standard
+library fromisoformat() parsers.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.NEW_FIELD_TYPES"></a>
+
+#### NEW\_FIELD\_TYPES
+
+The typed form field classes added on top of the original six.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.parse_float"></a>
+
+#### parse\_float
+
+```python
+def parse_float(text: str) -> Optional[float]
+```
+
+Return a finite float from text, or None when not a number.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.parse_date"></a>
+
+#### parse\_date
+
+```python
+def parse_date(text: str) -> Optional[date]
+```
+
+Return an ISO date from text, or None when not a valid date.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.parse_time"></a>
+
+#### parse\_time
+
+```python
+def parse_time(text: str) -> Optional[time]
+```
+
+Return an ISO time from text, or None when not a valid time.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.parse_datetime"></a>
+
+#### parse\_datetime
+
+```python
+def parse_datetime(text: str) -> Optional[datetime]
+```
+
+Return an ISO date-time from text, or None when not valid.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.parse_duration"></a>
+
+#### parse\_duration
+
+```python
+def parse_duration(text: str) -> Optional[timedelta]
+```
+
+Return a duration from text, or None when it is not valid.
+
+A lone non-negative number is read as a count of seconds; otherwise
+the text must be ``<hours>:<minutes>:<seconds>`` with an optional
+``<days> d`` prefix, and the seconds may carry a decimal fraction.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse._timedelta_seconds"></a>
+
+#### \_timedelta\_seconds
+
+```python
+def _timedelta_seconds(seconds: float) -> Optional[timedelta]
+```
+
+Return a duration of seconds seconds, or None when unusable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse._timedelta_parts"></a>
+
+#### \_timedelta\_parts
+
+```python
+def _timedelta_parts(groups: tuple[Optional[str], ...]) -> Optional[timedelta]
+```
+
+Return a duration built from matched day and clock groups.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.format_duration"></a>
+
+#### format\_duration
+
+```python
+def format_duration(value: timedelta) -> str
+```
+
+Return a duration as ``<days> d HH:MM:SS`` with any fraction.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.format_new_value"></a>
+
+#### format\_new\_value
+
+```python
+def format_new_value(value: object) -> str
+```
+
+Return the text a typed value would round-trip from.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.ordered_range_error"></a>
+
+#### ordered\_range\_error
+
+```python
+def ordered_range_error(minimum: Optional[object],
+                        maximum: Optional[object]) -> str
+```
+
+Return the message shown when a typed value is out of range.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse._AskText"></a>
+
+## \_AskText Objects
+
+```python
+class _AskText(Protocol)
+```
+
+The bridge ask_text() signature the typed re-ask loop calls.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse._AskText.__call__"></a>
+
+#### \_\_call\_\_
+
+```python
+def __call__(question: str,
+             re_ask_reason: Optional[str] = ...,
+             nullable: bool = ...,
+             *,
+             default: Optional[str] = ...) -> Optional[str]
+```
+
+Ask for free text and return it, or None for an empty answer.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse._TypedField"></a>
+
+## \_TypedField Objects
+
+```python
+class _TypedField(Protocol[_OrderedT])
+```
+
+The attributes shared by the ordered typed form fields.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.ask_typed"></a>
+
+#### ask\_typed
+
+```python
+def ask_typed(ask_text: _AskText, field: _TypedField[_OrderedT],
+              parse: Callable[[str], Optional[_OrderedT]],
+              hint: str) -> Optional[_OrderedT]
+```
+
+Re-ask a typed field through ask_text until the value is usable.
+
+The hint is shown in the question and repeated in the parse-error
+message, so a console user learns the accepted text format. An empty
+answer yields the field default, or None when the field is nullable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse._resolve"></a>
+
+#### \_resolve
+
+```python
+def _resolve(value: Optional[_OrderedT], minimum: Optional[_OrderedT],
+             maximum: Optional[_OrderedT],
+             hint: str) -> tuple[Optional[_OrderedT], Optional[str]]
+```
+
+Return a parsed value and no error, or None and the reason why.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.resolve_new"></a>
+
+#### resolve\_new
+
+```python
+def resolve_new(field: AskField,
+                text: Optional[str]) -> tuple[Optional[object], Optional[str]]
+```
+
+Return the typed value for a typed field's text, and any error.
+
+A None text is an empty nullable answer, which is valid and has no
+value. Otherwise the text is parsed and range-checked for the field's
+type; the error is the reason to re-ask when the value is not usable.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.new_answer"></a>
+
+#### new\_answer
+
+```python
+def new_answer(field: AskField, value: Optional[object]) -> AnswerField
+```
+
+Wrap a typed value in the answer matching a typed field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.field_hint"></a>
+
+#### field\_hint
+
+```python
+def field_hint(field: AskField) -> str
+```
+
+Return the format hint shown for a typed field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse._new_bounds"></a>
+
+#### \_new\_bounds
+
+```python
+def _new_bounds(field: AskField) -> tuple[bool, Optional[object]]
+```
+
+Return the (nullable, default) pair of a typed field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.value_from_text"></a>
+
+#### value\_from\_text
+
+```python
+def value_from_text(field: AskField, text: str) -> Optional[object]
+```
+
+Return the typed value of a typed field for widget text.
+
+An empty text yields the field default, matching how the console form
+treats an empty answer. A non-empty text is parsed; unparsable or
+out-of-range text yields None, and the caller reports the error.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.error_from_text"></a>
+
+#### error\_from\_text
+
+```python
+def error_from_text(field: AskField, text: str) -> Optional[str]
+```
+
+Return the parse or range error of a typed field's widget text.
+
+Empty text is accepted when the field is nullable or has a default,
+and otherwise reports that a value is required.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_parse.fake_field"></a>
+
+#### fake\_field
+
+```python
+def fake_field(field: AskField) -> AskTextField
+```
+
+Return the text field used to fake an unsupported typed field.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar"></a>
+
+# tableio\_cfg\_json.\_wizard\_ui\_bridge\_calendar
+
+A modal month calendar for the Textual date and date-time fields.
+
+A date field, and the date part of a date-time field, are shown in the
+Textual form as a text input paired with a Pick button. Pressing that
+button, or typing the '?' token into the input, opens this modal
+calendar. The user steps between months and years and clicks a day to
+return it; Escape or the Cancel button returns nothing so the input is
+left unchanged. Days outside a field's inclusive bounds are shown
+disabled, so the calendar only offers acceptable dates.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._shift"></a>
+
+#### \_shift
+
+```python
+def _shift(year: int, month: int, action: str) -> tuple[int, int]
+```
+
+Return the year and month reached by one navigation action.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen"></a>
+
+## \_CalendarScreen Objects
+
+```python
+class _CalendarScreen(ModalScreen[Optional[date]])
+```
+
+Modal month calendar returning the date the user clicks.
+
+The screen opens on a seed month and offers day buttons for that
+month, greying the days outside the inclusive minimum and maximum.
+Month and year buttons move the view, a day button returns its date,
+and Escape or Cancel returns None so the field keeps its value.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(seed: date, minimum: Optional[date],
+             maximum: Optional[date]) -> None
+```
+
+Store the seed month and the inclusive day bounds.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.compose"></a>
+
+#### compose
+
+```python
+def compose() -> ComposeResult
+```
+
+Lay out the title, the navigation, the day grid and footer.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.on_mount"></a>
+
+#### on\_mount
+
+```python
+async def on_mount() -> None
+```
+
+Fill the title and day grid for the seed month.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._show_month"></a>
+
+#### \_show\_month
+
+```python
+async def _show_month() -> None
+```
+
+Show the current month's title and rebuild the day grid.
+
+The old day widgets are removed before the new ones are mounted,
+so navigating to another month never leaves two cells sharing a
+day id.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._grid_widgets"></a>
+
+#### \_grid\_widgets
+
+```python
+def _grid_widgets() -> Iterator[Widget]
+```
+
+Yield the weekday headers and then one widget per day cell.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._day_widget"></a>
+
+#### \_day\_widget
+
+```python
+def _day_widget(day: int) -> Widget
+```
+
+Return a blank cell for a padding day, else a day button.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen._pressed"></a>
+
+#### \_pressed
+
+```python
+@on(Button.Pressed)
+async def _pressed(event: Button.Pressed) -> None
+```
+
+Route a button press to navigation, a day, or cancel.
+
+<a id="tableio_cfg_json._wizard_ui_bridge_calendar._CalendarScreen.action_cancel"></a>
+
+#### action\_cancel
+
+```python
+def action_cancel() -> None
+```
+
+Close the calendar without returning a date.
 
