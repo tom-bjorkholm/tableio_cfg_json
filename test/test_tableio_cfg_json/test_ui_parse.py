@@ -67,6 +67,7 @@ def test_parse_datetime(text: str, expected: Optional[datetime]) -> None:
     ('00:00:01.5', timedelta(seconds=1, milliseconds=500)),
     ('1.5', timedelta(seconds=1, milliseconds=500)),
     ('-5', None), ('1:2', None), ('x', None), ('', None),
+    ('1e20', None),
     ('999999999999999 d 00:00:00', None)])
 def test_parse_duration(text: str, expected: Optional[timedelta]) -> None:
     """parse_duration reads clock text and bare seconds, else None."""

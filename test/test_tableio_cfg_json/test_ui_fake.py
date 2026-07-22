@@ -187,6 +187,49 @@ def test_fake_prefill_convert() -> None:
     assert result.prefill_values == ((1, '2024-05-06'),)
 
 
+def test_fake_unsupported() -> None:
+    """An unsupported non-typed field cannot be faked and errors."""
+    bridge = _NoSupportBridge({})
+    with pytest.raises(RuntimeError, match='cannot show'):
+        bridge.ask_form_w_fake('Q', [AskTextField('T', None)])
+
+
+def test_fake_caller_invalid() -> None:
+    """The wrapped validator returns the caller's failure and prefills."""
+    fields: list[AskField] = [AskDateField('D', None)]
+
+    def caller(answers: AnswerFields,
+               changed: int) -> PartFormValidationResult:
+        _ = (answers, changed)
+        prefill: PrefillValues = ((0, date(2024, 1, 1)),)
+        return PartFormValidationResult(False, 'nope', (), prefill)
+    bridge = _FakeBridge({0: '2024-05-06'})
+    wrapped = _drive(bridge, fields, caller)
+    faked = AnswerTextField(_text_field(bridge, 0), '2024-05-06')
+    result = wrapped([faked], 0)
+    assert result.is_valid is False
+    assert result.message == 'nope'
+    assert result.prefill_values == ((0, '2024-01-01'),)
+
+
+def test_fake_prefill_kept() -> None:
+    """A prefill for a non-faked or out-of-range row passes unchanged."""
+    name = AskTextField('A', None)
+    fields: list[AskField] = [name, AskDateField('D', None)]
+
+    def caller(answers: AnswerFields,
+               changed: int) -> PartFormValidationResult:
+        _ = (answers, changed)
+        prefill: PrefillValues = ((0, 'kept'), (5, 'far'))
+        return PartFormValidationResult(True, '', (), prefill)
+    bridge = _FakeBridge({0: 'Tom', 1: '2024-05-06'})
+    wrapped = _drive(bridge, fields, caller)
+    answers = [AnswerTextField(name, 'Tom'),
+               AnswerTextField(_text_field(bridge, 1), '2024-05-06')]
+    result = wrapped(answers, 0)
+    assert result.prefill_values == ((0, 'kept'), (5, 'far'))
+
+
 def _text_field(bridge: _FakeBridge, index: int) -> AskTextField:
     """Return the faked text field the bridge was shown at index."""
     field = bridge.seen[index]

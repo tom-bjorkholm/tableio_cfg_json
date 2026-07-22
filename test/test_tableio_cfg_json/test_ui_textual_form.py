@@ -27,7 +27,8 @@ from tableio_cfg_json import AskField, AskChoiceField, AskIntField, \
 from tableio_cfg_json.wizard_ui_bridge_textual import _FormApp
 from tableio_cfg_json._wizard_ui_bridge_textual_widgets import \
     _browse_index, _field_index
-from .ui_textual_support import drive, open_picker, _CannedBridge, _submitted
+from .ui_textual_support import drive, open_picker, _CannedBridge, \
+    _submitted, disabled_after
 
 
 def _sample_form() -> list[AskField]:
@@ -127,6 +128,38 @@ def test_form_multi_fits() -> None:
             return (multi.region.bottom, grid.region.bottom)
     multi_bottom, grid_bottom = asyncio.run(scenario())
     assert multi_bottom <= grid_bottom
+
+
+def test_multi_prefill_drop() -> None:
+    """A multi-choice prefill deselects members not in the prefill."""
+    fields: list[AskField] = [
+        AskTextField('Name', None),
+        AskMultiChoiceField('T', None, choices=('a', 'b', 'c'),
+                            default=('a', 'b'))]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        _ = answers
+        prefill: PrefillValues = ((1, ['a']),) if changed == 0 else ()
+        return PartFormValidationResult(True, '', (), prefill)
+    driven = drive(_FormApp('H', fields, [], rule), ['x', '#submit'])
+    assert _submitted(driven)[1].value == ['a']
+
+
+def test_multi_prefill_swap() -> None:
+    """A multi-choice prefill selects new members and drops old ones."""
+    fields: list[AskField] = [
+        AskTextField('Name', None),
+        AskMultiChoiceField('T', None, choices=('a', 'b', 'c'),
+                            default=('a',))]
+
+    def rule(answers: Sequence[AnswerField],
+             changed: int) -> PartFormValidationResult:
+        _ = answers
+        prefill: PrefillValues = ((1, ['b', 'c']),) if changed == 0 else ()
+        return PartFormValidationResult(True, '', (), prefill)
+    driven = drive(_FormApp('H', fields, [], rule), ['x', '#submit'])
+    assert _submitted(driven)[1].value == ['b', 'c']
 
 
 def test_form_partial_disable(toggle_fields: list[AskField],
@@ -305,13 +338,7 @@ def test_form_browse_cancel(tmp_path: Path) -> None:
 def test_form_browse_disabled() -> None:
     """Disabling a path row also disables its Browse button."""
     field = AskPathField('File', None, PathAskOptions())
-    app = _FormApp('H', [field], [], None)
-
-    async def scenario() -> bool:
-        async with app.run_test():
-            app._apply_disabled((0,))
-            return app.query_one('#browse_0', Button).disabled
-    assert asyncio.run(scenario()) is True
+    assert disabled_after(field, '#browse_0') is True
 
 
 def test_form_no_fields() -> None:

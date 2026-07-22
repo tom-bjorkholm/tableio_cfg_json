@@ -10,6 +10,8 @@ typed fields.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+# pylint: disable=protected-access
+
 import asyncio
 from datetime import date, datetime, time, timedelta
 from typing import Optional, Sequence
@@ -22,7 +24,8 @@ from tableio_cfg_json import AskField, AskFloatField, AskDateField, \
     PartFormValidationResult, PrefillValues, WizardUiBridgeTextual
 from tableio_cfg_json.wizard_ui_bridge_textual import _FormApp
 from tableio_cfg_json._wizard_ui_bridge_calendar import _CalendarScreen, _shift
-from .ui_textual_support import drive, _submitted, focused_day
+from .ui_textual_support import drive, _submitted, focused_day, \
+    disabled_after
 from .form_field_support import all_ask_fields, unknown_field
 
 
@@ -194,6 +197,110 @@ def test_calendar_nearest() -> None:
     assert asyncio.run(scenario()) == 'day_15'
 
 
+def test_cal_cancel_button() -> None:
+    """Clicking the calendar Cancel button keeps the field default."""
+    field = AskDateField('Day', None, default=date(2024, 3, 10))
+    driven = drive(_FormApp('H', [field], [], None),
+                   ['#pick_0', '#cancel', '#submit'], pause=True)
+    assert _submitted(driven)[0].value == date(2024, 3, 10)
+
+
+def test_calendar_bad_button() -> None:
+    """A calendar button press with an unknown id changes nothing."""
+    field = AskDateField('Day', None, default=date(2024, 3, 10))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> tuple[bool, str]:
+        async with app.run_test() as pilot:
+            await pilot.click('#pick_0')
+            await pilot.pause()
+            screen = pilot.app.screen
+            assert isinstance(screen, _CalendarScreen)
+            await screen._pressed(Button.Pressed(Button('x', id='odd')))
+            await pilot.pause()
+            open_now = isinstance(pilot.app.screen, _CalendarScreen)
+            return (open_now, app.query_one('#field_0', Input).value)
+    open_now, value = asyncio.run(scenario())
+    assert open_now is True
+    assert value == '2024-03-10'
+
+
+def test_cal_all_disabled() -> None:
+    """An all-disabled month focuses no day and ignores the arrows."""
+    field = AskDateField('Day', None, min_value=date(2024, 3, 1),
+                         max_value=date(2024, 3, 31))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> tuple[Optional[str], str]:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = '2024-05-15'
+            await pilot.pause()
+            await pilot.click('#pick_0')
+            await pilot.pause()
+            await pilot.press('right')
+            await pilot.pause()
+            focused = pilot.app.screen.focused
+            focused_id = None if focused is None else focused.id
+            return (focused_id, app.query_one('#field_0', Input).value)
+    focused_id, value = asyncio.run(scenario())
+    assert focused_id is None or not focused_id.startswith('day_')
+    assert value == '2024-05-15'
+
+
+def test_token_cancel_clears() -> None:
+    """Cancelling the token-opened calendar clears the '?' token."""
+    field = AskDateField('Day', None, default=date(2024, 3, 10))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> str:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = '?'
+            await pilot.pause()
+            await pilot.press('escape')
+            await pilot.pause()
+            return app.query_one('#field_0', Input).value
+    assert asyncio.run(scenario()) == ''
+
+
+def test_pick_disabled() -> None:
+    """Disabling a date row also disables its Pick button."""
+    field = AskDateField('Day', None, default=date(2024, 3, 10))
+    assert disabled_after(field, '#pick_0') is True
+
+
+def test_pick_bad_id() -> None:
+    """A pick press whose id is not a pick id opens no calendar."""
+    field = AskDateField('Day', None, default=date(2024, 3, 10))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> int:
+        async with app.run_test():
+            app._pick_clicked(Button.Pressed(Button('x', id='submit')))
+            return len(app.screen_stack)
+    assert asyncio.run(scenario()) == 1
+
+
+def test_datetime_token_pick() -> None:
+    """The '?' token opens the calendar for a date-time field.
+
+    Typing the token replaces the whole input, so the earlier time part
+    is gone and the picked date fills in at midnight. This differs from
+    the Pick button, which keeps a time already typed in the input.
+    """
+    field = AskDateTimeField('W', None, default=datetime(2024, 3, 10, 8, 45))
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> None:
+        async with app.run_test() as pilot:
+            app.query_one('#field_0', Input).value = '?'
+            await pilot.pause()
+            await pilot.click('#day_20')
+            await pilot.pause()
+            await pilot.press('ctrl+s')
+    asyncio.run(scenario())
+    assert _submitted(app)[0].value == datetime(2024, 3, 20, 0, 0)
+
+
 @pytest.mark.parametrize('year, month, action, expected', [
     (2024, 3, 'prev_month', (2024, 2)),
     (2024, 1, 'prev_month', (2023, 12)),
@@ -209,6 +316,11 @@ def test_shift(year: int, month: int, action: str,
 def test_shift_clamps() -> None:
     """_shift clamps the year to the supported date range."""
     assert _shift(date.min.year, 6, 'prev_year') == (date.min.year, 6)
+
+
+def test_shift_clamps_next() -> None:
+    """_shift keeps the year at the maximum when stepping past it."""
+    assert _shift(date.max.year, 6, 'next_year') == (date.max.year, 6)
 
 
 def test_prefill_duration() -> None:

@@ -11,15 +11,18 @@ for the float, date, time, date-time and duration fields.
 
 from datetime import date, datetime, time, timedelta
 from io import StringIO
+from pathlib import Path
 from typing import Sequence
 
 import pytest
 
 from tableio_cfg_json import AskField, AskFloatField, AskDateField, \
     AskTimeField, AskDateTimeField, AskDurationField, AskTextField, \
-    AnswerField, AnswerFloatField, AnswerDateField, AnswerTimeField, \
-    AnswerDateTimeField, AnswerDurationField, PartFormValidationResult, \
-    PrefillValues, WizardUiBridgeConsole
+    AskIntField, AskPathField, AskYesNoField, AskChoiceField, \
+    AskMultiChoiceField, AnswerField, AnswerFloatField, AnswerDateField, \
+    AnswerTimeField, AnswerDateTimeField, AnswerDurationField, \
+    PartFormValidationResult, PrefillValues, PrefillValueType, \
+    PathAskOptions, WizardUiBridgeConsole
 from tableio_cfg_json._wizard_ui_bridge_form import initial_answer, \
     valid_prefills, prefilled_field
 
@@ -68,6 +71,23 @@ def test_prefill_typed_bad(field: AskField, value: object) -> None:
     prefills: PrefillValues = ((0, value),)  # type: ignore[assignment]
     with pytest.raises(TypeError):
         list(valid_prefills(fields, -1, prefills))
+
+
+@pytest.mark.parametrize('field, value', [
+    (AskTextField('S', None), 'hi'),
+    (AskIntField('N', None), 7),
+    (AskPathField('P', None, PathAskOptions()), Path('/tmp/x')),
+    (AskYesNoField('B', None, False), True),
+    (AskChoiceField('C', None, choices=('x', 'y')), 'y'),
+    (AskMultiChoiceField('M', None, choices=('a', 'b')), ['a', 'b']),
+    (AskFloatField('R', None), 4.0),
+    (AskDateField('D', None), date(2024, 5, 6)),
+    (AskTimeField('T', None), time(9, 30)),
+    (AskDateTimeField('W', None), datetime(2024, 5, 6, 9, 30)),
+    (AskDurationField('L', None), timedelta(hours=2))])
+def test_prefilled_all(field: AskField, value: PrefillValueType) -> None:
+    """prefilled_field seeds every field kind's offered default."""
+    assert initial_answer(prefilled_field(field, value)).value == value
 
 
 def test_prefilled_float_ok() -> None:

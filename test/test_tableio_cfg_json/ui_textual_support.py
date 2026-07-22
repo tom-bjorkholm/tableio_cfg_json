@@ -15,11 +15,11 @@ import asyncio
 from typing import Any, Optional, Sequence
 
 from textual.pilot import Pilot
-from textual.widgets import Input
+from textual.widgets import Button, Input
 
 from tableio_cfg_json import WizardNavigation, WizardUiBridgeTextual
-from tableio_cfg_json.wizard_ui_bridge_form_defs import AnswerField
-from tableio_cfg_json.wizard_ui_bridge_textual import _NavApp
+from tableio_cfg_json.wizard_ui_bridge_form_defs import AnswerField, AskField
+from tableio_cfg_json.wizard_ui_bridge_textual import _NavApp, _FormApp
 from tableio_cfg_json._wizard_ui_bridge_path import _PickerScreen
 
 
@@ -76,6 +76,22 @@ def _submitted(app: _NavApp[Any]) -> list[AnswerField]:
     result = app.return_value
     assert isinstance(result, list)
     return result
+
+
+def disabled_after(field: AskField, button_id: str) -> bool:
+    """Disable the one-field form's only row, return the button state.
+
+    A form of the single field is built, its row is disabled through the
+    validator path, and whether the named button is then disabled is
+    returned, so a path and a date field can share one check.
+    """
+    app = _FormApp('H', [field], [], None)
+
+    async def scenario() -> bool:
+        async with app.run_test():
+            app._apply_disabled((0,))
+            return app.query_one(button_id, Button).disabled
+    return asyncio.run(scenario())
 
 
 async def focused_day(pilot: Pilot[Any], *keys: str) -> Optional[str]:
