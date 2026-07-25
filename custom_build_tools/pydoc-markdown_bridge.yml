@@ -3,10 +3,10 @@ loaders:
   - type: python
     # Where to search for Python packages/modules
     search_path:
-      - ./../tableio_cfg_json/src
+      - ./../wizard_ui_bridge/src
     # Packages (directories with __init__.py) to document
     packages:
-      - tableio_cfg_json
+      - wizard_ui_bridge
 
 processors:
   - type: filter
@@ -21,4 +21,4 @@ processors:
 
 renderer:
   type: markdown
-  filename: ./doc/api.md
+  filename: ./doc/wizard_ui_bridge_api.md

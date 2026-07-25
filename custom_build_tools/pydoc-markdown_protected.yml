@@ -3,7 +3,7 @@ loaders:
   - type: python
     # Where to search for Python packages/modules
     search_path:
-      - ./../src
+      - ./../tableio_cfg_json/src
     # Packages (directories with __init__.py) to document
     packages:
       - tableio_cfg_json

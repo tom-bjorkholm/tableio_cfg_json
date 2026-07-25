@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=83.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wizard-ui-bridge"
+authors = [
+  { name="Tom Björkholm", email="klausuler_linnet0q@icloud.com" },
+]
+description = "User interface bridge for wizards asking a user questions."
+readme = "README_pypi.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+keywords = [
+    "wizard", "user interface", "console", "textual", "form"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Developers",
+    "Environment :: Console",
+    "Typing :: Typed"
+]
+dynamic = ["dependencies", "optional-dependencies", "version"]
+
+[project.urls]
+"Source code" = "https://github.com/tom-bjorkholm/tableio_cfg_json"
+"Documentation" = "https://github.com/tom-bjorkholm/tableio_cfg_json/tree/master/doc"

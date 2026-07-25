@@ -1,25 +1,49 @@
-# tableio-cfg-json
+# tableio-cfg-json and wizard-ui-bridge
 
 > Looking for installation and user-facing package information?
-> See [README_pypi.md](README_pypi.md) or the
-> [PyPI project page](https://pypi.org/project/tableio-cfg-json).
+> See [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md) and
+> [wizard_ui_bridge/README_pypi.md](wizard_ui_bridge/README_pypi.md), or the
+> PyPI project pages for
+> [tableio-cfg-json](https://pypi.org/project/tableio-cfg-json) and
+> [wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge).
 
 ## Repository purpose
 
-This is a small package that stores
-[TableIO](https://pypi.org/project/tableio/) configuration as validated JSON
-by using [config-as-json](https://pypi.org/project/config-as-json/).
-I also include wizard functionality to configure TableIO.
+This repository builds two packages:
+
+- `wizard-ui-bridge` in [wizard_ui_bridge/](wizard_ui_bridge/) is the
+  user-interface-independent way for a wizard to ask a user questions,
+  with a console bridge and an optional Textual bridge. It knows nothing
+  about TableIO.
+- `tableio-cfg-json` in [tableio_cfg_json/](tableio_cfg_json/) stores
+  [TableIO](https://pypi.org/project/tableio/) configuration as validated
+  JSON by using [config-as-json](https://pypi.org/project/config-as-json/),
+  and includes a wizard for configuring TableIO. It uses
+  `wizard-ui-bridge` for that wizard.
+
+The wizard UI bridge used to be part of `tableio-cfg-json`. It was split
+out so that a wizard that has nothing to do with TableIO does not pull in
+TableIO and everything TableIO depends on. The old import locations still
+work and warn, see
+[tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md) for the
+old-to-new mapping. The two packages are planned to move to two separate
+repositories once the split has settled; until then they share this
+repository and one version number.
 
 ## Related documentation
 
-- User-facing package overview: [README_pypi.md](README_pypi.md)
-- Public API notes: [doc/api.md](doc/api.md)
-- Protected/internal API notes: [doc/protected_api.md](doc/protected_api.md)
+- Package overviews:
+  [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md),
+  [wizard_ui_bridge/README_pypi.md](wizard_ui_bridge/README_pypi.md)
+- Public API notes: [doc/api.md](doc/api.md),
+  [doc/wizard_ui_bridge_api.md](doc/wizard_ui_bridge_api.md)
+- Protected/internal API notes: [doc/protected_api.md](doc/protected_api.md),
+  [doc/wizard_ui_bridge_protected_api.md](doc/wizard_ui_bridge_protected_api.md)
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
 
-The example directory contains worked examples for new users and is also
-useful for maintainers who want to see intended API usage in context.
+Each package has its own example directory with worked examples for new
+users, also useful for maintainers who want to see intended API usage in
+context.
 
 ## Cloning
 
@@ -78,10 +102,10 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 889 passed in 45s
+- Test result: 1004 passed in 44s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
-- Built version(s): 1.0.1
+- Built version(s): 1.0.2
 - Build and test using Python 3.14.6
