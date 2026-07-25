@@ -222,9 +222,9 @@ The teaching examples show both styles.
 
 - Teaching examples and walkthroughs: [tableio_cfg_json/example/src/tableio_cfg_example/README.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/README.md)
 
-- Public API notes: [doc/api.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/doc/api.md)
+- Public API notes: [doc/tableio_cfg_json_api.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/doc/tableio_cfg_json_api.md)
 
-- Protected/internal API notes: [doc/protected_api.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/doc/protected_api.md)
+- Protected/internal API notes: [doc/tableio_cfg_json_protected_api.md](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/doc/tableio_cfg_json_protected_api.md)
 
 - Source repository: [tableio_cfg_json](https://github.com/tom-bjorkholm/tableio_cfg_json/)
 
@@ -234,7 +234,7 @@ MIT
 
 ## Test summary
 
-- Test result: 1004 passed in 44s
+- Test result: 1004 passed in 45s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

@@ -1,4 +1,4 @@
-# pydoc-markdown.yml
+# pydoc-markdown_tio.yml
 loaders:
   - type: python
     # Where to search for Python packages/modules
@@ -21,4 +21,4 @@ processors:
 
 renderer:
   type: markdown
-  filename: ./doc/api.md
+  filename: ./doc/tableio_cfg_json_api.md

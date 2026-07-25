@@ -33,12 +33,14 @@ repository and one version number.
 ## Related documentation
 
 - Package overviews:
-  [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md),
-  [wizard_ui_bridge/README_pypi.md](wizard_ui_bridge/README_pypi.md)
-- Public API notes: [doc/api.md](doc/api.md),
-  [doc/wizard_ui_bridge_api.md](doc/wizard_ui_bridge_api.md)
-- Protected/internal API notes: [doc/protected_api.md](doc/protected_api.md),
-  [doc/wizard_ui_bridge_protected_api.md](doc/wizard_ui_bridge_protected_api.md)
+  - [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md)
+  - [wizard_ui_bridge/README_pypi.md](wizard_ui_bridge/README_pypi.md)
+- Public API notes:
+  - [doc/tableio_cfg_json_api.md](doc/tableio_cfg_json_api.md)
+  - [doc/wizard_ui_bridge_api.md](doc/wizard_ui_bridge_api.md)
+- Protected/internal API notes:
+  - [doc/tableio_cfg_json_protected_api.md](doc/tableio_cfg_json_protected_api.md)
+  - [doc/wizard_ui_bridge_protected_api.md](doc/wizard_ui_bridge_protected_api.md)
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
 
 Each package has its own example directory with worked examples for new
@@ -102,7 +104,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 1004 passed in 44s
+- Test result: 1004 passed in 45s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
