@@ -8,11 +8,13 @@ from io import StringIO
 from pathlib import Path
 from typing import Callable, Optional
 
+import pytest
 from wizard_ui_example import e01_one_question, e02_question_kinds, \
-    e03_navigation, e04_table_question, e05_ask_form, e06_typed_form
+    e03_navigation, e04_table_question, e05_ask_form, e06_typed_form, \
+    e07_custom_bridge
 from wizard_ui_bridge import UiBridgeType, AskPathField, \
     AskMultiChoiceField, AskDateField, AskDateTimeField, AskDurationField, \
-    WizardPathKind
+    WizardPathKind, TableColumn, TableCell
 
 
 def _drive(collect: Callable[..., Optional[str]],
@@ -454,3 +456,99 @@ def test_table_shape() -> None:
     assert len(cells) == 3
     assert cells[0][2].choices == ('text', 'number', 'date')
     assert e04_table_question.build_parser().parse_args([]).ui == 'auto'
+
+
+def _drive_e07(lines: list[str], ui: str = 'custom'
+               ) -> tuple[Optional[str], str, str]:
+    """Run the custom-bridge example on scripted lines, capturing streams.
+
+    The example builds its own bridge from a ``ui`` string rather than a
+    UiBridgeType, so it needs a driver of its own; 'custom' selects the
+    teleprinter bridge and 'console' a built-in bridge for contrast.
+    """
+    out_file = StringIO()
+    err_file = StringIO()
+    result = e07_custom_bridge.collect_and_summarize(
+        stdin_file=StringIO('\n'.join(lines) + '\n'), stdout_file=out_file,
+        stderr_file=err_file, ui=ui)
+    return result, out_file.getvalue(), err_file.getvalue()
+
+
+def test_e07_folds_output(tmp_path: Path) -> None:
+    """The teleprinter bridge folds every printed line into its glyphs."""
+    out_path = tmp_path / 'report.csv'
+    summary, output, _ = _drive_e07(['', '', str(out_path), '', '', '', ''])
+    assert summary is not None
+    assert 'Report title: Cities report' in summary  # returned unfolded
+    assert output == output.upper()  # nothing lowercase reaches the device
+    assert 'REPORT TITLE: CITIES REPORT' in output  # the folded summary
+    assert '0) CSV' in output  # choices become a numbered menu
+    assert 'AT LEAST 1' in output  # the ask_int override names its range
+    assert '?' in output  # a path separator folds to the replacement mark
+
+
+def test_e07_choice_number(tmp_path: Path) -> None:
+    """Numbered menus let the teleprinter pick a choice by its index."""
+    out_path = tmp_path / 'report.xlsx'
+    lines = ['Cities', '1', str(out_path), '100', '1', '0,1', '']
+    summary, _, _ = _drive_e07(lines)
+    assert summary is not None
+    assert 'Output format: Excel' in summary
+    assert 'Row limit: 100' in summary
+    assert 'Header row: omitted' in summary
+    assert 'Columns: City, Country' in summary
+
+
+def test_e07_console_wizard(tmp_path: Path) -> None:
+    """The same wizard runs unfolded on the built-in console bridge."""
+    out_path = tmp_path / 'report.csv'
+    summary, output, _ = _drive_e07(['', '', str(out_path), '', '', '', ''],
+                                    ui='console')
+    assert summary is not None
+    assert 'Report title: Cities report' in output  # not folded to uppercase
+
+
+def test_e07_cancel() -> None:
+    """Aborting at the first question makes no summary."""
+    summary, output, _ = _drive_e07([':q'])
+    assert summary is None
+    assert 'CANCELLED' in output
+
+
+def test_e07_table_choice() -> None:
+    """The mandatory ask_table fills fixed rows, choice cells by number."""
+    answers = StringIO('Anna\n1\nBo\n0\n')
+    bridge = e07_custom_bridge.TeleprinterBridge(StringIO(), answers,
+                                                 StringIO())
+    columns = [TableColumn('name'), TableColumn('kind')]
+    kinds = ('text', 'number')
+    cells = [[TableCell('x'), TableCell(None, choices=kinds)],
+             [TableCell('y'), TableCell(None, choices=kinds)]]
+    result = bridge.ask_table(columns, cells, 'edit')
+    assert result == [['Anna', 'number'], ['Bo', 'text']]
+
+
+def test_e07_table_var() -> None:
+    """A variable-row table is refused: adding rows needs bridge support."""
+    bridge = e07_custom_bridge.TeleprinterBridge(StringIO(), StringIO(),
+                                                 StringIO())
+    columns = [TableColumn('guest')]
+    cells = [[TableCell('Ann')]]
+    with pytest.raises(NotImplementedError):
+        bridge.ask_table(columns, cells, 'guests', min_rows=1, max_rows=5)
+
+
+def test_e07_fold_rule() -> None:
+    """show() uppercases letters and replaces unsupported glyphs."""
+    out_file = StringIO()
+    bridge = e07_custom_bridge.TeleprinterBridge(out_file, StringIO(),
+                                                 StringIO())
+    bridge.show('a/b=c é')
+    assert out_file.getvalue() == 'A?B?C ?\n'
+
+
+def test_e07_parser() -> None:
+    """The custom-bridge parser defaults to the teleprinter bridge."""
+    assert e07_custom_bridge.build_parser().parse_args([]).ui == 'custom'
+    parsed = e07_custom_bridge.build_parser().parse_args(['--ui', 'console'])
+    assert parsed.ui == 'console'

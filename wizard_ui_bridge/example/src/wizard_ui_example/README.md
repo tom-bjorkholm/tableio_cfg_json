@@ -38,10 +38,12 @@ python -m wizard_ui_example.e02_question_kinds --ui console
   asks the same kind of export settings as one whole form.
 - [`e06_typed_form.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example/e06_typed_form.py)
   adds the typed form fields (numbers, dates, times, durations) and prefills.
+- [`e07_custom_bridge.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example/e07_custom_bridge.py)
+  implements a bridge of your own for an unusual device and runs an earlier
+  wizard through it.
 
-The numbering leaves room for one more example added in a later stage: `e07`
-(implementing a bridge of your own). This document is extended when it
-arrives.
+The examples so far all *used* a bridge this package provides; `e07` is the
+one that *implements* one, so it comes last.
 
 ## `e01_one_question.py`: obtaining a bridge and asking
 
@@ -328,4 +330,99 @@ supports the typed fields — the console and Textual bridges here both do —
 ```sh
 python -m wizard_ui_example.e06_typed_form
 python -m wizard_ui_example.e06_typed_form --ui console
+```
+
+## `e07_custom_bridge.py`: implementing a bridge of your own
+
+Every example so far *used* a bridge; this one *is* a bridge, written from
+scratch, so you can see exactly what teaching the wizard a new user interface
+takes. To keep the lesson honest it drives an *earlier* wizard through the new
+bridge: it imports `ask_export_settings` and `summarize` from
+`e02_question_kinds.py` and runs that unchanged code. A bridge works with any
+wizard, and a wizard runs on any bridge.
+
+### The device: an uppercase-only teleprinter
+
+Imagine driving a classic uppercase-only teleprinter, such as a Teletype
+Model 33. It prints capital letters `A-Z`, the digits `0-9` and a handful of
+punctuation marks (`. , : - ( ) [ ] ?`) and nothing else — no lowercase, no
+Unicode. Sending any other glyph does not just look wrong, it jams the
+machine. The console bridge writes whatever text it is given straight to the
+stream, so the first lowercase letter or slash would jam this device. That is
+the whole reason for a new bridge: its one distinctive job is to **fold** every
+line it prints into the device's glyph set — letters to uppercase, everything
+unsupported to a `?`. On this bridge the export summary comes out as
+`REPORT TITLE: CITIES REPORT` and a path prints as `?TMP?REPORT.CSV`; on the
+built-in bridges the same wizard prints normally.
+
+### Correctness first: the base class does most of the work
+
+A `WizardUiBridge` is designed so a new bridge is **correct from day one and
+improved incrementally**. Only a few methods have no default and must be
+written; the rest are inherited and already work:
+
+| Must implement (no default) | Inherited (permanent base fallback) |
+| --------------------------- | ----------------------------------- |
+| `ask_text`, `ask_yes_no`, `ask_choice`, `ask_multi`, `ask_table`, `show` | `ask_path` (asks text, validates), `ask_int` (asks text, re-asks in range), `ask_form` (asks each field one at a time), `error_file` |
+
+So the moment the mandatory methods work, the bridge can already run any of
+the earlier wizards — path questions and whole forms included — because the
+base class fills the gaps. This example proves it: the export wizard's path
+question rides the inherited `ask_path`, and the mandatory methods stay a few
+lines each by delegating to the public helpers in
+`wizard_ui_bridge.bridge_helpers` (`ask_one`, `ask_many`, `ask_yes_no`,
+`run_table`), exactly as the built-in console bridge does.
+
+There is one correctness gap this bridge does **not** fill, and it is honest
+about it. When a table question gives both `min_rows` and `max_rows`, the
+wizard is asking for a *variable* number of rows, which the user can only
+supply if the bridge lets them add and remove rows — a matter of correctness,
+not polish, since a wizard that expects the user to extend a table (a
+translation table, say) has no way to receive those rows otherwise.
+Implementing the add/remove interface is left out here only for brevity, so
+`ask_table()` raises `NotImplementedError` for a variable-row request rather
+than silently returning just the starting rows. See the variable-row table in
+`WizardUiBridgeConsole` and `WizardUiBridgeTextual` for two implementations.
+
+### User experience second: the "override to improve" move
+
+Those mandatory methods are the **floor for correctness, not the target**. A
+real bridge should override every method whose user experience its environment
+can improve. To show the move concretely the example overrides exactly one
+convenience method, `ask_int`: the inherited `ask_int` asks bare and explains
+the allowed range only *after* a rejected value, which reads badly on a
+teleprinter where that reason scrolls away. The override states the range up
+front (`ROW LIMIT (BLANK ? ALL ROWS) (AT LEAST 1)`) and then delegates the
+re-ask loop to `super().ask_int()` — better UX, no logic rewritten.
+
+### The UX ladder: what a real bridge should climb next
+
+The example stops at the floor plus one rung so the code stays readable. A
+production bridge should keep climbing. Each rung names the capability it
+exploits and the built-in bridge that already shows how, so
+`WizardUiBridgeConsole` and `WizardUiBridgeTextual` are your two reference
+rungs:
+
+1. Whole-screen `ask_form()` — show every field at once instead of one at a
+   time (Textual bridge).
+2. A native `ask_path()` picker — a file/directory dialog instead of typed
+   text (a GUI toolkit).
+3. A calendar for date fields (Textual bridge).
+4. Richer typed-field widgets (spin boxes, sliders) for float/time/duration.
+5. `help_text` as a tooltip rather than an extra printed line.
+6. Inline re-ask — a rejected value's reason beside the field, not scrolled
+   into the transcript.
+
+The helper modules `wizard_ui_bridge.bridge_helpers` and
+`wizard_ui_bridge.form_helpers` exist to make climbing this ladder cheaper:
+they interpret raw answers, run the table loop, and validate form prefills
+exactly as the built-in bridges do.
+
+`--ui` selects the bridge, and the very same wizard runs on all three, so you
+can watch the folding appear only on the custom bridge:
+
+```sh
+python -m wizard_ui_example.e07_custom_bridge
+python -m wizard_ui_example.e07_custom_bridge --ui console
+python -m wizard_ui_example.e07_custom_bridge --ui textual
 ```
