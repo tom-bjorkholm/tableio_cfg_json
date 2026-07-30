@@ -153,7 +153,7 @@ described in the `tableio-cfg-json` documentation.
 MIT
 ## Test summary
 
-- Test result: 1004 passed in 45s
+- Test result: 1015 passed in 46s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

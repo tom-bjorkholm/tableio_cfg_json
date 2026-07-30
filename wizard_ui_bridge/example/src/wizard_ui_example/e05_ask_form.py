@@ -117,7 +117,8 @@ def export_validator(answers: AnswerFields,
     ask_form() calls this after every change (on a GUI or textual bridge)
     or after every answered field (on the console fallback), passing the
     current answers and the index of the field that changed. It returns a
-    PartFormValidationResult with three parts:
+    PartFormValidationResult with three parts shown below and a forth field
+    that is described in example e06_typed_form.py:
 
     - is_valid / message: advisory validity and a message to show. A
       graphical or textual bridge refuses to submit while is_valid is
@@ -125,6 +126,7 @@ def export_validator(answers: AnswerFields,
       only a real problem the user has to fix should.
     - disable_row_idxs: rows that are irrelevant given the current answers
       and should be disabled. Disabling never blocks submit.
+    (- prefill_values: the subject of the next example, e06_typed_form.py)
 
     This validator shows both behaviours. The delimiter only matters for
     CSV, so for any other format its row is disabled (is_valid stays True).
@@ -271,6 +273,11 @@ def _multi_value(answers: AnswerFields, index: int) -> Sequence[str]:
     return answer.value
 
 
+# The stream defaults, the --ui switch and main() below are the same plumbing
+# in every example, so each example stays a complete program a reader can run
+# and study on its own. Repeating this ceremony is a deliberate teaching
+# choice, so duplicate-code is turned off from here to the end of the file.
+# pylint: disable=duplicate-code
 def collect_and_summarize(stdin_file: Optional[TextIO] = None,
                           stdout_file: Optional[TextIO] = None,
                           stderr_file: Optional[TextIO] = None,

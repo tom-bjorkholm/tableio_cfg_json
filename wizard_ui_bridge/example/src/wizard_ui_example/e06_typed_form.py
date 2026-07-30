@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 """Demonstrate the typed form fields and validator prefills of ask_form().
 
-This teaching example builds on e01_ask_form.py. Where e01 uses the six
+This teaching example builds on e05_ask_form.py. Where e05 uses the six
 original field kinds (text, integer, path, yes/no, single choice and
 multi choice), this example shows the five typed fields added on top of
 them, and it shows how a partial validator can *prefill* one field from
@@ -260,6 +260,11 @@ def _float_value(answers: AnswerFields, index: int) -> Optional[float]:
     return answer.value
 
 
+# The stream defaults, the --ui switch and main() below are the same plumbing
+# in every example, so each example stays a complete program a reader can run
+# and study on its own. Repeating this ceremony is a deliberate teaching
+# choice, so duplicate-code is turned off from here to the end of the file.
+# pylint: disable=duplicate-code
 def collect_and_summarize(bridge_type: UiBridgeType = UiBridgeType.AUTO,
                           stdin_file: Optional[TextIO] = None,
                           stdout_file: Optional[TextIO] = None,
