@@ -1623,7 +1623,10 @@ a group of questions that exist only because of an earlier choice.
 Unlike WizardBack, which moves to the previous question at the same
 level, this asks to return to the question one level out whose answer
 opened the current level, so the user can change that answer. The
-answers collected at the current level are discarded.
+answers collected at the current level are not recorded as answers,
+but a well crafted wizard keeps them in memory as drafts so that
+they can be offered as defaults if the user returns to the level and
+provided that answers to other questions have not invalidated them.
 
 Each level's driver catches this from the level it opened and re-asks
 the opening question. When the current level has no enclosing level,

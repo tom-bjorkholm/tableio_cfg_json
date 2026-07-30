@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from wizard_ui_example import e01_one_question, e02_question_kinds, \
-    e05_ask_form, e06_typed_form
+    e03_navigation, e04_table_question, e05_ask_form, e06_typed_form
 from wizard_ui_bridge import UiBridgeType, AskPathField, \
     AskMultiChoiceField, AskDateField, AskDateTimeField, AskDurationField, \
     WizardPathKind
@@ -246,3 +246,211 @@ def test_schedule_fields() -> None:
     assert isinstance(fields[3], AskDurationField)
     assert isinstance(fields[4], AskDateTimeField)
     assert e06_typed_form.build_parser().parse_args([]).ui == 'auto'
+
+
+def test_account_personal() -> None:
+    """A personal account is summarized without organization details."""
+    lines = ['alice', 'a@x.com', '', 'x']
+    summary, _, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'Username: alice' in summary
+    assert 'Account type: Personal' in summary
+    assert 'Password: 1 character(s)' in summary
+    assert 'Organization' not in summary
+
+
+def test_account_org() -> None:
+    """An organization account collects the nested organization level."""
+    lines = ['bob', 'b@x.com', '2', 'BobCorp', '50', 'pw']
+    summary, _, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'Account type: Organization' in summary
+    assert 'Organization: BobCorp' in summary
+    assert 'Members: 50' in summary
+
+
+def test_account_defaults() -> None:
+    """Empty answers fall back to the built-in defaults."""
+    summary, _, _ = _drive(e03_navigation.collect_account, ['', '', '', 'x'])
+    assert summary is not None
+    assert 'Username: guest' in summary
+    assert 'Email: guest@example.com' in summary
+    assert 'Account type: Personal' in summary
+
+
+def test_back_keeps_answer() -> None:
+    """Stepping back offers the earlier answer as the new default."""
+    lines = ['alice', ':b', '', 'a@x.com', '', 'x']
+    summary, _, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'Username: alice' in summary
+
+
+def test_cancel_org() -> None:
+    """Cancelling the org level returns to the account-type question."""
+    lines = ['carol', 'c@x.com', '2', 'TmpCorp', ':c', '1', 'x']
+    summary, _, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'Account type: Personal' in summary
+    assert 'Organization' not in summary
+
+
+def test_cancel_org_remembers() -> None:
+    """Re-entering a cancelled level offers its earlier answers as defaults."""
+    lines = ['x', 'x@x.com', '2', 'ReCorp', ':c', '2', '', '7', 'pw']
+    summary, _, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'Organization: ReCorp' in summary
+    assert 'Members: 7' in summary
+
+
+def test_back_from_org_first() -> None:
+    """Back from the org level's first question re-asks account type."""
+    lines = ['dave', 'd@x.com', '2', ':b', '1', 'x']
+    summary, _, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'Account type: Personal' in summary
+
+
+def test_back_within_org() -> None:
+    """Back inside the org level re-asks its previous question."""
+    lines = ['eve', 'e@x.com', '2', 'EveCo', ':b', '', '10', 'x']
+    summary, _, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'Organization: EveCo' in summary
+    assert 'Members: 10' in summary
+
+
+def test_account_abort() -> None:
+    """Aborting at the first question abandons the whole wizard."""
+    summary, output, _ = _drive(e03_navigation.collect_account, [':q'])
+    assert summary is None
+    assert 'abandoned' in output
+
+
+def test_top_cancel_note() -> None:
+    """Cancelling at the top level re-asks with a note about no outer."""
+    lines = ['frank', ':c', 'f@x.com', '', 'x']
+    summary, output, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'nothing to cancel out to' in output
+    assert 'Email: f@x.com' in summary
+
+
+def test_back_at_top_first() -> None:
+    """Back at the very first question re-asks it with a note."""
+    lines = [':b', 'gina', 'g@x.com', '', 'x']
+    summary, output, _ = _drive(e03_navigation.collect_account, lines)
+    assert summary is not None
+    assert 'nothing to go back to' in output
+    assert 'Username: gina' in summary
+
+
+def test_nav_parser() -> None:
+    """The navigation parser defaults to the auto UI bridge."""
+    assert e03_navigation.build_parser().parse_args([]).ui == 'auto'
+
+
+_FIXED_DEFAULTS = ['', '', '', '', '', '']
+
+
+def test_tables_defaults() -> None:
+    """Accepting both tables summarizes their starting content."""
+    summary, _, _ = _drive(e04_table_question.collect_and_summarize,
+                           _FIXED_DEFAULTS + [''])
+    assert summary is not None
+    assert 'city -> city (text)' in summary
+    assert 'population -> population (number)' in summary
+    assert 'founded -> founded (date)' in summary
+    assert 'Alex: 2 seat(s)' in summary
+    assert 'Bo: 3 seat(s)' in summary
+
+
+def test_rename_custom() -> None:
+    """Editing free-text cells renames the chosen columns."""
+    fixed = ['City', '', '', '', 'Year', '']
+    summary, _, _ = _drive(e04_table_question.collect_and_summarize,
+                           fixed + [''])
+    assert summary is not None
+    assert 'city -> City (text)' in summary
+    assert 'founded -> Year (date)' in summary
+
+
+def test_rename_type() -> None:
+    """Picking a choice cell changes that column's data type."""
+    fixed = ['', '2', '', '', '', '']
+    summary, _, _ = _drive(e04_table_question.collect_and_summarize,
+                           fixed + [''])
+    assert summary is not None
+    assert 'city -> city (number)' in summary
+
+
+def test_guest_add() -> None:
+    """Adding a row extends the guest list."""
+    variable = [':+', 'Cleo', '4', '']
+    summary, _, _ = _drive(e04_table_question.collect_and_summarize,
+                           _FIXED_DEFAULTS + variable)
+    assert summary is not None
+    assert 'Cleo: 4 seat(s)' in summary
+    assert 'Alex: 2 seat(s)' in summary
+
+
+def test_guest_remove() -> None:
+    """Removing a row drops that guest from the list."""
+    variable = [':- 2', '']
+    summary, _, _ = _drive(e04_table_question.collect_and_summarize,
+                           _FIXED_DEFAULTS + variable)
+    assert summary is not None
+    assert 'Alex: 2 seat(s)' in summary
+    assert 'Bo:' not in summary
+
+
+def test_guest_partial_check() -> None:
+    """A blank name and an out-of-range seat count are re-asked."""
+    variable = [':+', '', 'Dana', '99', '2', '']
+    summary, _, errors = _drive(e04_table_question.collect_and_summarize,
+                                _FIXED_DEFAULTS + variable)
+    assert summary is not None
+    assert 'guest name' in errors
+    assert 'Seats must be' in errors
+    assert 'Dana: 2 seat(s)' in summary
+
+
+def test_guest_final_verify() -> None:
+    """A duplicate name passes per-cell checks but fails final verify."""
+    variable = [':+', 'Alex', '2', '', '3', 'Cara', '', '']
+    summary, _, errors = _drive(e04_table_question.collect_and_summarize,
+                                _FIXED_DEFAULTS + variable)
+    assert summary is not None
+    assert 'share a name' in errors
+    assert 'Cara: 2 seat(s)' in summary
+
+
+def test_guest_min() -> None:
+    """Deleting below the minimum row count is refused."""
+    variable = [':- 1', ':- 1', '']
+    summary, _, errors = _drive(e04_table_question.collect_and_summarize,
+                                _FIXED_DEFAULTS + variable)
+    assert summary is not None
+    assert 'At least 1' in errors
+    assert 'Bo: 3 seat(s)' in summary
+    assert 'Alex' not in summary
+
+
+def test_tables_cancel() -> None:
+    """Aborting at the first cell cancels the whole program."""
+    summary, output, _ = _drive(e04_table_question.collect_and_summarize,
+                                [':q'])
+    assert summary is None
+    assert 'cancelled' in output
+
+
+def test_table_shape() -> None:
+    """The rename table has one read-only column and a choice cell."""
+    columns = e04_table_question.RENAME_COLUMNS
+    assert columns[0].read_only
+    assert not columns[1].read_only
+    cells = e04_table_question.build_rename_cells()
+    assert len(cells) == 3
+    assert cells[0][2].choices == ('text', 'number', 'date')
+    assert e04_table_question.build_parser().parse_args([]).ui == 'auto'

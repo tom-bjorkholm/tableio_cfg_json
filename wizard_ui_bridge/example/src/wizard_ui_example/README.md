@@ -30,15 +30,18 @@ python -m wizard_ui_example.e02_question_kinds --ui console
   obtains a bridge and asks a few free-text questions.
 - [`e02_question_kinds.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example/e02_question_kinds.py)
   uses each one-at-a-time ask method once to gather export settings.
+- [`e03_navigation.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example/e03_navigation.py)
+  lets the user step back, cancel a nested section or abort the wizard.
+- [`e04_table_question.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example/e04_table_question.py)
+  edits a fixed-row table and then a variable-row table.
 - [`e05_ask_form.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example/e05_ask_form.py)
   asks the same kind of export settings as one whole form.
 - [`e06_typed_form.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example/e06_typed_form.py)
   adds the typed form fields (numbers, dates, times, durations) and prefills.
 
-The numbering leaves room for examples added in later stages: `e03`
-(navigation — letting the user step back, cancel or abort) and `e04` (table
-questions), then `e07` (implementing a bridge of your own). This document is
-extended as those arrive.
+The numbering leaves room for one more example added in a later stage: `e07`
+(implementing a bridge of your own). This document is extended when it
+arrives.
 
 ## `e01_one_question.py`: obtaining a bridge and asking
 
@@ -115,6 +118,85 @@ questions one at a time and asking them all at once.
 ```sh
 python -m wizard_ui_example.e02_question_kinds
 python -m wizard_ui_example.e02_question_kinds --ui console
+```
+
+## `e03_navigation.py`: letting the user move around
+
+The wizards above only move forward. A real wizard also lets the user change
+their mind. Any ask method may raise a `WizardNavigation` subclass instead of
+returning, and the wizard author writes the control flow that reacts to it.
+`e03_navigation.py` is a small account-setup wizard (username → email →
+account type → password) where choosing the *Organization* account type opens
+a **nested level** of organization questions. That nested level is what makes
+the difference between the two "go somewhere" requests visible:
+
+| Request | Console token | Meaning |
+| ------- | ------------- | ------- |
+| `WizardBack` | `:b` | Step to the previous question. At the first question of a level there is no earlier question, so it is left to the enclosing level. |
+| `WizardCancelLevel` | `:c` | Leave the whole current level and return to the question that opened it, however deep in the level the user is. Here it leaves the organization section and re-asks the account type. The level's answers are not thrown away: they are kept and offered as defaults if it is re-entered, unless a changed outer answer has made them invalid. |
+| `WizardAbort` | `:q` | Abandon the whole wizard. |
+
+**The driver pattern.** `drive_level()` is the small reusable driver written
+around the ask methods. It walks a list of step functions, stepping back on
+`WizardBack`. The nested organization level runs the *same* driver; being an
+inner level it re-raises a `WizardBack` from its first question and any
+`WizardCancelLevel`, so the driver that opened it (`ask_account_details()`)
+can re-ask the opening question. `WizardAbort` is never caught by a level, so
+it propagates out and `run_account_setup()` stops.
+
+**Answers become the new default.** Whenever the user returns to a question —
+by stepping back, or by re-entering a level they cancelled out of — the
+answer given earlier is offered as its default, so pressing enter keeps it.
+The example keeps every answer in a draft object (including a nested
+`OrgDraft` for the organization level) and passes the stored value back as
+the ask method's `default`. The password is the one exception: a sensitive
+question cannot carry a default, so it is entered again on return.
+
+The console tokens (`:b`, `:c`, `:q`) make the whole flow scriptable, which is
+how the tests drive back, cancel and abort.
+
+```sh
+python -m wizard_ui_example.e03_navigation
+python -m wizard_ui_example.e03_navigation --ui console
+```
+
+## `e04_table_question.py`: editing a table
+
+`WizardUiBridge.ask_table()` asks the user to fill in a table. A table
+question is described by one `TableColumn` per column (its header and whether
+the whole column is read-only) and a grid of `TableCell` objects giving each
+starting cell's value and its constraints (an optional finite set of
+`choices`, and whether an empty cell is allowed). `ask_table()` returns the
+whole table as rows of strings — or `None` for an empty cell — including the
+read-only columns. `e04_table_question.py` asks two table questions:
+
+- a **fixed-row** table for renaming a known set of columns: a read-only
+  *source column*, a free-text *rename to* column, and a per-row *data type*
+  choice cell (showing that each `TableCell` can carry its own choices);
+- a **variable-row** guest list, where the user adds rows (`:+` on the
+  console, an Add-row button in a graphical bridge) and removes them
+  (`:- N` on the console) within a minimum and maximum row count.
+
+**Early feedback vs final verification.** The variable table passes a
+`PartialCheck`. It is *intended* as advisory early feedback: a graphical or
+Textual bridge shows the message beside the cell as the user types, without
+blocking, so the answer is guided rather than forced. A console has nowhere to
+show such an unobtrusive inline hint, so the console bridge instead re-asks
+the cell until the check passes (an optional-to-heed prompt reads badly on a
+console). Because a bridge might handle — or even skip — the check in different
+ways, **a wizard must not trust the bridge to enforce it.** After `ask_table()`
+returns, `ask_guest_list()` verifies the whole table itself and, when
+something is wrong, calls `ask_table()` again with a `re_ask_reason` and the
+user's current rows, so nothing is retyped. The final pass also enforces a
+rule a per-cell check cannot see — that the guest names are unique.
+
+Editing a table also honors the navigation requests from `e03_navigation.py`;
+this example simply treats any request that propagates out of a table as
+"cancelled".
+
+```sh
+python -m wizard_ui_example.e04_table_question
+python -m wizard_ui_example.e04_table_question --ui console
 ```
 
 ## `e05_ask_form.py`: asking a whole form at once
