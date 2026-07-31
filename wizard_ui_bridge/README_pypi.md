@@ -127,6 +127,27 @@ asking methods. The modules `wizard_ui_bridge.bridge_helpers` and
 to interpret raw answers and to build form answers, so that a bridge of
 your own behaves the same way.
 
+## Deprecation: `WizardUiBridge.ask()` is removed next release
+
+This is the **last release** that supports the low-level
+`WizardUiBridge.ask()` method. The **next release removes it entirely**,
+dropping both:
+
+- calling `WizardUiBridge.ask()` from a wizard, and
+- the backward-compatibility fallbacks that let a bridge which only
+  overrides `ask()` keep working by rerouting the typed `ask_*()` calls
+  through it.
+
+After the next release, any bridge that still calls or overrides
+`ask()` **will stop working**. Every use now warns loudly, so the
+change is impossible to miss: it raises a `DeprecationWarning` (shown by
+pytest and other tools), an additional `UserWarning` that Python shows
+to end users by default, and it prints the message to standard error.
+
+To keep your bridge working, implement the typed methods directly
+instead of `ask()`: `ask_text()`, `ask_choice()`, `ask_multi()`,
+`ask_yes_no()` and `ask_table()`. See *Writing your own bridge* above.
+
 ## Relation to tableio-cfg-json
 
 This package used to be part of
@@ -137,6 +158,14 @@ have to install TableIO and everything TableIO depends on.
 Applications that import the bridge from `tableio_cfg_json` keep working,
 with a deprecation warning per name, and should change the imports as
 described in the `tableio-cfg-json` documentation.
+
+### Planned source code repo change
+
+Currently both `tableio_cfg_json` and `wizard-ui-bridge` source code
+are in the same repo in GitHub. This will change very soon.
+The change will break some old URLs to the source code, to documementation,
+and to examples. When the change happends a new release with new URLs will
+be made.
 
 ## Documentation
 
@@ -153,7 +182,7 @@ described in the `tableio-cfg-json` documentation.
 MIT
 ## Test summary
 
-- Test result: 1048 passed in 48s
+- Test result: 1049 passed in 48s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

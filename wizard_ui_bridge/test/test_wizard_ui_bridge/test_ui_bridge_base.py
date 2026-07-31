@@ -5,6 +5,8 @@
 # MIT License
 
 import warnings
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from typing import Optional, Sequence
 
@@ -64,8 +66,8 @@ def test_path_api_exported() -> None:
     assert PublicPathKind is WizardPathKind
 
 
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore', DeprecationWarning)
+with warnings.catch_warnings(), redirect_stderr(StringIO()):
+    warnings.simplefilter('ignore')
 
     class _OldBridge(WizardUiBridge):
         """Old bridge that only implements deprecated ask()."""
@@ -91,7 +93,7 @@ with warnings.catch_warnings():
 def test_text_default() -> None:
     """The ask_text fallback returns default for an empty answer."""
     bridge = _OldBridge([''])
-    with pytest.warns(DeprecationWarning, match='ask_text'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='ask_text'):
         assert bridge.ask_text('q', default='fallback') == 'fallback'
 
 
@@ -198,3 +200,33 @@ def test_path_unusable(monkeypatch: pytest.MonkeyPatch) -> None:
     assert done is False
     assert value is None
     assert reason is not None and 'Invalid path' in reason
+
+
+def _check_visible(records: Sequence[warnings.WarningMessage], err: str,
+                   needle: str) -> None:
+    """Assert a DeprecationWarning, a UserWarning and stderr show needle."""
+    hits = [rec for rec in records if needle in str(rec.message)]
+    assert any(issubclass(rec.category, DeprecationWarning) for rec in hits)
+    assert any(issubclass(rec.category, UserWarning) for rec in hits)
+    assert needle in err
+
+
+def test_ask_removal_visible(capsys: pytest.CaptureFixture[str]) -> None:
+    """Every ask() deprecation site warns visibly and prints to stderr.
+
+    Overriding ask(), calling ask() and a typed-method fallback each
+    raise both a DeprecationWarning and a default-visible UserWarning,
+    and print the message to stderr, so no client can miss the removal.
+    """
+    def stand_in(*_args: object) -> str:
+        """Stand-in ask() used only to trigger the override warning."""
+        return ''
+    with pytest.warns(Warning) as records:
+        type('_Overrider', (WizardUiBridge,), {'ask': stand_in})
+    _check_visible(list(records), capsys.readouterr().err, 'Overriding')
+    with pytest.warns(Warning) as records:
+        assert _TextBridge(['typed']).ask('q') == 'typed'
+    _check_visible(list(records), capsys.readouterr().err, 'deprecated')
+    with pytest.warns(Warning) as records:
+        assert _OldBridge(['']).ask_text('q', default='x') == 'x'
+    _check_visible(list(records), capsys.readouterr().err, 'ask_text')

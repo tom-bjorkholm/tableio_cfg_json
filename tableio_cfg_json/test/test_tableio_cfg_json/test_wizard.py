@@ -13,6 +13,7 @@ API and the wizard's internal data handling.
 
 import sys
 import warnings
+from contextlib import redirect_stderr
 from io import StringIO
 from typing import Optional, Sequence
 
@@ -358,8 +359,8 @@ def test_ask_impl_single() -> None:
     assert wizard_module._ask_implementation(('only',), bridge, None) is None
 
 
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore', DeprecationWarning)
+with warnings.catch_warnings(), redirect_stderr(StringIO()):
+    warnings.simplefilter('ignore')
 
     class _OldStyleBridge(WizardUiBridge):
         """Old-style bridge that overrides only the deprecated ask().
@@ -392,30 +393,30 @@ def test_dep_override_warns() -> None:
     def stand_in(*_args: object) -> str:
         """Stand-in ask() used only to trigger the override warning."""
         return ''
-    with pytest.warns(DeprecationWarning, match='Overriding'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='Overriding'):
         type('_Overrider', (WizardUiBridge,), {'ask': stand_in})
 
 
 def test_dep_ask_call_warns() -> None:
     """Calling the deprecated ask() warns and dispatches by arguments."""
     text_bridge = _ScriptedBridge(['typed'])
-    with pytest.warns(DeprecationWarning, match='deprecated'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='deprecated'):
         assert text_bridge.ask('q') == 'typed'
     choice_bridge = _ScriptedBridge([1])
-    with pytest.warns(DeprecationWarning, match='deprecated'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='deprecated'):
         assert choice_bridge.ask('q', choices=('a', 'b')) == 'b'
 
 
 def test_dep_fallback_warns() -> None:
     """The base typed-method fallbacks warn while backing an old bridge."""
     bridge = _OldStyleBridge(['hi', 0, 0, True])
-    with pytest.warns(DeprecationWarning, match='ask_text'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='ask_text'):
         assert bridge.ask_text('q') == 'hi'
-    with pytest.warns(DeprecationWarning, match='ask_choice'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='ask_choice'):
         assert bridge.ask_choice('q', choices=('a', 'b')) == 'a'
-    with pytest.warns(DeprecationWarning, match='ask_multi'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='ask_multi'):
         assert bridge.ask_multi('q', choices=('a', 'b')) == ['a']
-    with pytest.warns(DeprecationWarning, match='ask_yes_no'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='ask_yes_no'):
         assert bridge.ask_yes_no('q', default=False) is True
 
 
@@ -424,7 +425,7 @@ def test_dep_table_warns() -> None:
     columns = (TableColumn('Value'),)
     cells = [[TableCell(value='x')]]
     bridge = _OldStyleBridge([''])
-    with pytest.warns(DeprecationWarning, match='ask_table'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='ask_table'):
         assert bridge.ask_table(columns, cells, 'Pick:') == [['x']]
 
 

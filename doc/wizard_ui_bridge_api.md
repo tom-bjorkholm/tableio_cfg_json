@@ -1091,11 +1091,12 @@ the typed ask methods of its bridge, together with show(). A concrete
 bridge implements ask_text(), ask_choice(), ask_multi(), ask_yes_no()
 and ask_table(); ask_path() has a permanent base implementation that a
 bridge may override for a native file or directory picker. The low-level
-ask() is deprecated: it warns when called and when a bridge overrides
-it. The base class keeps temporary fallback implementations of the typed
-methods written in terms of ask(), so a bridge that still overrides
-ask() keeps working while it is adjusted to implement the typed methods
-directly.
+ask() is deprecated: calling it, overriding it, and the typed-method
+fallbacks written in terms of it each warn loudly. This is the LAST
+release that supports ask(); the next release REMOVES it, dropping both
+calling ask() and the fallbacks that let a bridge which only overrides
+ask() keep working. Migrate every bridge to implement the typed methods
+directly, or it will stop working.
 
 A GUI, textual, curses or web application should override ask_form() to show
 the whole form at once, so the user sees every question together and answers
@@ -1129,13 +1130,13 @@ show the whole form at once, so the user sees every question together
 and answers them in any order. Overriding ask_form() and ask_path()
 is strongly recommended for a GUI, textual, curses or web application.
 
-The low-level ask() is deprecated: it warns when called and when a bridge
-overrides it. As a temporary migration aid the base class implements
-typed methods via the deprecated ask(), so a bridge that still overrides
-ask() keeps working while it is adjusted; each fallback warns that the
-typed method should be overridden instead. These fallbacks are temporary
-and will be withdrawn once bridges implement the typed methods
-directly.
+The low-level ask() is deprecated: calling it, overriding it, and the
+typed-method fallbacks written in terms of it each warn loudly. This
+is the LAST release that supports ask(); the next release REMOVES it,
+dropping both the ability to call ask() and the fallbacks that let a
+bridge which only overrides ask() keep working. Migrate every bridge
+to implement ask_text(), ask_choice(), ask_multi(), ask_yes_no() and
+ask_table() directly, or it will stop working.
 
 Any ask method may raise a WizardNavigation subclass to request back,
 cancel-level or abort instead of returning an answer.
@@ -1152,12 +1153,12 @@ def ask(question: str,
 
 Ask a question and return the user's answer.
 
-Deprecated. Call ask_text() for free text or ask_choice() for a
-single choice instead. This base implementation is temporary
-plumbing: it warns and then dispatches to ask_text() when no
+Deprecated and REMOVED in the next release, after which this call
+will stop working. Call ask_text() for free text or ask_choice()
+for a single choice instead. This base implementation is temporary
+plumbing: it warns loudly and then dispatches to ask_text() when no
 choices are given and to ask_choice() otherwise, so existing
-callers keep working against a bridge that implements the typed
-methods.
+callers keep working for this last release.
 
 **Arguments**:
 

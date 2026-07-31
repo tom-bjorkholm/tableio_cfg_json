@@ -27,8 +27,20 @@ TableIO and everything TableIO depends on. The old import locations still
 work and warn, see
 [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md) for the
 old-to-new mapping. The two packages are planned to move to two separate
-repositories once the split has settled; until then they share this
-repository and one version number.
+repositories very soon.
+
+## Deprecation: `WizardUiBridge.ask()` is removed next release
+
+This is the last release that supports the low-level
+`WizardUiBridge.ask()` method in `wizard-ui-bridge` (and re-exported by
+`tableio-cfg-json`). The next release removes it entirely: both calling
+`ask()` and the backward-compatibility fallbacks for a bridge that only
+overrides `ask()` are dropped, so such a bridge will stop working. Every
+use now warns loudly with a `DeprecationWarning`, an additional
+default-visible `UserWarning`, and a message on standard error, so the
+change is impossible to miss. Implement the typed `ask_text()`,
+`ask_choice()`, `ask_multi()`, `ask_yes_no()` and `ask_table()` methods
+directly instead. See the package READMEs for details.
 
 ## Related documentation
 
@@ -104,7 +116,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 1048 passed in 48s
+- Test result: 1049 passed in 48s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

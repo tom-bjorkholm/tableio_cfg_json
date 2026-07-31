@@ -223,9 +223,9 @@ def test_ask_path_default(tmp_path: Path) -> None:
 
 def test_dep_ask_dispatch() -> None:
     """The deprecated ask() dispatches to the typed Textual methods."""
-    with pytest.warns(DeprecationWarning, match='deprecated'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='deprecated'):
         assert _CannedBridge(['typed']).ask('q') == 'typed'
-    with pytest.warns(DeprecationWarning, match='deprecated'):
+    with pytest.warns((DeprecationWarning, UserWarning), match='deprecated'):
         assert _CannedBridge([1]).ask('q', choices=['a', 'b', 'c']) == 'b'
 
 
