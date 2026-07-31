@@ -109,6 +109,9 @@ The helper scripts are:
   duplicate-code diagnostics only appear on a clean build.
 - `run_pypi_build.py`
   Create the distribution artifacts intended for PyPI publishing.
+- `run_static_checks.py`
+  Run pylint, flake8 and mypy on the given files only, for fast iteration
+  without rebuilding the virtual environment.
 
 The standard verification suite includes pytest, pylint, flake8, and mypy.
 After a build, the generated reports can be browsed through

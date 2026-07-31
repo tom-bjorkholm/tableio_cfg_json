@@ -220,7 +220,7 @@ def fill_cell(ask: AskReader, columns: Sequence[TableColumn],
     Raises:
         WizardBack: The user asked to return to the previous cell.
         WizardCancelLevel: The user cancelled the current level.
-        WizardAbort: The user abandoned the whole configuration.
+        WizardAbort: The user abandoned the whole wizard.
     """
     cell = row[col]
     prompt = _cell_prompt(columns, row, col, current)

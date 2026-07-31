@@ -163,8 +163,8 @@ described in the `tableio-cfg-json` documentation.
 
 Currently both `tableio_cfg_json` and `wizard-ui-bridge` source code
 are in the same repo in GitHub. This will change very soon.
-The change will break some old URLs to the source code, to documementation,
-and to examples. When the change happends a new release with new URLs will
+The change will break some old URLs to the source code, to documentation,
+and to examples. When the change happens a new release with new URLs will
 be made.
 
 ## Documentation
@@ -180,6 +180,7 @@ be made.
 ## License
 
 MIT
+
 ## Test summary
 
 - Test result: 1049 passed in 48s

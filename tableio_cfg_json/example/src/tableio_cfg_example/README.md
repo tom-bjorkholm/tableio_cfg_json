@@ -12,7 +12,7 @@ These examples show how four packages fit together:
   is used by the wizard in `tableio-cfg-json`.
 
 The examples are meant to be read in order by a fluent Python programmer who
-is new to the three APIs. The first class (e01–e04) uses one TableIO endpoint
+is new to these APIs. The first class (e01–e04) uses one TableIO endpoint
 config at a time. The second class (e05–e06) shows a more realistic
 application config that owns several TableIO endpoint configs and also has
 application-specific settings, built directly in code. A set of interactive

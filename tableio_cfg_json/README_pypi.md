@@ -117,8 +117,9 @@ thorough introduction.
   Complete JSON-backed TableIO configuration for one endpoint. It can read
   JSON, write JSON and be passed to TableIO as normal configuration data.
 
-- `tio_config_create()` create a TableIO object from a `TioJsonConfig`
-  object.
+- `tio_config_create()`
+  TableIO's own function for creating a TableIO object. Import it from
+  `tableio` and pass it a `TioJsonConfig` object.
 
 ### Helpers and details
 
@@ -157,8 +158,8 @@ Programs keep working unchanged: every moved name is still available from
 `tableio_cfg_json`. Each use of an old name raises a
 `tableio_cfg_json.WizardUiBridgeMoved` warning, which is a
 `DeprecationWarning`, so it is hidden from end users by default and shown
-by pytest and unittest. The old names are removed future `tableio-cfg-json`
-releases, so please change the imports:
+by pytest and unittest. The old names are removed in a later release,
+tentatively `tableio-cfg-json` 2.0, so please change the imports:
 
 | Old import | New import |
 | --- | --- |
@@ -190,8 +191,8 @@ of these ways:
 
 Currently both `tableio_cfg_json` and `wizard-ui-bridge` source code
 are in the same repo in GitHub. This will change very soon.
-The change will break some old URLs to the source code, to documementation,
-and to examples. When the change happends a new release with new URLs will
+The change will break some old URLs to the source code, to documentation,
+and to examples. When the change happens a new release with new URLs will
 be made.
 
 ## Deprecation: `WizardUiBridge.ask()` is removed next release

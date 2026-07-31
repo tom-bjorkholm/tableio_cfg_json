@@ -1330,12 +1330,12 @@ Result of validating a partly filled form.
 
 # wizard\_ui\_bridge.console
 
-Console text user interface bridge for the configuration wizard.
+Console text user interface bridge for a wizard.
 
 This module provides the concrete console bridge used when the wizard
 talks to a user through plain text streams. It recognises reserved
 navigation tokens so a console user can step back, cancel the current
-level or abandon the whole configuration.
+level or abandon the whole wizard.
 
 <a id="wizard_ui_bridge.console.WizardUiBridgeConsole"></a>
 
@@ -1606,7 +1606,7 @@ restores the data collected before the previous question and asks
 that question again. Raised at the first question of one wizard call
 it has no earlier question within that call, so the wizard lets it
 propagate out to the application. The application can then step back
-in its own outer navigation, for instance to the previous endpoint.
+in its own outer navigation, for instance to the previous section.
 
 <a id="wizard_ui_bridge.arg_types.WizardCancelLevel"></a>
 
@@ -1619,8 +1619,8 @@ class WizardCancelLevel(WizardNavigation)
 Request to leave the current level and change what opened it.
 
 A bridge raises this when the user asks to step out of the current
-configuration level, such as a table of format-specific parameters or
-a group of questions that exist only because of an earlier choice.
+level of questions, such as a table of detail values or a group of
+questions that exist only because of an earlier choice.
 Unlike WizardBack, which moves to the previous question at the same
 level, this asks to return to the question one level out whose answer
 opened the current level, so the user can change that answer. The
@@ -1644,11 +1644,11 @@ request for the level it opened or lets it propagate further out.
 class WizardAbort(WizardNavigation)
 ```
 
-Request to abandon the whole configuration.
+Request to abandon the whole wizard.
 
-A bridge raises this when the user abandons configuration entirely.
-The wizard does not catch it; it propagates out of the wizard call so
-the application can stop the configuration session.
+A bridge raises this when the user gives up entirely. The wizard does
+not catch it; it propagates out of the wizard call so the application
+can stop the questioning session.
 
 <a id="wizard_ui_bridge.arg_types.WizardPathKind"></a>
 
@@ -1706,7 +1706,7 @@ Initial content and value constraints for one table cell.
 A table question holds one TableCell per column in each row, so each
 row of an editable column can offer its own finite value set. This
 suits a table whose rows are different parameters that each accept
-different values, such as the format-specific options of a config.
+different values, such as one settings row per named option.
 
 **Attributes**:
 
@@ -1896,7 +1896,7 @@ Return field with prefill as default for the second field group.
 
 # wizard\_ui\_bridge.bridge
 
-User interface bridge for the TableIO JSON configuration wizard.
+User interface bridge for a wizard asking a user questions.
 
 This module defines the abstract bridge between the wizard and a user
 interface, the navigation requests a bridge raises to steer wizard flow,
@@ -2021,7 +2021,7 @@ callers keep working for this last release.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_text"></a>
 
@@ -2071,7 +2071,7 @@ questions.
   for sensitive input.
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_int"></a>
 
@@ -2119,7 +2119,7 @@ derived bridge may override it with a direct numeric control.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_path"></a>
 
@@ -2153,7 +2153,7 @@ asks for text through ask_text(), then validates the answer.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_yes_no"></a>
 
@@ -2193,7 +2193,7 @@ and any other answer is re-asked.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_choice"></a>
 
@@ -2238,7 +2238,7 @@ ask().
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_multi"></a>
 
@@ -2288,7 +2288,7 @@ indexes or names.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_table"></a>
 
@@ -2368,7 +2368,7 @@ still validates the final table.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.ask_form"></a>
 
@@ -2436,7 +2436,7 @@ propagates so the wizard steps to the previous question.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge.WizardUiBridge.supports_form_field"></a>
 
@@ -2510,7 +2510,7 @@ back to the original field types before returning.
 
 - `WizardBack` - The user asked to return to the previous question.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 - `RuntimeError` - The bridge cannot show any field type that would
   allow the requested field types to be faked, so
   the form cannot be shown at all.
@@ -4084,7 +4084,7 @@ Ask one editable cell until its value is accepted.
 
 - `WizardBack` - The user asked to return to the previous cell.
 - `WizardCancelLevel` - The user cancelled the current level.
-- `WizardAbort` - The user abandoned the whole configuration.
+- `WizardAbort` - The user abandoned the whole wizard.
 
 <a id="wizard_ui_bridge.bridge_helpers._cell_prompt"></a>
 

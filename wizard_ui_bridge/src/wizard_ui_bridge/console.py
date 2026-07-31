@@ -1,10 +1,10 @@
 #! /usr/local/bin/python3
-"""Console text user interface bridge for the configuration wizard.
+"""Console text user interface bridge for a wizard.
 
 This module provides the concrete console bridge used when the wizard
 talks to a user through plain text streams. It recognises reserved
 navigation tokens so a console user can step back, cancel the current
-level or abandon the whole configuration.
+level or abandon the whole wizard.
 """
 
 # Copyright (c) 2026 Tom Björkholm

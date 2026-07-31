@@ -1,5 +1,5 @@
 #! /usr/local/bin/python3
-"""User interface bridge for the TableIO JSON configuration wizard.
+"""User interface bridge for a wizard asking a user questions.
 
 This module defines the abstract bridge between the wizard and a user
 interface, the navigation requests a bridge raises to steer wizard flow,
@@ -136,7 +136,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         _warn_ask_removed(
             'WizardUiBridge.ask() is deprecated and will be REMOVED in the '
@@ -182,7 +182,7 @@ class WizardUiBridge:
                                  for sensitive input.
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         check_text_args(default, sensitive)
         if sensitive:
@@ -226,7 +226,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         assert (min_value is None or max_value is None
                 or min_value <= max_value)
@@ -265,7 +265,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         path_options = PathAskOptions() if options is None else options
         reason = re_ask_reason
@@ -303,7 +303,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         self._guard_fallback('ask_yes_no')
 
@@ -340,7 +340,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         self._guard_fallback('ask_choice')
 
@@ -382,7 +382,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         self._guard_fallback('ask_multi')
 
@@ -456,7 +456,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         self._guard_fallback('ask_table')
         _ = (min_rows, max_rows)  # the fallback fills the fixed rows in cells
@@ -514,7 +514,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
         """
         self.show(long_question)
         if re_ask_reason is not None:
@@ -574,7 +574,7 @@ class WizardUiBridge:
         Raises:
             WizardBack: The user asked to return to the previous question.
             WizardCancelLevel: The user cancelled the current level.
-            WizardAbort: The user abandoned the whole configuration.
+            WizardAbort: The user abandoned the whole wizard.
             RuntimeError: The bridge cannot show any field type that would
                           allow the requested field types to be faked, so
                           the form cannot be shown at all.

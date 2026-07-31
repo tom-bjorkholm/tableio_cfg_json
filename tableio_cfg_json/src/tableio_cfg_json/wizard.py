@@ -83,8 +83,8 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
             file or CREATE for an output file. This controls which formats and
             implementations can be offered.
         ui_bridge: Bridge between the wizard and the user interface.
-        default: Default values to pre-fill the wizard. This can be what the
-            what a configuration file already contains, what the user already
+        default: Default values to pre-fill the wizard. This can be what a
+            configuration file already contains, what the user already
             answered before going back in an enclosing wizard, or what the
             application wants to suggest as a starting point.
         backward: When True, the wizard starts at the last question instead of

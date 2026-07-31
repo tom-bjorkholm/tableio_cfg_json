@@ -46,7 +46,7 @@ class WizardBack(WizardNavigation):
     that question again. Raised at the first question of one wizard call
     it has no earlier question within that call, so the wizard lets it
     propagate out to the application. The application can then step back
-    in its own outer navigation, for instance to the previous endpoint.
+    in its own outer navigation, for instance to the previous section.
     """
 
 
@@ -54,8 +54,8 @@ class WizardCancelLevel(WizardNavigation):
     """Request to leave the current level and change what opened it.
 
     A bridge raises this when the user asks to step out of the current
-    configuration level, such as a table of format-specific parameters or
-    a group of questions that exist only because of an earlier choice.
+    level of questions, such as a table of detail values or a group of
+    questions that exist only because of an earlier choice.
     Unlike WizardBack, which moves to the previous question at the same
     level, this asks to return to the question one level out whose answer
     opened the current level, so the user can change that answer. The
@@ -74,11 +74,11 @@ class WizardCancelLevel(WizardNavigation):
 
 
 class WizardAbort(WizardNavigation):
-    """Request to abandon the whole configuration.
+    """Request to abandon the whole wizard.
 
-    A bridge raises this when the user abandons configuration entirely.
-    The wizard does not catch it; it propagates out of the wizard call so
-    the application can stop the configuration session.
+    A bridge raises this when the user gives up entirely. The wizard does
+    not catch it; it propagates out of the wizard call so the application
+    can stop the questioning session.
     """
 
 
@@ -127,7 +127,7 @@ class TableCell:
     A table question holds one TableCell per column in each row, so each
     row of an editable column can offer its own finite value set. This
     suits a table whose rows are different parameters that each accept
-    different values, such as the format-specific options of a config.
+    different values, such as one settings row per named option.
 
     Attributes:
         value: The initial text shown in the cell. For a read-only column
