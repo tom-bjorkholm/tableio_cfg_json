@@ -18,8 +18,8 @@ from tableio import FileAccess, access_capabilities, \
     list_registered_tableio, tio_config_create
 from tableio_cfg_example import e01_create_config, e02_write_table, \
     e03_read_table, e04_custom_config, e05_app_config, e06_split_cities, \
-    e07_config_wizard, e08_edit_config, e08_rename_wizard, \
-    e09_split_cities_rename
+    e07_config_wizard, e08_edit_config, e09_rename_wizard, \
+    e10_split_rename
 from tableio_cfg_json import get_config_member_names, tio_json_config_default
 from wizard_ui_bridge import UiBridgeType
 
@@ -595,7 +595,7 @@ def _run_rename(lines: list[str], config_file: Path,
                 syntax_file: Path) -> None:
     """Run the rename wizard with scripted answers and in-memory streams."""
     stdin_file = StringIO('\n'.join(lines) + '\n')
-    create_files = e08_rename_wizard.create_split_config_files
+    create_files = e09_rename_wizard.create_split_config_files
     create_files(config_file=config_file, syntax_file=syntax_file,
                  stdin_file=stdin_file, stdout_file=StringIO(),
                  stderr_file=StringIO())
@@ -620,7 +620,7 @@ def test_rename_split(tmp_path: Path) -> None:
     assert 'Output column renaming' in syntax_text
     assert 'less_output_names' in syntax_text
     _write_city_input(input_file, 'City,Country,Continent')
-    assert e09_split_cities_rename.main([
+    assert e10_split_rename.main([
         '--cfg', str(config_file),
         '--input', str(input_file),
         '--less-than-output', str(less_file),
@@ -637,7 +637,7 @@ def test_rename_split(tmp_path: Path) -> None:
     assert 'Portugal' in '\n'.join(not_less_lines)
 
 
-def test_e08_console(tmp_path: Path) -> None:
+def test_e09_console(tmp_path: Path) -> None:
     """Forcing the console bridge matches the auto-selected console run."""
     answers = _rename_happy_answers()
     auto_cfg = tmp_path / 'auto.json'
@@ -646,7 +646,7 @@ def test_e08_console(tmp_path: Path) -> None:
     forced_txt = tmp_path / 'forced.txt'
     _run_rename(answers, auto_cfg, auto_txt)
     stdin_file = StringIO('\n'.join(answers) + '\n')
-    create_files = e08_rename_wizard.create_split_config_files
+    create_files = e09_rename_wizard.create_split_config_files
     create_files(config_file=forced_cfg, syntax_file=forced_txt,
                  bridge_type=UiBridgeType.CONSOLE, stdin_file=stdin_file,
                  stdout_file=StringIO(), stderr_file=StringIO())
@@ -656,23 +656,23 @@ def test_e08_console(tmp_path: Path) -> None:
         auto_txt.read_text(encoding='utf-8')
 
 
-def test_e08_ui_option() -> None:
+def test_e09_ui_option() -> None:
     """The --ui option defaults to auto and accepts the bridge names."""
-    parser = e08_rename_wizard.build_parser()
+    parser = e09_rename_wizard.build_parser()
     default = parser.parse_args(['--cfg', 'c', '--txt', 't'])
     assert default.ui == 'auto'
     forced = parser.parse_args(['--cfg', 'c', '--txt', 't', '--ui', 'console'])
     assert forced.ui == 'console'
 
 
-def test_e08_main_ui(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_e09_main_ui(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """main() maps the --ui choice to the bridge and writes the config."""
     answers = _rename_happy_answers()
     monkeypatch.setattr('sys.stdin', StringIO('\n'.join(answers) + '\n'))
     monkeypatch.setattr('sys.stdout', StringIO())
     config_file = tmp_path / 'main.json'
     syntax_file = tmp_path / 'main.txt'
-    assert e08_rename_wizard.main([
+    assert e09_rename_wizard.main([
         '--cfg', str(config_file), '--txt', str(syntax_file),
         '--ui', 'console']) == 0
     config_data = _read_json(config_file)

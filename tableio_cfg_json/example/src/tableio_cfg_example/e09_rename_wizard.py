@@ -1,24 +1,32 @@
 #! /usr/bin/env python3
-"""Interactively create config files that rename the output columns.
+"""Advanced capstone: config files that rename the output columns.
 
-This builds on e07_config_wizard. It asks the same input, split and
-output questions, and adds one variable-row table question per output
-that maps input columns to the column names written in that output file.
-The collected configuration is a RenameSplitConfig, which
-e09_split_cities_rename later uses to split a table and rename each
-output independently.
+This is one of the two advanced capstone examples. It introduces no new
+core concept; it reinforces the earlier ones by applying a wizard table
+question to a slightly richer configuration, so read e07_config_wizard
+first.
 
-Two ideas are demonstrated here:
+It builds on e07_config_wizard, asking the same input, split and output
+questions, and adds one variable-row table question per output that maps
+input columns to the column names written in that output file. The
+collected configuration is a RenameSplitConfig, which e10_split_rename
+later uses to split a table and rename each output independently.
+
+Two mechanics are applied here. Each is summarized enough to follow this
+example on its own, but is taught in full by a wizard_ui_bridge example
+that this one only reuses:
 
 - A wizard ask_table with a variable number of rows. The user adds and
   deletes rows to build a mapping of any size, instead of filling a
   fixed set of rows. In a terminal the Textual bridge offers Add row and
   Remove row buttons; on the console the row-menu interface offers :+ to
-  add a row and :- N to delete row N.
+  add a row and :- N to delete row N. Table questions are taught on their
+  own in the wizard_ui_bridge e04 example.
 - Forcing the user interface bridge from the command line. The --ui
   option selects between the console bridge and the full-screen Textual
   bridge through make_text_ui_bridge, instead of letting it auto-select
-  by whether the program runs in a terminal.
+  by whether the program runs in a terminal. Bridge selection is taught
+  on its own in the wizard_ui_bridge e01 example.
 
 Everything that does not differ from e07 is reused from it: the outer
 navigation loop run_steps, the per-item step functions, the shared
@@ -35,7 +43,7 @@ from typing import Optional, TextIO
 
 from tableio_cfg_example.e05_app_config import CITY_COLUMNS, _paragraph, \
     _syntax_text
-from tableio_cfg_example.e09_split_cities_rename import RenameSplitConfig
+from tableio_cfg_example.e10_split_rename import RenameSplitConfig
 from tableio_cfg_example.e07_config_wizard import \
     INPUT_TITLE, LESS_TITLE, \
     NOT_LESS_TITLE, WizardStep, run_steps, _assign_split, \

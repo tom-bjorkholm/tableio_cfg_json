@@ -324,19 +324,21 @@ The core wizard example source files are:
   application's endpoints, re-opening an earlier endpoint at its last question
   when the user goes back into it.
 
-The advanced capstone pair reinforces these ideas with an extra table question;
-it is repositioned in a later documentation stage, so it still carries its
-current file names:
+The advanced capstone pair reinforces these ideas with an extra table
+question. It introduces no new core concept, so read the earlier examples
+first:
 
-- [`e08_rename_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_rename_wizard.py)
+- [`e09_rename_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e09_rename_wizard.py)
   builds on `e07_config_wizard.py` and adds, for each output, a variable-row
   table that maps input columns to the column names written in that output
   file. It also adds a `--ui {auto,console,textual}` switch that forces the
   bridge through `make_text_ui_bridge()` instead of auto-selecting by terminal.
-  The table mechanics themselves are taught in wizard_ui_bridge `e04`.
-- [`e09_split_cities_rename.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e09_split_cities_rename.py)
+  Enough of both is explained inline to follow the example on its own; the
+  table mechanics are taught in full in wizard_ui_bridge `e04` and bridge
+  selection in wizard_ui_bridge `e01`.
+- [`e10_split_rename.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e10_split_rename.py)
   builds on `e06_split_cities.py`. It reads the configuration written by
-  `e08_rename_wizard.py` and splits the city table the same way, but renames
+  `e09_rename_wizard.py` and splits the city table the same way, but renames
   each output's columns independently using the two mappings
   `less_output_names` and `not_less_output_names`.
 
@@ -383,6 +385,41 @@ The `default` argument is what makes editing possible; the `backward` argument
 tells the TableIO wizard to start at the last question implied by that default.
 The back, cancel and abort exceptions the loop catches are taught on their own
 in wizard_ui_bridge `e03`.
+
+### Advanced Capstone Walkthrough
+
+The capstone mirrors the wizard-and-runner split of `e07_config_wizard.py`
+and `e06_split_cities.py`. First build a rename-split config by answering
+questions. In addition to the split-cities questions, it asks one
+variable-row table per output that maps input columns to the names written
+in that output file:
+
+```sh
+python -m tableio_cfg_example.e09_rename_wizard \
+  --cfg rename-cities.json \
+  --txt rename-cities-syntax.txt
+```
+
+Run in a terminal, the table is edited with the Textual Add row and Remove
+row buttons; with redirected input the console row-menu editor uses `:+` to
+add a row and `:- N` to delete row N. The `--ui {auto,console,textual}`
+option forces one bridge regardless of the terminal. Table questions are
+taught on their own in wizard_ui_bridge `e04` and bridge selection in
+wizard_ui_bridge `e01`.
+
+Then run the renaming splitter. It splits exactly like `e06_split_cities.py`
+but renames each output's columns using the stored mappings. A column that is
+not listed keeps its original name, and the two outputs are renamed
+independently. The output file extensions match the formats chosen in the
+wizard, shown here as CSV for both:
+
+```sh
+python -m tableio_cfg_example.e10_split_rename \
+  --cfg rename-cities.json \
+  --input example/data/cities_input.csv \
+  --less-than-output cities-before-limit.csv \
+  --not-less-than-output cities-from-limit.csv
+```
 
 ## Asking a Whole Form at Once: `ask_form()`
 

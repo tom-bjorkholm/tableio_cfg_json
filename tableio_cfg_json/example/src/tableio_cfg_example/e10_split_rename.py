@@ -1,13 +1,15 @@
 #! /usr/bin/env python3
-"""Split a city table and write each output with renamed columns.
+"""Advanced capstone: split a table, rename each output's columns.
 
-This builds on e06_split_cities. The one new idea is that each output
+This is one of the two advanced capstone examples. It introduces no new
+core concept; it reinforces e06_split_cities by adding one small step, so
+read e06_split_cities first. The one thing it adds is that each output
 file may rename its columns: the application config carries an
-independent input-column to output-name mapping for each output, and
-this program applies that mapping when it writes the file. For example
-one output can rename City to Hauptstadt and Country to Land while the
-other output keeps the original names. The matching wizard that creates
-the configuration is e08_rename_wizard.
+independent input-column to output-name mapping for each output, and this
+program applies that mapping when it writes the file. For example one
+output can rename City to Hauptstadt and Country to Land while the other
+output keeps the original names. The matching wizard that creates the
+configuration is e09_rename_wizard.
 
 Everything else is reused unchanged from e06: reading the input table,
 the split rule, and the actual TableIO writing. Only the small step of

@@ -94,7 +94,7 @@ def _write_rows(config: TioJsonConfig, output_file: Path,
     """Write rows with the configured output TableIO backend.
 
     The column_order names the columns to write and their order. It
-    defaults to the input columns; e09_split_cities_rename passes renamed
+    defaults to the input columns; e10_split_rename passes renamed
     output column names instead.
     """
     file_access = FileAccess.CREATE
@@ -134,7 +134,7 @@ def run_split_file_cli(split_func: Callable[[Path, Path, Path, Path], None],
                        args: Optional[list[str]]) -> int:
     """Parse the splitter command line and run one split function.
 
-    Shared by e06 and e09_split_cities_rename so both expose the same
+    Shared by e06 and e10_split_rename so both expose the same
     --cfg/--input/--less-than-output/--not-less-than-output command line,
     differing only in the split function they run.
     """
