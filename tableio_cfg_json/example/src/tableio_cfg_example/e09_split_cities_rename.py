@@ -24,9 +24,9 @@ from typing import Optional, TextIO, override
 from config_as_json import DictKeyValueTypesValidator, \
     MemberValidationStep, PathOrStr, ValidationPlan
 from tableio import DictData, Value
-from tableio_cfg_example.e06_split_cities import CITY_COLUMNS, \
-    SplitCitiesConfig, \
-    run_split_file_cli, _read_rows, _split_rows, _write_rows
+from tableio_cfg_example.e05_app_config import CITY_COLUMNS, SplitCitiesConfig
+from tableio_cfg_example.e06_split_cities import run_split_file_cli, \
+    _read_rows, _split_rows, _write_rows
 from tableio_cfg_json import TioJsonConfig
 
 

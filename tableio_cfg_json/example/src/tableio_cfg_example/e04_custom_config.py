@@ -9,9 +9,10 @@ from pathlib import Path
 import sys
 from typing import Optional
 
-from tableio import FileAccess, access_capabilities
+from tableio import Capabilities, FileAccess, access_capabilities
 from tableio_cfg_json import TioJsonCsvConfig, describe_config, \
-    get_general_cfg_info, tio_json_config_default
+    describe_config_members, describe_config_reference, \
+    get_config_member_names, get_general_cfg_info, tio_json_config_default
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -50,13 +51,47 @@ def create_custom_files(config_file: Path, syntax_file: Path,
     else:
         config.csv.delimiter = csv_delimiter
     config.write(to_json_filename=config_file)
-    syntax_text = get_general_cfg_info() + '\n\n'
-    syntax_text += describe_config(capabilities=capabilities,
-                                   file_access=file_access,
-                                   format_name=format_name,
-                                   include_compact_example=not complete,
-                                   include_full_example=complete)
+    syntax_text = _syntax_text(capabilities, file_access, format_name,
+                               complete)
     syntax_file.write_text(syntax_text + '\n', encoding='utf-8')
+
+
+def _syntax_text(capabilities: Capabilities, file_access: FileAccess,
+                 format_name: Optional[str], complete: bool) -> str:
+    """Build the plain text guide, including a member-discovery section."""
+    # describe_config() is the same overview used by e01. The extra section
+    # from _member_discovery() teaches how a program (or a person) can find
+    # out which members exist before deciding what to set.
+    parts = [
+        get_general_cfg_info(),
+        describe_config(capabilities=capabilities, file_access=file_access,
+                        format_name=format_name,
+                        include_compact_example=not complete,
+                        include_full_example=complete),
+        _member_discovery(capabilities, file_access)]
+    return '\n\n'.join(parts)
+
+
+def _member_discovery(capabilities: Capabilities,
+                      file_access: FileAccess) -> str:
+    """Describe the members that can be set for this endpoint.
+
+    This is the answer to "what can I set?". The three helpers work
+    together: get_config_member_names() lists the member names for this
+    access mode, describe_config_members() explains each member, and
+    describe_config_reference() gives the allowed values for a chosen list
+    of names.
+    """
+    member_names = get_config_member_names(capabilities=capabilities,
+                                           file_access=file_access)
+    members_text = describe_config_members(capabilities=capabilities,
+                                           file_access=file_access)
+    reference_text = describe_config_reference(member_names=list(member_names))
+    return ('Discovering what can be set\n\n'
+            + 'Members available for this endpoint:\n\n'
+            + members_text
+            + '\n\nMember reference:\n\n'
+            + reference_text)
 
 
 # ---------------------------------------------------------------------------

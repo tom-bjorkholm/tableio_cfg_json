@@ -33,13 +33,14 @@ from pathlib import Path
 import sys
 from typing import Optional, TextIO
 
-from tableio_cfg_example.e06_split_cities import CITY_COLUMNS
+from tableio_cfg_example.e05_app_config import CITY_COLUMNS, _paragraph, \
+    _syntax_text
 from tableio_cfg_example.e09_split_cities_rename import RenameSplitConfig
 from tableio_cfg_example.e05_split_cities_wizard import \
     INPUT_TITLE, LESS_TITLE, \
-    NOT_LESS_TITLE, WizardStep, run_steps, _assign_split, _paragraph, \
+    NOT_LESS_TITLE, WizardStep, run_steps, _assign_split, \
     _step_input, _step_less, _step_not_less, _step_split_column, \
-    _step_split_limit, _syntax_text
+    _step_split_limit
 from wizard_ui_bridge import TableCell, TableColumn, UiBridgeType, \
     WizardUiBridge, make_text_ui_bridge
 

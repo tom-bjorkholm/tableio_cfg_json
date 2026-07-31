@@ -2,24 +2,32 @@
 
 ## Introduction
 
-These examples show how three packages fit together:
+These examples show how four packages fit together:
 
 - `tableio` reads and writes table-like files.
 - `config-as-json` reads and writes validated JSON configuration objects.
 - `tableio-cfg-json` connects them by making TableIO configuration available
   as config-as-json configuration classes.
+- `wizard-ui-bridge` defines how a wizard can talk to any user interface and
+  is used by the wizard in `tableio-cfg-json` 
 
 The examples are meant to be read in order by a fluent Python programmer who
-is new to the three APIs. The first class uses one TableIO endpoint config at
-a time. The second class shows a more realistic application config that owns
-several TableIO endpoint configs and also has application-specific settings.
+is new to the three APIs. The first class (e01–e04) uses one TableIO endpoint
+config at a time. The second class (e05–e06) shows a more realistic
+application config that owns several TableIO endpoint configs and also has
+application-specific settings, built directly in code. A set of interactive
+wizard examples then produces that same application config by asking the user
+questions.
 
-TableIO and config-as-json have their own larger example sets:
+TableIO, config-as-json and wizard-ui-bridge have their own larger example sets:
 
 - TableIO: [https://pypi.org/project/tableio/](https://pypi.org/project/tableio/)
 - config-as-json: [https://pypi.org/project/config-as-json/](https://pypi.org/project/config-as-json/)
+- wizard-ui-bridge: [https://pypi.org/project/wizard-ui-bridge/](https://pypi.org/project/wizard-ui-bridge/)
 
-The examples here focus only on the bridge supplied by `tableio-cfg-json`.
+The examples here focus only on the bridge supplied by `tableio-cfg-json`. The
+user interface bridge used by the wizard examples is its own package; see
+[wizard_ui_bridge/example/src/wizard_ui_example](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example).
 
 ## Class A: One TableIO Endpoint Config
 
@@ -41,13 +49,10 @@ The example source files are:
 - [`e03_read_table.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e03_read_table.py)
   reads a read-capable JSON config and prints an existing table as
   tab-separated text.
-- [`e04_create_custom_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e04_create_custom_config.py)
+- [`e04_custom_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e04_custom_config.py)
   starts from the same kind of default config as `e01_create_config.py`, then
-  stores a few explicit non-default values.
-- [`e10_edit_config_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e10_edit_config_wizard.py)
-  edits one write-capable JSON config by passing the previous config back to
-  `tio_json_config_wizard()` as defaults. Its enclosing confirmation question
-  can send the user back into the TableIO wizard.
+  stores a few explicit non-default values. It also shows how to discover
+  which members can be set.
 
 ### CSV Walkthrough
 
@@ -85,12 +90,12 @@ python -m tableio_cfg_example.e01_create_config \
 ### Custom Configuration Walkthrough
 
 The compact config from `e01_create_config.py` only stores durable choices
-that need to be fixed. `e04_create_custom_config.py` shows the next step:
-start from the same default object and then set a few values before writing
-the JSON file.
+that need to be fixed. `e04_custom_config.py` shows the next step: start from
+the same default object and then set a few values before writing the JSON
+file.
 
 ```sh
-python -m tableio_cfg_example.e04_create_custom_config \
+python -m tableio_cfg_example.e04_custom_config \
   --cfg capitals-custom-csv.json \
   --txt capitals-custom-csv-syntax.txt \
   --write \
@@ -108,21 +113,12 @@ The CSV delimiter is stored in the optional nested `csv` section. If you use
 the same option while creating an Excel config, the value is still valid JSON
 configuration, but it has no effect when TableIO later uses an Excel backend.
 
-### Edit Configuration Walkthrough
-
-After creating a config, you can reopen it in the wizard and keep or change
-the stored answers:
-
-```sh
-python -m tableio_cfg_example.e10_edit_config_wizard \
-  --cfg capitals-custom-csv.json
-```
-
-If the file already exists, the example reads it as a `TioJsonConfig` and
-passes that object as the wizard default. Pressing Enter keeps the old answer.
-When the final confirmation question is answered with "no", the enclosing
-example calls the TableIO wizard again with `backward=True`, so editing starts
-from the last TableIO question and the user can walk back from there.
+The syntax guide this example writes ends with a "Discovering what can be set"
+section. It is built from three helpers that answer "what can I set?":
+`get_config_member_names()` lists the member names for the access mode,
+`describe_config_members()` explains each member, and
+`describe_config_reference()` gives the allowed values for a chosen list of
+names.
 
 ### Excel Walkthrough
 
@@ -188,17 +184,6 @@ explicit optional settings. `tio_config_create()` then validates those choices
 for the runtime task, filters the format-specific optional settings, and
 returns the actual TableIO backend object.
 
-The edit wizard shows the same TableIO wizard used in a different mode:
-
-```python
-current = tio_json_config_wizard(capabilities, FileAccess.CREATE, ui_bridge,
-                                 default=current, backward=backward)
-```
-
-The `default` argument is useful both for editing a stored file and for going
-back from an enclosing application wizard. The `backward` argument tells the
-TableIO wizard to start at the last question implied by the default config.
-
 ## Class B: Application Config With Several TableIO Endpoints
 
 The second class is closer to a real application. One JSON configuration file
@@ -211,82 +196,54 @@ It reads a table with many rows and each row has the three columns `City`,
 input from different file formats (like Excel, CSV, ODS) and with different
 parameters for the format like character encoding, delimiter and so on.
 
-The example program can be configured to split this list into two list based
+The example program can be configured to split this list into two lists based
 on a configurable criteria: a configured column has a value that is less than
 or not less than a configured string.
-The output formats for the less than output and not less than output is
+The output formats for the less than output and not less than output are
 configured independently. Each can be any format TableIO supports with any
 parameters TableIO supports.
 
-As a companion to the table splitting example program, there is another
-example program with a wizard functionality to ask the user for the wanted
-configuration and create the configuration file. As a help for the user to
-understand and later hand-edit the configuration file the wizard program
-also prints a text description of the configuration options.
+The application config is built directly in code first (`e05_app_config.py`),
+before any wizard is introduced. Building it in code makes the point that the
+config object is ordinary data: the interactive wizards shown further down
+produce the very same object, and nothing about the config depends on a
+wizard.
 
 ### Class B: Example Programs
 
-The example source files are:
+The core example source files are:
 
-- [`e05_split_cities_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e05_split_cities_wizard.py)
-  asks questions and writes the larger JSON application configuration. It
-  calls `tio_json_config_wizard()` once for the input endpoint and once for
-  each output endpoint.
+- [`e05_app_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e05_app_config.py)
+  defines the `SplitCitiesConfig` application config, builds one instance in
+  code, and writes the larger JSON application configuration plus its syntax
+  guide. To show that the endpoints are configured independently, the two
+  outputs use different formats: the less-than output is CSV and the
+  not-less-than output is ODS.
 - [`e06_split_cities.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e06_split_cities.py)
   reads the larger JSON configuration, reads a city table as dictionaries,
   and writes two independently configured output tables.
-- [`e07_split_cities_textual.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e07_split_cities_textual.py)
-  does exactly what `e05_split_cities_wizard.py` does, but builds its bridge
-  with `make_text_ui_bridge()` instead of hard-coding the console bridge. In a
-  real terminal that gives a full-screen Textual interface with selectable
-  lists and editable tables; with redirected input it falls back
-  to the console bridge, so the program stays scriptable. It reuses all of
-  e05's question, config and guide logic unchanged, so the only difference is
-  the one line that builds the bridge.
-- [`e08_rename_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_rename_wizard.py)
-  builds on e05 and e07. It asks the same questions and adds, for each output,
-  a variable-row table that maps input columns to the column names written in
-  that output file. It also adds a `--ui {auto,console,textual}` switch that
-  forces the bridge through `make_text_ui_bridge()` instead of auto-selecting
-  by terminal. It demonstrates a wizard `ask_table` with a variable number of
-  rows: in a terminal the Textual bridge offers Add row and Remove row
-  buttons, and on the console the row-menu editor offers `:+` to add a row and
-  `:- N` to delete row N.
-- [`e09_split_cities_rename.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e09_split_cities_rename.py)
-  builds on e06. It reads the configuration written by e08 and splits the city
-  table the same way, but renames each output's columns independently using
-  the two mappings `less_output_names` and `not_less_output_names`.
 
-### Split-Cities Walkthrough
+### Application Config Walkthrough
 
-First create the application config and the matching syntax guide:
+First build the application config and the matching syntax guide. There is no
+user interaction here, so the command needs no input:
 
 ```sh
-python -m tableio_cfg_example.e05_split_cities_wizard \
-  --cfg split-cities.json \
-  --txt split-cities-syntax.txt
-```
-
-To answer the same questions in a full-screen terminal interface instead, run
-`e07_split_cities_textual.py` with the same arguments. In a terminal it shows a
-Textual interface; with redirected input it behaves exactly like the command
-above:
-
-```sh
-python -m tableio_cfg_example.e07_split_cities_textual \
+python -m tableio_cfg_example.e05_app_config \
   --cfg split-cities.json \
   --txt split-cities-syntax.txt
 ```
 
 Then run the splitter. File paths are command-line arguments because they are
-runtime values, not durable configuration:
+runtime values, not durable configuration. The output formats come from the
+config, so the less-than output is CSV and the not-less-than output is ODS:
 
 ```sh
 python -m tableio_cfg_example.e06_split_cities \
   --cfg split-cities.json \
   --input example/data/cities_input.csv \
   --less-than-output cities-before-limit.csv \
-  --not-less-than-output cities-from-limit.csv
+  --not-less-than-output cities-from-limit.ods
 ```
 
 The input table is expected to have the header row `City`, `Country`,
@@ -299,7 +256,7 @@ is configuration composition.
 
 The repository includes a sample input file:
 
-- [`example/data/cities_input.csv`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/example/data/cities_input.csv)
+- [`example/data/cities_input.csv`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/data/cities_input.csv)
 
 It contains three continents, five countries per continent, and two cities per
 country. You can use that file to test the walkthrough, or create your own CSV
@@ -312,16 +269,17 @@ file with the same `City`, `Country`, `Continent` header.
 `not_less_than_output`, plus the application-owned members `split_column` and
 `split_limit`.
 
-The wizard example creates a default `SplitCitiesConfig` and then assigns the
-values collected from the user:
+`e05_app_config.py` creates a default `SplitCitiesConfig` and then assigns the
+values it wants directly in code, giving each output its own format:
 
 ```python
 config = SplitCitiesConfig(stderr_file=err_file)
-config.input = input_config
-config.less_than_output = less_config
-config.not_less_than_output = not_less_config
-config.split_column = split_column
-config.split_limit = split_limit
+config.input = _default_config(FileAccess.READ, err_file, 'CSV')
+config.less_than_output = _default_config(FileAccess.CREATE, err_file, 'CSV')
+config.not_less_than_output = _default_config(FileAccess.CREATE, err_file,
+                                              'ODS')
+config.split_column = 'Country'
+config.split_limit = 'M'
 ```
 
 The runner example reads and writes dict data:
@@ -337,12 +295,90 @@ That keeps the application logic focused on named columns instead of numeric
 indexes, and shows a second TableIO data shape after the simpler list-data
 examples in Class A.
 
+## Building the Application Config Interactively (wizard examples)
+
+The examples below build the same kind of application config by asking the
+user questions instead of hard-coding the values. They are being reorganized
+into a dedicated wizard arc in later documentation stages, so they still carry
+their current file names. Each uses a `WizardUiBridge` from the
+`wizard_ui_bridge` package; that package's own examples teach bridge
+selection, the one-question-at-a-time ask methods, navigation, table
+questions and whole forms.
+
+The wizard example source files are:
+
+- [`e05_split_cities_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e05_split_cities_wizard.py)
+  asks questions and writes the same JSON application configuration as
+  `e05_app_config.py`. It calls `tio_json_config_wizard()` once for the input
+  endpoint and once for each output endpoint.
+- [`e07_split_cities_textual.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e07_split_cities_textual.py)
+  does exactly what `e05_split_cities_wizard.py` does, but builds its bridge
+  with `make_text_ui_bridge()` instead of hard-coding the console bridge. In a
+  real terminal that gives a full-screen Textual interface; with redirected
+  input it falls back to the console bridge, so the program stays scriptable.
+- [`e08_rename_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_rename_wizard.py)
+  builds on the wizard and adds, for each output, a variable-row table that
+  maps input columns to the column names written in that output file. It also
+  adds a `--ui {auto,console,textual}` switch that forces the bridge through
+  `make_text_ui_bridge()` instead of auto-selecting by terminal.
+- [`e09_split_cities_rename.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e09_split_cities_rename.py)
+  builds on `e06_split_cities.py`. It reads the configuration written by
+  `e08_rename_wizard.py` and splits the city table the same way, but renames
+  each output's columns independently using the two mappings
+  `less_output_names` and `not_less_output_names`.
+- [`e10_edit_config_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e10_edit_config_wizard.py)
+  edits one write-capable JSON config by passing the previous config back to
+  `tio_json_config_wizard()` as defaults. Its enclosing confirmation question
+  can send the user back into the TableIO wizard.
+
+### Wizard Walkthrough
+
+To build the split-cities config by answering questions instead of running
+`e05_app_config.py`, run the wizard with the same output arguments:
+
+```sh
+python -m tableio_cfg_example.e05_split_cities_wizard \
+  --cfg split-cities.json \
+  --txt split-cities-syntax.txt
+```
+
+To answer the same questions in a full-screen terminal interface instead, run
+`e07_split_cities_textual.py` with the same arguments. In a terminal it shows
+a Textual interface; with redirected input it behaves exactly like the command
+above.
+
+### Edit Configuration Walkthrough
+
+After creating a config, you can reopen it in the wizard and keep or change
+the stored answers:
+
+```sh
+python -m tableio_cfg_example.e10_edit_config_wizard \
+  --cfg capitals-custom-csv.json
+```
+
+If the file already exists, the example reads it as a `TioJsonConfig` and
+passes that object as the wizard default. Pressing Enter keeps the old answer.
+When the final confirmation question is answered with "no", the enclosing
+example calls the TableIO wizard again with `backward=True`, so editing starts
+from the last TableIO question and the user can walk back from there.
+
+The edit wizard shows the same TableIO wizard used in a different mode:
+
+```python
+current = tio_json_config_wizard(capabilities, FileAccess.CREATE, ui_bridge,
+                                 default=current, backward=backward)
+```
+
+The `default` argument is useful both for editing a stored file and for going
+back from an enclosing application wizard. The `backward` argument tells the
+TableIO wizard to start at the last question implied by the default config.
+
 ## Asking a Whole Form at Once: `ask_form()`
 
 The wizards above ask one question at a time. A graphical or full-screen
 textual interface can do better and show several related questions
-together. That is `WizardUiBridge.ask_form()`, and `e05` and later use it
-through the wizard.
+together. That is `WizardUiBridge.ask_form()`.
 
 The wizard user interface bridge is its own package now, and its examples
 of `ask_form()` and of the typed form fields live with it, in

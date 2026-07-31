@@ -7,22 +7,18 @@
 import argparse
 from pathlib import Path
 import sys
-from textwrap import wrap
 from typing import Callable, Optional, Sequence, TextIO
 
-from tableio import Capabilities, FileAccess, access_capabilities
-from tableio_cfg_example.e06_split_cities import CITY_COLUMNS, \
-    SplitCitiesConfig
-from tableio_cfg_json import TioJsonConfig, describe_config_members, \
-    describe_config_reference, get_config_member_names, get_general_cfg_info, \
-    tio_json_config_wizard
+from tableio import FileAccess, access_capabilities
+from tableio_cfg_example.e05_app_config import CITY_COLUMNS, \
+    SplitCitiesConfig, _syntax_text
+from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 from wizard_ui_bridge import WizardAbort, WizardBack, WizardCancelLevel, \
     WizardUiBridge, WizardUiBridgeConsole
 
 INPUT_TITLE = 'Input table configuration'
 LESS_TITLE = 'Less-than output table configuration'
 NOT_LESS_TITLE = 'Not-less-than output table configuration'
-_WIDTH = 79
 
 type WizardStep = tuple[str,
                         Callable[[WizardUiBridge, dict[str, object]], None]]
@@ -258,95 +254,6 @@ def _ask_split_limit(ui_bridge: WizardUiBridge) -> str:
              'Enter: M (recommended)')
     answer = ui_bridge.ask_text(title, nullable=True)
     return 'M' if answer is None else answer
-
-
-def _syntax_text(config: SplitCitiesConfig, stderr_file: TextIO) -> str:
-    """Build the plain text guide written next to the JSON config."""
-    read_caps = access_capabilities(FileAccess.READ, error_file=stderr_file)
-    create_caps = access_capabilities(FileAccess.CREATE,
-                                      error_file=stderr_file)
-    name_lists = [
-        _member_names(read_caps, FileAccess.READ),
-        _member_names(create_caps, FileAccess.CREATE)]
-    less_intro = ('This output receives rows with the selected value below '
-                  'the split limit.')
-    not_less_intro = 'This output receives the remaining data rows.'
-    parts = [
-        get_general_cfg_info(),
-        _application_guide(),
-        _endpoint_guide('input', 'The input endpoint reads the city table.',
-                        config.input, read_caps, FileAccess.READ, stderr_file),
-        _endpoint_guide('less_than_output', less_intro,
-                        config.less_than_output, create_caps,
-                        FileAccess.CREATE, stderr_file),
-        _endpoint_guide('not_less_than_output', not_less_intro,
-                        config.not_less_than_output, create_caps,
-                        FileAccess.CREATE, stderr_file),
-        'Configuration member reference\n\n'
-        + describe_config_reference(member_names=_unique_names(name_lists))]
-    return '\n\n'.join(parts)
-
-
-def _application_guide() -> str:
-    """Return the application-owned part of the syntax guide."""
-    text = (
-        'Split-cities application configuration\n\n'
-        'The top-level JSON object has five members. The members input, '
-        'less_than_output and not_less_than_output are nested TableIO '
-        'endpoint configurations. The member split_column selects one of '
-        'City, Country or Continent. The member split_limit is a normal '
-        'Python string, and the example compares strings case-sensitively.')
-    title, paragraph = text.split('\n\n', maxsplit=1)
-    return title + '\n\n' + _paragraph(paragraph)
-
-
-# pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def _endpoint_guide(member_name: str, intro_text: str, config: TioJsonConfig,
-                    capabilities: Capabilities, file_access: FileAccess,
-                    stderr_file: TextIO) -> str:
-    """Return the syntax guide for one nested TableIO endpoint config."""
-    format_name = _format_name(config)
-    member_text = describe_config_members(capabilities=capabilities,
-                                          file_access=file_access)
-    selected_text = config.as_json_string(stderr_file=stderr_file)
-    intro = _paragraph(
-        f'{intro_text} It currently uses the {format_name} format.')
-    return (
-        f'{member_name}\n\n'
-        + intro
-        + '\n\nEditable endpoint choices and members:\n\n'
-        + member_text
-        + '\n\nCurrently selected endpoint JSON:\n\n'
-        + selected_text)
-
-
-def _member_names(capabilities: Capabilities,
-                  file_access: FileAccess) -> list[str]:
-    """Return relevant TableIO member names for one endpoint config."""
-    member_names = get_config_member_names(capabilities=capabilities,
-                                           file_access=file_access)
-    return list(member_names)
-
-
-def _format_name(config: TioJsonConfig) -> str:
-    """Return the required format name from a validated config object."""
-    assert isinstance(config.format_name, str)
-    return config.format_name
-
-
-def _unique_names(name_lists: Sequence[Sequence[str]]) -> list[str]:
-    """Return unique names in first-seen order."""
-    member_names: list[str] = []
-    for name_list in name_lists:
-        for member_name in name_list:
-            if member_name not in member_names:
-                member_names.append(member_name)
-    return member_names
-
-
-def _paragraph(text: str) -> str:
-    """Return one wrapped plain text paragraph."""
-    return '\n'.join(wrap(text, width=_WIDTH))
 
 
 # ---------------------------------------------------------------------------

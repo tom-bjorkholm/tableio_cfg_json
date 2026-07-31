@@ -15,12 +15,12 @@ import pytest
 
 from tableio import FileAccess, access_capabilities, \
     add_access_capabilities, list_implementations_tableio, \
-    list_registered_tableio
+    list_registered_tableio, tio_config_create
 from tableio_cfg_example import e01_create_config, e02_write_table, \
-    e03_read_table, e04_create_custom_config, e05_split_cities_wizard, \
-    e06_split_cities, e07_split_cities_textual, e08_rename_wizard, \
-    e09_split_cities_rename, e10_edit_config_wizard
-from tableio_cfg_json import get_config_member_names
+    e03_read_table, e04_custom_config, e05_app_config, \
+    e05_split_cities_wizard, e06_split_cities, e07_split_cities_textual, \
+    e08_rename_wizard, e09_split_cities_rename, e10_edit_config_wizard
+from tableio_cfg_json import get_config_member_names, tio_json_config_default
 from wizard_ui_bridge import UiBridgeType
 
 
@@ -192,7 +192,7 @@ def _read_city_output(output_file: Path) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     with output_file.open(encoding='utf-8', newline='') as csv_file:
         reader = csv.DictReader(csv_file)
-        assert reader.fieldnames == list(e06_split_cities.CITY_COLUMNS)
+        assert reader.fieldnames == list(e05_app_config.CITY_COLUMNS)
         for row in reader:
             text_row: dict[str, str] = {}
             for key, value in row.items():
@@ -200,6 +200,69 @@ def _read_city_output(output_file: Path) -> list[dict[str, str]]:
                 text_row[key] = value
             rows.append(text_row)
     return rows
+
+
+def _read_ods_countries(ods_file: Path) -> set[str]:
+    """Read one ODS output file and return the Country values it holds.
+
+    Args:
+        ods_file: ODS file created by the example runner.
+    Returns:
+        The set of Country cell values in the file.
+    """
+    capabilities = access_capabilities(FileAccess.READ)
+    config = tio_json_config_default(capabilities=capabilities,
+                                     file_access=FileAccess.READ,
+                                     format_name='ODS')
+    with tio_config_create(config=config, file_name=ods_file,
+                           file_access=FileAccess.READ,
+                           capabilities=capabilities) as tableio:
+        data = tableio.read_table_dictdata().data
+    return {str(row.get('Country')) for row in data}
+
+
+def test_app_config_files(tmp_path: Path) -> None:
+    """e05_app_config builds the app config in code and writes both files."""
+    config_file = tmp_path / 'app.json'
+    syntax_file = tmp_path / 'app.txt'
+    assert e05_app_config.main(['--cfg', str(config_file),
+                                '--txt', str(syntax_file)]) == 0
+    config_data = _read_json(config_file)
+    assert config_data['input'] == {'format_name': 'CSV'}
+    assert config_data['less_than_output'] == {'format_name': 'CSV'}
+    assert config_data['not_less_than_output'] == {'format_name': 'ODS'}
+    assert config_data['split_column'] == 'Country'
+    assert config_data['split_limit'] == 'M'
+    syntax_text = syntax_file.read_text(encoding='utf-8')
+    _assert_line_limit(syntax_text)
+    assert 'Split-cities application configuration' in syntax_text
+    assert 'not_less_than_output' in syntax_text
+    assert 'It currently uses the ODS format.' in syntax_text
+    assert 'Configuration member reference' in syntax_text
+
+
+def test_app_config_split(tmp_path: Path) -> None:
+    """The in-code app config splits a CSV input into CSV and ODS outputs."""
+    config_file = tmp_path / 'app.json'
+    syntax_file = tmp_path / 'app.txt'
+    input_file = tmp_path / 'cities.csv'
+    less_file = tmp_path / 'less.csv'
+    not_less_file = tmp_path / 'not-less.ods'
+    assert e05_app_config.main(['--cfg', str(config_file),
+                                '--txt', str(syntax_file)]) == 0
+    _write_city_input(input_file, 'City,Country,Continent')
+    assert e06_split_cities.main([
+        '--cfg', str(config_file),
+        '--input', str(input_file),
+        '--less-than-output', str(less_file),
+        '--not-less-than-output', str(not_less_file)]) == 0
+    less_text = less_file.read_text(encoding='utf-8')
+    assert 'Denmark' in less_text
+    assert 'Japan' in less_text
+    assert 'Portugal' not in less_text
+    not_less_countries = _read_ods_countries(not_less_file)
+    assert 'Portugal' in not_less_countries
+    assert 'Denmark' not in not_less_countries
 
 
 def test_csv_write_config(tmp_path: Path) -> None:
@@ -251,7 +314,7 @@ def test_custom_csv_config(tmp_path: Path) -> None:
     """The custom example writes explicit CSV and general values."""
     config_file = tmp_path / 'custom-csv.json'
     syntax_file = tmp_path / 'custom-csv.txt'
-    assert e04_create_custom_config.main([
+    assert e04_custom_config.main([
         '--cfg', str(config_file),
         '--txt', str(syntax_file),
         '--write',
@@ -270,7 +333,7 @@ def test_custom_full_defaults(tmp_path: Path) -> None:
     """The custom example keeps other defaults in complete output."""
     config_file = tmp_path / 'custom-full.json'
     syntax_file = tmp_path / 'custom-full.txt'
-    assert e04_create_custom_config.main([
+    assert e04_custom_config.main([
         '--cfg', str(config_file),
         '--txt', str(syntax_file),
         '--write',
@@ -292,11 +355,11 @@ def test_custom_excel_table(tmp_path: Path,
     read_file = tmp_path / 'custom-excel-read.json'
     read_text = tmp_path / 'custom-excel-read.txt'
     output_file = tmp_path / 'custom-capitals.xlsx'
-    assert e04_create_custom_config.main([
+    assert e04_custom_config.main([
         '--cfg', str(write_file), '--txt', str(write_text), '--write',
         '--format', 'Excel', '--csv-delimiter', ':',
         '--alignment', 'LEFT']) == 0
-    assert e04_create_custom_config.main([
+    assert e04_custom_config.main([
         '--cfg', str(read_file), '--txt', str(read_text), '--read',
         '--format', 'Excel', '--csv-delimiter', ':']) == 0
     write_data = _read_json(write_file)

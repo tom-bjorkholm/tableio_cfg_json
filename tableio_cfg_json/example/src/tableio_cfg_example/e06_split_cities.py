@@ -1,5 +1,12 @@
 #! /usr/bin/env python3
-"""Split a city table into two output files using JSON configuration."""
+"""Split a city table into two output files using JSON configuration.
+
+This is the runner for the application config built in e05_app_config.
+The SplitCitiesConfig class and the shared CITY_COLUMNS header live in
+e05_app_config; this program only reads such a config and applies it.
+File names are runtime values on the command line, while the formats,
+options and split rule are durable configuration read from the JSON file.
+"""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
@@ -7,93 +14,12 @@
 import argparse
 from pathlib import Path
 import sys
-from typing import Callable, Optional, Sequence, TextIO, override
+from typing import Callable, Optional, Sequence
 
-from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    MemberValidationStep, NestedConfigs, PathOrStr, StrLenValidator, \
-    StrValidator, ValidationPlan
 from tableio import DictData, DictDataMap, FileAccess, Value, \
     access_capabilities, tio_config_create
-from tableio_cfg_json import TioJsonConfig, tio_json_config_default
-
-
-CITY_COLUMNS = ('City', 'Country', 'Continent')
-"""Header row expected by this teaching example."""
-
-
-class SplitCitiesConfig(Config):
-    """Configuration for one run of the split-cities example program."""
-
-    # pylint: disable=too-many-arguments,too-many-positional-arguments
-    def __init__(self, from_json_data_text: Optional[str] = None,
-                 from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Create or read the complete application configuration.
-
-        Args:
-            from_json_data_text: Optional JSON text to parse.
-            from_json_filename: Optional JSON file to read.
-            stderr_file: Stream receiving validation diagnostics.
-        """
-        # A config-as-json class is normally initialized to useful defaults.
-        # Application code can then assign the specific values it wants before
-        # writing JSON. The wizard example demonstrates that assignment style.
-        self.input = _default_config(FileAccess.READ, stderr_file)
-        self.less_than_output = _default_config(FileAccess.CREATE, stderr_file)
-        self.not_less_than_output = _default_config(FileAccess.CREATE,
-                                                    stderr_file)
-        self.split_column = 'Country'
-        self.split_limit = 'M'
-        Config.__init__(self, from_json_data_text=from_json_data_text,
-                        from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
-
-    @override
-    def nested_configs(self) -> NestedConfigs:
-        """Return nested TableIO config declarations for this config."""
-        # The top-level application config owns three nested TioJsonConfig
-        # objects. Each nested config needs a factory because the input member
-        # is read-capable, while both output members are create-capable.
-        input_nesting = ConfigNesting(kind=ConfigNestingKind.MEMBER,
-                                      config_type=TioJsonConfig,
-                                      factory_function=self._input_factory)
-        create_nesting = ConfigNesting(kind=ConfigNestingKind.MEMBER,
-                                       config_type=TioJsonConfig,
-                                       factory_function=self._create_factory)
-        return {
-            'input': input_nesting,
-            'less_than_output': create_nesting,
-            'not_less_than_output': create_nesting
-        }
-
-    @override
-    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return validation for the application-owned config values."""
-        _ = stderr_file
-        # We only validate the split column and split limit here because
-        # the input and output configs are validated by the nested Configs.
-        return [
-            MemberValidationStep(
-                member_names=['split_column'],
-                validator=StrValidator(CITY_COLUMNS, ignore_case=False)),
-            MemberValidationStep(
-                member_names=['split_limit'],
-                validator=StrLenValidator(min_length=1, max_length=None))
-        ]
-
-    def _input_factory(self, from_json_data_text: Optional[str] = None,
-                       from_json_filename: Optional[PathOrStr] = None,
-                       stderr_file: TextIO = sys.stderr) -> TioJsonConfig:
-        """Create a nested read-capable TableIO config from JSON."""
-        return _json_config(FileAccess.READ, from_json_data_text,
-                            from_json_filename, stderr_file)
-
-    def _create_factory(self, from_json_data_text: Optional[str] = None,
-                        from_json_filename: Optional[PathOrStr] = None,
-                        stderr_file: TextIO = sys.stderr) -> TioJsonConfig:
-        """Create a nested create-capable TableIO config from JSON."""
-        return _json_config(FileAccess.CREATE, from_json_data_text,
-                            from_json_filename, stderr_file)
+from tableio_cfg_example.e05_app_config import CITY_COLUMNS, SplitCitiesConfig
+from tableio_cfg_json import TioJsonConfig
 
 
 def split_city_file(config_file: Path, input_file: Path, less_than_file: Path,
@@ -118,25 +44,6 @@ def split_city_file(config_file: Path, input_file: Path, less_than_file: Path,
                                            config.split_limit)
     _write_rows(config.less_than_output, less_than_file, less_rows)
     _write_rows(config.not_less_than_output, not_less_file, not_less_rows)
-
-
-def _default_config(file_access: FileAccess,
-                    stderr_file: TextIO) -> TioJsonConfig:
-    """Return a default nested TableIO config for one file access mode."""
-    capabilities = access_capabilities(file_access, error_file=stderr_file)
-    return tio_json_config_default(capabilities=capabilities,
-                                   file_access=file_access)
-
-
-def _json_config(file_access: FileAccess, from_json_data_text: Optional[str],
-                 from_json_filename: Optional[PathOrStr],
-                 stderr_file: TextIO) -> TioJsonConfig:
-    """Read a nested TableIO config for one file access mode."""
-    capabilities = access_capabilities(file_access, error_file=stderr_file)
-    return TioJsonConfig(capabilities=capabilities, file_access=file_access,
-                         from_json_data_text=from_json_data_text,
-                         from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
 
 
 def _read_rows(config: TioJsonConfig, input_file: Path) -> DictData[Value]:
