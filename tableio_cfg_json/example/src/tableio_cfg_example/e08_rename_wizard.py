@@ -1,12 +1,12 @@
 #! /usr/bin/env python3
 """Interactively create config files that rename the output columns.
 
-This builds on e05_split_cities_wizard and e07_split_cities_textual. It
-asks the same input, split and output questions, and adds one variable-
-row table question per output that maps input columns to the column
-names written in that output file. The collected configuration is a
-RenameSplitConfig, which e09_split_cities_rename later uses to split a
-table and rename each output independently.
+This builds on e07_config_wizard. It asks the same input, split and
+output questions, and adds one variable-row table question per output
+that maps input columns to the column names written in that output file.
+The collected configuration is a RenameSplitConfig, which
+e09_split_cities_rename later uses to split a table and rename each
+output independently.
 
 Two ideas are demonstrated here:
 
@@ -20,7 +20,7 @@ Two ideas are demonstrated here:
   bridge through make_text_ui_bridge, instead of letting it auto-select
   by whether the program runs in a terminal.
 
-Everything that does not differ from e05 is reused from it: the outer
+Everything that does not differ from e07 is reused from it: the outer
 navigation loop run_steps, the per-item step functions, the shared
 member assignment _assign_split and the syntax-guide text.
 """
@@ -36,7 +36,7 @@ from typing import Optional, TextIO
 from tableio_cfg_example.e05_app_config import CITY_COLUMNS, _paragraph, \
     _syntax_text
 from tableio_cfg_example.e09_split_cities_rename import RenameSplitConfig
-from tableio_cfg_example.e05_split_cities_wizard import \
+from tableio_cfg_example.e07_config_wizard import \
     INPUT_TITLE, LESS_TITLE, \
     NOT_LESS_TITLE, WizardStep, run_steps, _assign_split, \
     _step_input, _step_less, _step_not_less, _step_split_column, \
@@ -104,14 +104,14 @@ def _build_steps() -> list[WizardStep]:
         (NOT_LESS_NAMES_TITLE, _step_not_less_names)]
 
 
-def _step_less_names(ui_bridge: WizardUiBridge,
-                     results: dict[str, object]) -> None:
+def _step_less_names(ui_bridge: WizardUiBridge, results: dict[str, object],
+                     _backward: bool) -> None:
     """Ask the column renaming for the less-than output."""
     results['less_names'] = _ask_output_names(ui_bridge, LESS_NAMES_TITLE)
 
 
-def _step_not_less_names(ui_bridge: WizardUiBridge,
-                         results: dict[str, object]) -> None:
+def _step_not_less_names(ui_bridge: WizardUiBridge, results: dict[str, object],
+                         _backward: bool) -> None:
     """Ask the column renaming for the not-less-than output."""
     results['not_less_names'] = _ask_output_names(ui_bridge,
                                                   NOT_LESS_NAMES_TITLE)

@@ -17,9 +17,9 @@ from tableio import FileAccess, access_capabilities, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio, tio_config_create
 from tableio_cfg_example import e01_create_config, e02_write_table, \
-    e03_read_table, e04_custom_config, e05_app_config, \
-    e05_split_cities_wizard, e06_split_cities, e07_split_cities_textual, \
-    e08_rename_wizard, e09_split_cities_rename, e10_edit_config_wizard
+    e03_read_table, e04_custom_config, e05_app_config, e06_split_cities, \
+    e07_config_wizard, e08_edit_config, e08_rename_wizard, \
+    e09_split_cities_rename
 from tableio_cfg_json import get_config_member_names, tio_json_config_default
 from wizard_ui_bridge import UiBridgeType
 
@@ -128,7 +128,7 @@ def _run_split(answer_lines: list[str], config_file: Path,
                syntax_file: Path) -> None:
     """Run the split-cities wizard with scripted answers."""
     stdin_file = StringIO('\n'.join(answer_lines) + '\n')
-    create_files = e05_split_cities_wizard.create_split_config_files
+    create_files = e07_config_wizard.create_split_config_files
     create_files(config_file=config_file, syntax_file=syntax_file,
                  stdin_file=stdin_file, stdout_file=StringIO(),
                  stderr_file=StringIO())
@@ -142,28 +142,6 @@ def _create_split_config(config_file: Path, syntax_file: Path) -> None:
         syntax_file: Plain text syntax guide to write.
     """
     _run_split(_split_happy_answers(), config_file, syntax_file)
-
-
-def test_e07_matches_e05(tmp_path: Path) -> None:
-    """e07 writes the same files as e05 through make_text_ui_bridge.
-
-    The test streams are in-memory, so the factory inside e07 falls back
-    to the console bridge and must produce byte-identical files to e05.
-    """
-    answers = _split_happy_answers()
-    e05_cfg = tmp_path / 'e05.json'
-    e05_txt = tmp_path / 'e05.txt'
-    e07_cfg = tmp_path / 'e07.json'
-    e07_txt = tmp_path / 'e07.txt'
-    _run_split(answers, e05_cfg, e05_txt)
-    create_files = e07_split_cities_textual.create_split_config_files
-    create_files(config_file=e07_cfg, syntax_file=e07_txt,
-                 stdin_file=StringIO('\n'.join(answers) + '\n'),
-                 stdout_file=StringIO(), stderr_file=StringIO())
-    got_cfg = e07_cfg.read_text(encoding='utf-8')
-    got_txt = e07_txt.read_text(encoding='utf-8')
-    assert got_cfg == e05_cfg.read_text(encoding='utf-8')
-    assert got_txt == e05_txt.read_text(encoding='utf-8')
 
 
 def _write_city_input(input_file: Path, header: str) -> None:
@@ -494,49 +472,89 @@ def test_split_back(tmp_path: Path) -> None:
     assert config_data['split_column'] == 'Country'
 
 
-def test_edit_keeps_old(tmp_path: Path) -> None:
-    """e10 uses an existing config file as wizard defaults."""
-    config_file = tmp_path / 'edit-csv.json'
-    config_file.write_text(
-        '{\n'
-        '    "format_name": "CSV",\n'
-        '    "character_encoding": "utf-8",\n'
-        '    "csv": {\n'
-        '        "delimiter": ";"\n'
-        '    }\n'
-        '}\n',
-        encoding='utf-8')
-    answers = _csv_wizard_answers(FileAccess.CREATE)
+def _edit_config(answer_lines: list[str], config_file: Path) -> None:
+    """Run the edit wizard on an existing config with scripted answers."""
+    stdin_file = StringIO('\n'.join(answer_lines) + '\n')
+    e08_edit_config.edit_config_file(config_file=config_file,
+                                     stdin_file=stdin_file,
+                                     stdout_file=StringIO(),
+                                     stderr_file=StringIO())
+
+
+def _edit_keep_answers() -> list[str]:
+    """Return answers that keep every stored value in the edit wizard.
+
+    The two blank items keep the stored split column and split limit; the
+    endpoint answers re-select the stored CSV format and keep every member
+    at its stored default.
+    """
+    answers = list(_csv_wizard_answers(FileAccess.READ))
     answers.append('')
-    e10_edit_config_wizard.edit_config_file(config_file=config_file,
-                                            stdin_file=StringIO(
-                                                '\n'.join(answers) + '\n'),
-                                            stdout_file=StringIO(),
-                                            stderr_file=StringIO())
-    assert _read_json(config_file) == {
-        'character_encoding': 'utf-8',
-        'csv': {'delimiter': ';'},
-        'format_name': 'CSV'
-    }
+    answers.append('')
+    answers.extend(_csv_wizard_answers(FileAccess.CREATE))
+    answers.extend(_csv_wizard_answers(FileAccess.CREATE))
+    return answers
 
 
-def test_edit_goes_back(tmp_path: Path) -> None:
-    """e10 can go back from its enclosing confirmation question."""
-    config_file = tmp_path / 'edit-back.csv.json'
-    answers = _csv_wizard_answers(FileAccess.CREATE, {'csv.delimiter': ';'})
-    answers.append('n')
+def test_edit_keeps_all(tmp_path: Path) -> None:
+    """Keeping every answer rewrites the stored config unchanged."""
+    config_file = tmp_path / 'app.json'
+    syntax_file = tmp_path / 'app.txt'
+    _create_split_config(config_file, syntax_file)
+    before = _read_json(config_file)
+    _edit_config(_edit_keep_answers(), config_file)
+    assert _read_json(config_file) == before
+
+
+def test_edit_changes_limit(tmp_path: Path) -> None:
+    """Editing changes only the answered item and keeps the rest."""
+    config_file = tmp_path / 'app.json'
+    syntax_file = tmp_path / 'app.txt'
+    _create_split_config(config_file, syntax_file)
+    answers = list(_csv_wizard_answers(FileAccess.READ))
+    answers.append('')      # keep the split column
+    answers.append('L')     # change the split limit
+    answers.extend(_csv_wizard_answers(FileAccess.CREATE))
+    answers.extend(_csv_wizard_answers(FileAccess.CREATE))
+    _edit_config(answers, config_file)
+    config_data = _read_json(config_file)
+    assert config_data['split_limit'] == 'L'
+    assert config_data['split_column'] == 'Country'
+
+
+def test_edit_back_endpoint(tmp_path: Path) -> None:
+    """Going back into an earlier endpoint reopens it at its members.
+
+    Back at the not-less endpoint returns into the less-than endpoint with
+    backward=True, so only its member questions are re-asked. Setting the
+    CSV delimiter there proves the edit landed inside that endpoint.
+    """
+    config_file = tmp_path / 'app.json'
+    syntax_file = tmp_path / 'app.txt'
+    _create_split_config(config_file, syntax_file)
+    answers = list(_csv_wizard_answers(FileAccess.READ))
+    answers.append('')      # keep the split column
+    answers.append('')      # keep the split limit
+    answers.extend(_csv_wizard_answers(FileAccess.CREATE))       # less
+    answers.append(':b')    # back from not-less into the less endpoint
     answers.extend(_csv_member_answers(FileAccess.CREATE,
-                                       {'csv.delimiter': ','}))
-    answers.append('')
-    e10_edit_config_wizard.edit_config_file(config_file=config_file,
-                                            stdin_file=StringIO(
-                                                '\n'.join(answers) + '\n'),
-                                            stdout_file=StringIO(),
-                                            stderr_file=StringIO())
-    assert _read_json(config_file) == {
-        'csv': {'delimiter': ','},
-        'format_name': 'CSV'
-    }
+                                       {'csv.delimiter': ';'}))
+    answers.extend(_csv_wizard_answers(FileAccess.CREATE))       # not-less
+    _edit_config(answers, config_file)
+    config_data = _read_json(config_file)
+    assert config_data['less_than_output'] == {
+        'csv': {'delimiter': ';'}, 'format_name': 'CSV'}
+    assert config_data['not_less_than_output'] == {'format_name': 'CSV'}
+
+
+def test_edit_abort(tmp_path: Path) -> None:
+    """Aborting the edit leaves the stored config untouched."""
+    config_file = tmp_path / 'app.json'
+    syntax_file = tmp_path / 'app.txt'
+    _create_split_config(config_file, syntax_file)
+    before = _read_json(config_file)
+    _edit_config([':q'], config_file)
+    assert _read_json(config_file) == before
 
 
 def test_split_missing_column(tmp_path: Path) -> None:

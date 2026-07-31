@@ -9,7 +9,7 @@ These examples show how four packages fit together:
 - `tableio-cfg-json` connects them by making TableIO configuration available
   as config-as-json configuration classes.
 - `wizard-ui-bridge` defines how a wizard can talk to any user interface and
-  is used by the wizard in `tableio-cfg-json` 
+  is used by the wizard in `tableio-cfg-json`.
 
 The examples are meant to be read in order by a fluent Python programmer who
 is new to the three APIs. The first class (e01–e04) uses one TableIO endpoint
@@ -298,38 +298,47 @@ examples in Class A.
 ## Building the Application Config Interactively (wizard examples)
 
 The examples below build the same kind of application config by asking the
-user questions instead of hard-coding the values. They are being reorganized
-into a dedicated wizard arc in later documentation stages, so they still carry
-their current file names. Each uses a `WizardUiBridge` from the
-`wizard_ui_bridge` package; that package's own examples teach bridge
-selection, the one-question-at-a-time ask methods, navigation, table
-questions and whole forms.
+user questions instead of hard-coding the values. Each uses a `WizardUiBridge`
+from the `wizard_ui_bridge` package. These examples teach only the minimal
+wizard mechanics they use; that package's own examples teach the rest, and the
+matching example is named where each mechanic first appears: bridge selection
+(wizard_ui_bridge `e01`), the one-question-at-a-time ask methods
+(wizard_ui_bridge `e02`), navigation (wizard_ui_bridge `e03`),
+table questions (wizard_ui_bridge `e04`) and whole forms
+(wizard_ui_bridge `e05`, `e06`).
 
-The wizard example source files are:
+The core wizard example source files are:
 
-- [`e05_split_cities_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e05_split_cities_wizard.py)
+- [`e07_config_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e07_config_wizard.py)
   asks questions and writes the same JSON application configuration as
   `e05_app_config.py`. It calls `tio_json_config_wizard()` once for the input
-  endpoint and once for each output endpoint.
-- [`e07_split_cities_textual.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e07_split_cities_textual.py)
-  does exactly what `e05_split_cities_wizard.py` does, but builds its bridge
-  with `make_text_ui_bridge()` instead of hard-coding the console bridge. In a
-  real terminal that gives a full-screen Textual interface; with redirected
-  input it falls back to the console bridge, so the program stays scriptable.
+  endpoint and once for each output endpoint, and asks the application's own
+  split column and split limit with the bridge's ask methods. It obtains its
+  bridge from `make_text_ui_bridge()`: in a real terminal that is a full-screen
+  Textual interface, and with redirected input it is the console bridge, so the
+  same program is both interactive and scriptable.
+- [`e08_edit_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_edit_config.py)
+  reopens a stored application config and re-asks the same items, seeding each
+  one with the stored value so pressing Enter keeps it. It reuses the same
+  outer navigation loop as `e07_config_wizard.py` to move between the
+  application's endpoints, re-opening an earlier endpoint at its last question
+  when the user goes back into it.
+
+The advanced capstone pair reinforces these ideas with an extra table question;
+it is repositioned in a later documentation stage, so it still carries its
+current file names:
+
 - [`e08_rename_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_rename_wizard.py)
-  builds on the wizard and adds, for each output, a variable-row table that
-  maps input columns to the column names written in that output file. It also
-  adds a `--ui {auto,console,textual}` switch that forces the bridge through
-  `make_text_ui_bridge()` instead of auto-selecting by terminal.
+  builds on `e07_config_wizard.py` and adds, for each output, a variable-row
+  table that maps input columns to the column names written in that output
+  file. It also adds a `--ui {auto,console,textual}` switch that forces the
+  bridge through `make_text_ui_bridge()` instead of auto-selecting by terminal.
+  The table mechanics themselves are taught in wizard_ui_bridge `e04`.
 - [`e09_split_cities_rename.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e09_split_cities_rename.py)
   builds on `e06_split_cities.py`. It reads the configuration written by
   `e08_rename_wizard.py` and splits the city table the same way, but renames
   each output's columns independently using the two mappings
   `less_output_names` and `not_less_output_names`.
-- [`e10_edit_config_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e10_edit_config_wizard.py)
-  edits one write-capable JSON config by passing the previous config back to
-  `tio_json_config_wizard()` as defaults. Its enclosing confirmation question
-  can send the user back into the TableIO wizard.
 
 ### Wizard Walkthrough
 
@@ -337,42 +346,43 @@ To build the split-cities config by answering questions instead of running
 `e05_app_config.py`, run the wizard with the same output arguments:
 
 ```sh
-python -m tableio_cfg_example.e05_split_cities_wizard \
+python -m tableio_cfg_example.e07_config_wizard \
   --cfg split-cities.json \
   --txt split-cities-syntax.txt
 ```
 
-To answer the same questions in a full-screen terminal interface instead, run
-`e07_split_cities_textual.py` with the same arguments. In a terminal it shows
-a Textual interface; with redirected input it behaves exactly like the command
-above.
+Run in a terminal, this shows a full-screen Textual interface; with redirected
+input it falls back to the console bridge and produces the same files, so the
+example is fully scriptable. Choosing the interface is a single line,
+`make_text_ui_bridge(out_file, in_file, err_file)`; see wizard_ui_bridge `e01`
+for the details of bridge selection.
 
 ### Edit Configuration Walkthrough
 
-After creating a config, you can reopen it in the wizard and keep or change
+After creating the split-cities config, you can reopen it and keep or change
 the stored answers:
 
 ```sh
-python -m tableio_cfg_example.e10_edit_config_wizard \
-  --cfg capitals-custom-csv.json
+python -m tableio_cfg_example.e08_edit_config \
+  --cfg split-cities.json
 ```
 
-If the file already exists, the example reads it as a `TioJsonConfig` and
-passes that object as the wizard default. Pressing Enter keeps the old answer.
-When the final confirmation question is answered with "no", the enclosing
-example calls the TableIO wizard again with `backward=True`, so editing starts
-from the last TableIO question and the user can walk back from there.
-
-The edit wizard shows the same TableIO wizard used in a different mode:
+The example reads the file as a `SplitCitiesConfig` and passes each stored
+endpoint to the wizard as its `default`, so pressing Enter keeps the old
+answer. The same outer navigation loop that `e07_config_wizard.py` uses lets
+the user move between the application's endpoints: going back into an earlier
+endpoint reopens it at its last question by calling the TableIO wizard with
+`backward=True`.
 
 ```python
-current = tio_json_config_wizard(capabilities, FileAccess.CREATE, ui_bridge,
-                                 default=current, backward=backward)
+tio_json_config_wizard(capabilities, file_access, ui_bridge,
+                       default=stored_endpoint, backward=backward)
 ```
 
-The `default` argument is useful both for editing a stored file and for going
-back from an enclosing application wizard. The `backward` argument tells the
-TableIO wizard to start at the last question implied by the default config.
+The `default` argument is what makes editing possible; the `backward` argument
+tells the TableIO wizard to start at the last question implied by that default.
+The back, cancel and abort exceptions the loop catches are taught on their own
+in wizard_ui_bridge `e03`.
 
 ## Asking a Whole Form at Once: `ask_form()`
 

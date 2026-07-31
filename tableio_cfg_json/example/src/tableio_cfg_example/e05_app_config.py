@@ -34,7 +34,7 @@ import argparse
 from pathlib import Path
 import sys
 from textwrap import wrap
-from typing import Optional, Sequence, TextIO, override
+from typing import Callable, Optional, Sequence, TextIO, override
 
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     MemberValidationStep, NestedConfigs, PathOrStr, StrLenValidator, \
@@ -296,23 +296,29 @@ def _paragraph(text: str) -> str:
 # Only command line handling below this line.
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Build the command line parser for the application config example."""
-    parser = argparse.ArgumentParser(
-        description='Build the split-cities application config in code.')
+def run_cfg_txt_cli(create_files: Callable[..., None], description: str,
+                    args: Optional[list[str]] = None) -> int:
+    """Parse the shared --cfg and --txt arguments and run create_files.
+
+    Both this in-code builder and the interactive wizard (e07_config_wizard)
+    write a JSON config file and a plain text guide from the same two
+    arguments, so the command line is defined once here and reused.
+    """
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-c', '--cfg', dest='config_file', required=True,
                         type=Path, help='JSON configuration file to write.')
     parser.add_argument('-t', '--txt', dest='syntax_file', required=True,
                         type=Path, help='Plain text syntax guide to write.')
-    return parser
+    parsed = parser.parse_args(args)
+    create_files(config_file=parsed.config_file,
+                 syntax_file=parsed.syntax_file)
+    return 0
 
 
 def main(args: Optional[list[str]] = None) -> int:
     """Parse command line arguments and write the application config files."""
-    parsed = build_parser().parse_args(args)
-    create_app_config_files(config_file=parsed.config_file,
-                            syntax_file=parsed.syntax_file)
-    return 0
+    return run_cfg_txt_cli(create_app_config_files,
+                           'Build the split-cities app config in code.', args)
 
 
 if __name__ == '__main__':

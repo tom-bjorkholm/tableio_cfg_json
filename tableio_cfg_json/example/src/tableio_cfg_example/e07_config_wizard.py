@@ -1,33 +1,65 @@
 #! /usr/bin/env python3
-"""Interactively create config files for the split-cities example."""
+"""Interactively build the split-cities application config.
+
+The e05_app_config example built the SplitCitiesConfig object directly in
+code. This example builds the very same object by asking the user, which
+is the other common way to produce an application configuration. Nothing
+about the config depends on a wizard; the wizard is just one producer of
+it.
+
+The program obtains a user-interface bridge from make_text_ui_bridge()
+and calls tio_json_config_wizard() once for each TableIO endpoint (the
+input, the less-than output and the not-less-than output). It also asks
+the application's own two questions, the split column and the split
+limit, with the bridge's ask methods. The collected answers are assembled
+into a SplitCitiesConfig and written as the same JSON and syntax-guide
+files that e05_app_config wrote.
+
+Choosing the user interface is a single line:
+
+    ui_bridge = make_text_ui_bridge(out_file, in_file, err_file)
+
+make_text_ui_bridge() returns the full-screen Textual bridge when the
+program runs in a real terminal, and the plain console bridge when the
+streams are redirected, as the tests do. The same program is therefore
+both a rich interactive tool and fully scriptable, with no branching in
+this file.
+
+This example teaches only the minimal wizard mechanics it needs. The
+wizard_ui_bridge package has its own example set for the pieces used
+here: obtaining a bridge (e01), the one-question-at-a-time ask methods
+(e02), the back/cancel/abort navigation caught below (e03), table
+questions (e04) and whole forms (e05, e06).
+"""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-import argparse
 from pathlib import Path
 import sys
 from typing import Callable, Optional, Sequence, TextIO
 
 from tableio import FileAccess, access_capabilities
 from tableio_cfg_example.e05_app_config import CITY_COLUMNS, \
-    SplitCitiesConfig, _syntax_text
+    SplitCitiesConfig, run_cfg_txt_cli, _syntax_text
 from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 from wizard_ui_bridge import WizardAbort, WizardBack, WizardCancelLevel, \
-    WizardUiBridge, WizardUiBridgeConsole
+    WizardUiBridge, make_text_ui_bridge
 
 INPUT_TITLE = 'Input table configuration'
 LESS_TITLE = 'Less-than output table configuration'
 NOT_LESS_TITLE = 'Not-less-than output table configuration'
 
-type WizardStep = tuple[str,
-                        Callable[[WizardUiBridge, dict[str, object]], None]]
+type WizardStep = tuple[
+    str, Callable[[WizardUiBridge, dict[str, object], bool], None]]
 """One navigable wizard item as a (title, ask-function) pair.
 
-The title labels the item in the back and cancel messages, and the
-function asks that one item and stores its answer in the shared results
-dict. run_steps drives a sequence of these, and e08_rename_wizard
-supplies its own sequence including the variable-row rename steps.
+The title labels the item in the back and cancel messages. The function
+asks that one item and stores its answer in the shared results dict. Its
+third argument is a backward flag: True asks the item as if entered from
+a later item, so an endpoint opens at its last question. run_steps drives
+a sequence of these; e08_edit_config and e08_rename_wizard supply their
+own sequences, the edit example seeding each item from a stored config.
 """
 
 
@@ -51,19 +83,16 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
     in_file = sys.stdin if stdin_file is None else stdin_file
     out_file = sys.stdout if stdout_file is None else stdout_file
     err_file = sys.stderr if stderr_file is None else stderr_file
-    ui_bridge = WizardUiBridgeConsole(out_file, in_file, err_file)
+    # The one line that decides the user interface. In a terminal this is
+    # the full-screen Textual bridge; with redirected streams it is the
+    # console bridge, which keeps the example scriptable and testable.
+    ui_bridge = make_text_ui_bridge(out_file, in_file, err_file)
     _write_split_files(ui_bridge, config_file, syntax_file, err_file)
 
 
 def _write_split_files(ui_bridge: WizardUiBridge, config_file: Path,
                        syntax_file: Path, err_file: TextIO) -> None:
-    """Collect answers, build the config and write both files.
-
-    This is the part of the work that does not depend on which bridge is
-    used. e05 calls it with the console bridge; e07 calls it with the
-    bridge that make_text_ui_bridge chooses, so the two examples differ
-    only in how they build the bridge.
-    """
+    """Collect answers, build the config and write both files."""
     results = _collect_answers(ui_bridge)
     if results is None:
         return
@@ -106,57 +135,71 @@ def _collect_answers(ui_bridge: WizardUiBridge) -> Optional[dict[str, object]]:
     return run_steps(ui_bridge, steps)
 
 
-def run_steps(ui_bridge: WizardUiBridge,
-              steps: Sequence[WizardStep]) -> Optional[dict[str, object]]:
+def run_steps(ui_bridge: WizardUiBridge, steps: Sequence[WizardStep],
+              back_reenters: bool = False) -> Optional[dict[str, object]]:
     """Ask every step in order, honoring back, cancel and abort.
 
     Each step is a (title, function) pair; the function asks one item and
     stores its answer in the shared results. This is the generic outer
-    navigation loop reused by e08_rename_wizard, which supplies its own
-    step list including the variable-row column-rename steps.
+    navigation loop reused by e08_edit_config and e08_rename_wizard, which
+    supply their own step lists.
 
     The snapshot stack lets going back restore the answers as they were
     before the previous item, exactly as the wizard does for its
     questions.
 
+    Args:
+        ui_bridge: Bridge between the wizard and the user interface.
+        steps: The ordered items to ask.
+        back_reenters: When True, a step re-entered by going back is asked
+            with its backward flag set, so an endpoint opens at its last
+            question. The create wizards leave this False and always start
+            a re-entered endpoint at its first question; the edit example
+            sets it True.
     Returns:
         The collected answers keyed by item, or None when the user aborts.
     """
     results: dict[str, object] = {}
     history: list[dict[str, object]] = []
     index = 0
+    backward = False
     while index < len(steps):
         snapshot = dict(results)
         try:
-            steps[index][1](ui_bridge, results)
+            steps[index][1](ui_bridge, results, backward)
         except WizardAbort:
             ui_bridge.show('Configuration abandoned; no files written.')
             return None
         except WizardBack:
             if index == 0:
                 ui_bridge.show('Already at the first item; please answer it.')
+                backward = False
                 continue
             index -= 1
             results = history.pop()
             ui_bridge.show(f'Going back to: {steps[index][0]}')
+            backward = back_reenters
             continue
         except WizardCancelLevel:
             results = dict(snapshot)
             ui_bridge.show('There is no outer level to return to.')
             ui_bridge.show(f'Restarting {steps[index][0]}.')
+            backward = False
             continue
         history.append(snapshot)
         index += 1
+        backward = False
     return results
 
 
-def _step_input(ui_bridge: WizardUiBridge, results: dict[str, object]) -> None:
+def _step_input(ui_bridge: WizardUiBridge, results: dict[str, object],
+                _backward: bool) -> None:
     """Configure the input endpoint."""
     results['input'] = _ask_endpoint(INPUT_TITLE, FileAccess.READ, ui_bridge)
 
 
-def _step_split_column(ui_bridge: WizardUiBridge,
-                       results: dict[str, object]) -> None:
+def _step_split_column(ui_bridge: WizardUiBridge, results: dict[str, object],
+                       _backward: bool) -> None:
     """Ask the application-owned split column."""
     # The split rule is deliberately application-owned configuration. TableIO
     # knows how to read and write tables, but it does not know which city rows
@@ -164,19 +207,20 @@ def _step_split_column(ui_bridge: WizardUiBridge,
     results['split_column'] = _ask_split_column(ui_bridge)
 
 
-def _step_split_limit(ui_bridge: WizardUiBridge,
-                      results: dict[str, object]) -> None:
+def _step_split_limit(ui_bridge: WizardUiBridge, results: dict[str, object],
+                      _backward: bool) -> None:
     """Ask the application-owned split limit."""
     results['split_limit'] = _ask_split_limit(ui_bridge)
 
 
-def _step_less(ui_bridge: WizardUiBridge, results: dict[str, object]) -> None:
+def _step_less(ui_bridge: WizardUiBridge, results: dict[str, object],
+               _backward: bool) -> None:
     """Configure the less-than output endpoint."""
     results['less'] = _ask_endpoint(LESS_TITLE, FileAccess.CREATE, ui_bridge)
 
 
-def _step_not_less(ui_bridge: WizardUiBridge,
-                   results: dict[str, object]) -> None:
+def _step_not_less(ui_bridge: WizardUiBridge, results: dict[str, object],
+                   _backward: bool) -> None:
     """Configure the not-less-than output endpoint."""
     results['not_less'] = _ask_endpoint(NOT_LESS_TITLE, FileAccess.CREATE,
                                         ui_bridge)
@@ -219,18 +263,27 @@ def _assign_split(config: SplitCitiesConfig,
 
 
 def _ask_endpoint(title: str, file_access: FileAccess,
-                  ui_bridge: WizardUiBridge) -> TioJsonConfig:
-    """Ask all wizard questions for one TableIO endpoint config."""
+                  ui_bridge: WizardUiBridge, *,
+                  default: Optional[TioJsonConfig] = None,
+                  backward: bool = False) -> TioJsonConfig:
+    """Ask all wizard questions for one TableIO endpoint config.
+
+    Passing default seeds the endpoint questions with a stored config, and
+    backward opens the endpoint at its last question. The create wizard
+    uses neither; the edit example uses both.
+    """
     # File access is part of the runtime task. Passing it here means an input
     # endpoint only offers read-capable formats, while output endpoints only
     # offer create-capable formats.
     capabilities = access_capabilities(file_access,
                                        error_file=ui_bridge.error_file())
     ui_bridge.show(title)
-    return tio_json_config_wizard(capabilities, file_access, ui_bridge)
+    return tio_json_config_wizard(capabilities, file_access, ui_bridge,
+                                  default=default, backward=backward)
 
 
-def _ask_split_column(ui_bridge: WizardUiBridge) -> str:
+def _ask_split_column(ui_bridge: WizardUiBridge,
+                      default: str = 'Country') -> str:
     """Ask which input column should decide the split.
 
     The question goes through the bridge, so the same back, cancel and abort
@@ -239,51 +292,38 @@ def _ask_split_column(ui_bridge: WizardUiBridge) -> str:
     # ask_choice() offers the finite set of column names and returns exactly
     # one of them. It accepts a menu number, a column name or a unique name
     # prefix and re-asks an unusable answer itself, so the application does
-    # not interpret the raw answer. An empty answer selects the default.
-    # The program only supports these three column names because the teaching
-    # input file is intentionally small and predictable.
-    title = 'Select split column:\nEnter: Country (recommended)'
-    return ui_bridge.ask_choice(title, choices=CITY_COLUMNS, default='Country')
+    # not interpret the raw answer. An empty answer selects the default,
+    # which the bridge shows next to the question. The program only supports
+    # these three column names because the teaching input file is
+    # intentionally small and predictable.
+    title = 'Select the column whose value decides the split:'
+    return ui_bridge.ask_choice(title, choices=CITY_COLUMNS, default=default)
 
 
-def _ask_split_limit(ui_bridge: WizardUiBridge) -> str:
+def _ask_split_limit(ui_bridge: WizardUiBridge, default: str = 'M') -> str:
     """Ask for the string value used as split limit."""
-    # ask_text() returns the entered text, or None for an empty answer when
-    # nullable is True. An empty answer selects the default limit 'M'.
-    title = ('Split values less than this text into the first output.\n'
-             'Enter: M (recommended)')
-    answer = ui_bridge.ask_text(title, nullable=True)
-    return 'M' if answer is None else answer
+    # ask_text() returns the entered text, or the default for an empty answer.
+    # The bridge shows the default next to the question, so pressing Enter
+    # keeps it.
+    title = 'Split values less than this text into the first output:'
+    answer = ui_bridge.ask_text(title, default=default)
+    return default if answer is None else answer
 
 
 # ---------------------------------------------------------------------------
-# Only command line handling below this line.
-
-
-_DESCRIPTION = 'Create config files for the split-cities example.'
-
-
-def run_split_cli(create_files: Callable[..., None], description: str,
-                  args: Optional[list[str]] = None) -> int:
-    """Parse the --cfg and --txt arguments and run create_files.
-
-    Shared by e05 and e07 so both expose the same command line, differing
-    only in the program description and the create_files they run.
-    """
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-c', '--cfg', dest='config_file', required=True,
-                        type=Path, help='JSON configuration file to write.')
-    parser.add_argument('-t', '--txt', dest='syntax_file', required=True,
-                        type=Path, help='Plain text syntax guide to write.')
-    parsed = parser.parse_args(args)
-    create_files(config_file=parsed.config_file,
-                 syntax_file=parsed.syntax_file)
-    return 0
+# Only command line handling below this line. The --cfg/--txt runner is
+# shared with the in-code builder, so both expose the same command line.
 
 
 def main(args: Optional[list[str]] = None) -> int:
-    """Parse command line arguments and create split-cities config files."""
-    return run_split_cli(create_split_config_files, _DESCRIPTION, args)
+    """Parse command line arguments and create split-cities config files.
+
+    Run this module in a terminal to see the Textual interface; redirect
+    its input to see the same wizard fall back to the console bridge.
+    """
+    return run_cfg_txt_cli(create_split_config_files,
+                           'Interactively build the split-cities app config.',
+                           args)
 
 
 if __name__ == '__main__':
