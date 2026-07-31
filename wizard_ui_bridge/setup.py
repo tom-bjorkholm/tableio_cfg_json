@@ -4,7 +4,7 @@
 from setuptools import setup  # type: ignore[import-untyped]
 
 setup(
-  name='wizard-ui-bridge', version='1.1',
+  name='wizard-ui-bridge', version='1.1.1',
   description='User interface bridge for wizards asking a user questions.',
   author='Tom Björkholm', author_email='klausuler_linnet0q@icloud.com',
   python_requires='>=3.12', packages=['wizard_ui_bridge'],
