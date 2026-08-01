@@ -187,31 +187,18 @@ of these ways:
   category, because they are resolved before `tableio_cfg_json` can be
   imported; use `WIZARD_UI_BRIDGE_STRICT` there.
 
-### Planned source code repo change
+### Source code repo history
 
-Currently both `tableio_cfg_json` and `wizard-ui-bridge` source code
-are in the same repo in GitHub. This will change very soon.
-The change will break some old URLs to the source code, to documentation,
-and to examples. When the change happens a new release with new URLs will
-be made.
+The wizard UI bridge `wizard-ui-bridge` code used to be part of
+`tableio-cfg-json` git repo, but has been split out.
 
-## Deprecation: `WizardUiBridge.ask()` is removed next release
-
-The `WizardUiBridge` re-exported here comes from
-[wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge/), and this
-is the **last release** in which its low-level `WizardUiBridge.ask()`
-method works. The **next release removes it entirely**: both calling
-`ask()` and the backward-compatibility fallbacks that let a bridge which
-only overrides `ask()` keep working are dropped, so such a bridge **will
-stop working**. Every use now warns loudly with a `DeprecationWarning`,
-an additional default-visible `UserWarning`, and a message on standard
-error, so the change is impossible to miss.
-
-Implement the typed methods directly instead of `ask()`: `ask_text()`,
-`ask_choice()`, `ask_multi()`, `ask_yes_no()` and `ask_table()`. See the
-[wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge/)
-documentation for details. This is separate from the module move
-described above: the imports move *and* `ask()` goes away.
+The two git repos
+[https://github.com/tom-bjorkholm/wizard-ui-bridge](https://github.com/tom-bjorkholm/wizard-ui-bridge)
+and
+[https://github.com/tom-bjorkholm/tableio_cfg_json](https://github.com/tom-bjorkholm/tableio_cfg_json)
+share a common history. Up until version 1.1 there was only one repo.
+Now that repo is split in two, and each repo holds only code for its
+package. However, both repos have the common history.
 
 ## Validation model
 

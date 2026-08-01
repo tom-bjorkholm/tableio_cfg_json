@@ -1,61 +1,37 @@
-# tableio-cfg-json and wizard-ui-bridge
+# tableio-cfg-json
 
 > Looking for installation and user-facing package information?
-> See [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md) and
-> [wizard_ui_bridge/README_pypi.md](wizard_ui_bridge/README_pypi.md), or the
-> PyPI project pages for
-> [tableio-cfg-json](https://pypi.org/project/tableio-cfg-json) and
-> [wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge).
+> See [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md),
+> or the PyPI project page
+> [tableio-cfg-json](https://pypi.org/project/tableio-cfg-json).
 
 ## Repository purpose
 
-This repository builds two packages:
+This repository builds the package `tableio-cfg-json` stores configuration
+as validated JSON by using [config-as-json](https://pypi.org/project/config-as-json/),
+and includes a wizard for configuring TableIO. It uses
+`wizard-ui-bridge` for that wizard.
 
-- `wizard-ui-bridge` in [wizard_ui_bridge/](wizard_ui_bridge/) is the
-  user-interface-independent way for a wizard to ask a user questions,
-  with a console bridge and an optional Textual bridge. It knows nothing
-  about TableIO.
-- `tableio-cfg-json` in [tableio_cfg_json/](tableio_cfg_json/) stores
-  [TableIO](https://pypi.org/project/tableio/) configuration as validated
-  JSON by using [config-as-json](https://pypi.org/project/config-as-json/),
-  and includes a wizard for configuring TableIO. It uses
-  `wizard-ui-bridge` for that wizard.
+## History
 
-The wizard UI bridge used to be part of `tableio-cfg-json`. It was split
-out so that a wizard that has nothing to do with TableIO does not pull in
-TableIO and everything TableIO depends on. The old import locations still
-work and warn, see
-[tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md) for the
-old-to-new mapping. The two packages are planned to move to two separate
-repositories very soon.
+The wizard UI bridge `wizard-ui-bridge` used to be part of `tableio-cfg-json`.
 
-## Deprecation: `WizardUiBridge.ask()` is removed next release
-
-This is the last release that supports the low-level
-`WizardUiBridge.ask()` method in `wizard-ui-bridge` (and re-exported by
-`tableio-cfg-json`). The next release removes it entirely: both calling
-`ask()` and the backward-compatibility fallbacks for a bridge that only
-overrides `ask()` are dropped, so such a bridge will stop working. Every
-use now warns loudly with a `DeprecationWarning`, an additional
-default-visible `UserWarning`, and a message on standard error, so the
-change is impossible to miss. Implement the typed `ask_text()`,
-`ask_choice()`, `ask_multi()`, `ask_yes_no()` and `ask_table()` methods
-directly instead. See the package READMEs for details.
+The two git repos
+[https://github.com/tom-bjorkholm/wizard-ui-bridge](https://github.com/tom-bjorkholm/wizard-ui-bridge)
+and
+[https://github.com/tom-bjorkholm/tableio_cfg_json](https://github.com/tom-bjorkholm/tableio_cfg_json)
+share a common history. Up until version 1.1 there was only one repo.
+Now that repo is split in two, and each repo holds only code for its
+package. However, both repos have the common history.
 
 ## Related documentation
 
-- Package overviews:
-  - [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md)
-  - [wizard_ui_bridge/README_pypi.md](wizard_ui_bridge/README_pypi.md)
-- Public API notes:
-  - [doc/tableio_cfg_json_api.md](doc/tableio_cfg_json_api.md)
-  - [doc/wizard_ui_bridge_api.md](doc/wizard_ui_bridge_api.md)
-- Protected/internal API notes:
-  - [doc/tableio_cfg_json_protected_api.md](doc/tableio_cfg_json_protected_api.md)
-  - [doc/wizard_ui_bridge_protected_api.md](doc/wizard_ui_bridge_protected_api.md)
+- Package overview [tableio_cfg_json/README_pypi.md](tableio_cfg_json/README_pypi.md)
+- Public API note [doc/tableio_cfg_json_api.md](doc/tableio_cfg_json_api.md)
+- Protected/internal API note [doc/tableio_cfg_json_protected_api.md](doc/tableio_cfg_json_protected_api.md)
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
 
-Each package has its own example directory with worked examples for new
+There is an example directory with worked examples for new
 users, also useful for maintainers who want to see intended API usage in
 context.
 

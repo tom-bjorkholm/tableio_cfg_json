@@ -13,5 +13,5 @@ setup(
   install_requires=[
     'tableio >= 1.1',
     'config-as-json >= 1.4',
-    'wizard-ui-bridge[textual] >= 1.1.1',
+    'wizard-ui-bridge[textual] >= 1.1',
   ])
