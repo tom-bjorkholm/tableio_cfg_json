@@ -22,11 +22,11 @@ import pytest
 from tableio import Capabilities, ConfigSpec, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
     list_implementations_tableio
-from tableio_cfg_json import tio_json_config_wizard
 from wizard_ui_bridge import WizardUiBridge, WizardUiBridgeConsole, \
     TableCell, \
     TableColumn, WizardAbort, WizardBack, WizardCancelLevel
 from wizard_ui_bridge.bridge_helpers import INT_ERROR
+from tableio_cfg_json import tio_json_config_wizard
 import tableio_cfg_json.wizard as wizard_module
 from .wizard_support import _ScriptedBridge, _run_wizard, _run_bridge, \
     _wizard_lines, _optional_names, _menu_number, _format_index, \

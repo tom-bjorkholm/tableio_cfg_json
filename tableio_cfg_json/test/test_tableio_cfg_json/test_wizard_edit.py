@@ -9,8 +9,8 @@
 import json
 
 from tableio import FileAccess, access_capabilities
-from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 from wizard_ui_bridge import WizardBack
+from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 from .wizard_support import _ScriptedBridge, _format_index, \
     _member_answer_lines, _run_bridge
 

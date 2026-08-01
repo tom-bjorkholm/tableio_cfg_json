@@ -40,11 +40,11 @@ import sys
 from typing import Callable, Optional, Sequence, TextIO
 
 from tableio import FileAccess, access_capabilities
+from wizard_ui_bridge import WizardAbort, WizardBack, WizardCancelLevel, \
+    WizardUiBridge, make_text_ui_bridge
 from tableio_cfg_example.e05_app_config import CITY_COLUMNS, \
     SplitCitiesConfig, run_cfg_txt_cli, _syntax_text
 from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
-from wizard_ui_bridge import WizardAbort, WizardBack, WizardCancelLevel, \
-    WizardUiBridge, make_text_ui_bridge
 
 INPUT_TITLE = 'Input table configuration'
 LESS_TITLE = 'Less-than output table configuration'

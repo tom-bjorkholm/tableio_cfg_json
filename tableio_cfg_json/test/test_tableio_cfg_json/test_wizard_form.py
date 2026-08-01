@@ -19,11 +19,11 @@ from io import StringIO
 from typing import NamedTuple, Optional, Sequence
 
 from tableio import ConfigSpec, CsvDialect, FileAccess, access_capabilities
-from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 from wizard_ui_bridge import AskChoiceField, AskIntField, AskTextField, \
     AskField, AskFields, AnswerField, AnswerFields, PartialFormValidator, \
     WizardUiBridge, WizardUiBridgeConsole
 from wizard_ui_bridge.form_helpers import initial_answer
+from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 import tableio_cfg_json.wizard as wizard_module
 from .wizard_support import _ScriptedBridge, _format_index, \
     _member_answer_lines, _run_bridge, assert_csv_core

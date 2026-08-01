@@ -16,12 +16,12 @@ import pytest
 from tableio import FileAccess, access_capabilities, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio, tio_config_create
+from wizard_ui_bridge import UiBridgeType
 from tableio_cfg_example import e01_create_config, e02_write_table, \
     e03_read_table, e04_custom_config, e05_app_config, e06_split_cities, \
     e07_config_wizard, e08_edit_config, e09_rename_wizard, \
     e10_split_rename
 from tableio_cfg_json import get_config_member_names, tio_json_config_default
-from wizard_ui_bridge import UiBridgeType
 
 
 def _read_json(json_file: Path) -> dict[str, object]:

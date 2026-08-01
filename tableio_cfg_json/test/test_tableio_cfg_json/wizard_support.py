@@ -17,13 +17,13 @@ from typing import Callable, Optional, Sequence
 from tableio import CsvDialect, FileAccess, access_capabilities, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio
-from tableio_cfg_json import TioJsonConfig, get_config_member_names, \
-    tio_json_config_wizard
 from wizard_ui_bridge import WizardUiBridge, WizardUiBridgeConsole, \
     TableCell, \
     TableColumn, PartialCheck
 from wizard_ui_bridge.bridge_helpers import ask_many, ask_one, \
     ask_yes_no, run_table
+from tableio_cfg_json import TioJsonConfig, get_config_member_names, \
+    tio_json_config_wizard
 import tableio_cfg_json.wizard as wizard_module
 
 

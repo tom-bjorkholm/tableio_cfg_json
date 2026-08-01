@@ -15,7 +15,6 @@ from config_as_json import ConfigBadJson, InvalidConfiguration
 from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
     add_access_capabilities, list_implementations_tableio, \
     list_registered_tableio, tio_config_specs
-from tableio_cfg_json.config import TioJsonConfig
 from wizard_ui_bridge.arg_types import WizardBack, \
     WizardCancelLevel
 from wizard_ui_bridge.bridge import WizardUiBridge
@@ -25,6 +24,7 @@ from wizard_ui_bridge.form_defs import AskField, \
     PartFormValidationResult, PartialFormValidator
 from wizard_ui_bridge.bridge_helpers import CHOICE_ERROR, \
     match_token
+from tableio_cfg_json.config import TioJsonConfig
 
 _AUTO_IMPL = 'let TableIO choose (recommended)'
 _AUTO_MEMBER = 'use the default'
