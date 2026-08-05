@@ -253,7 +253,7 @@ def test_cell_index_oob() -> None:
     cells = [[TableCell(choices=('a', 'b'))]]
     bridge = _ScriptedBridge([9, 1])
     assert bridge.ask_table(columns, cells, 'Pick:') == [['b']]
-    assert bridge.calls[1][1] == 'Please enter a value.'
+    assert bridge.calls[1][1] == 'Please enter one of the listed choices.'
 
 
 def test_multi_bool() -> None:

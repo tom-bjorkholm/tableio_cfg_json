@@ -4,7 +4,7 @@
 from setuptools import setup  # type: ignore[import-untyped]
 
 setup(
-  name='tableio-cfg-json', version='1.1.1',
+  name='tableio-cfg-json', version='1.2',
   description='config-as-json configuration encapsulation for tableio.',
   author='Tom Björkholm', author_email='klausuler_linnet0q@icloud.com',
   python_requires='>=3.12', packages=['tableio_cfg_json'],
@@ -13,5 +13,5 @@ setup(
   install_requires=[
     'tableio >= 1.1',
     'config-as-json >= 1.4',
-    'wizard-ui-bridge[textual] >= 1.1',
+    'wizard-ui-bridge[textual] >= 1.2',
   ])

@@ -21,7 +21,7 @@ from typing import NamedTuple, Optional, Sequence
 from tableio import ConfigSpec, CsvDialect, FileAccess, access_capabilities
 from wizard_ui_bridge import AskChoiceField, AskIntField, AskTextField, \
     AskField, AskFields, AnswerField, AnswerFields, PartialFormValidator, \
-    WizardUiBridge, WizardUiBridgeConsole
+    WizardUiBridge, WizardUiBridgeConsole, TableCell, TableColumn, PartialCheck
 from wizard_ui_bridge.form_helpers import initial_answer
 from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 import tableio_cfg_json.wizard as wizard_module
@@ -88,6 +88,46 @@ class _FormReturnBridge(WizardUiBridge):
                               partial_validator)
         overrides = self.forms.pop(0)
         return [self._answer(field, overrides) for field in ask_fields]
+
+    # pylint: disable-next=too-many-arguments
+    def ask_multi(self, question: str, *, choices: Sequence[str],
+                  default: Optional[Sequence[str]] = None, min_select: int = 0,
+                  max_select: Optional[int] = None,
+                  re_ask_reason: Optional[str] = None) -> list[str]:
+        """Abstract in base class, but not used in these tests."""
+        _ = (question, choices, default, min_select, max_select, re_ask_reason)
+        assert False, 'ask_multi not used in these tests'
+        ret: list[AnswerFields] = []  # pylint: disable=unreachable
+        return ret
+
+    # pylint: disable-next=too-many-arguments
+    def ask_table(self, columns: Sequence[TableColumn],
+                  cells: list[list[TableCell]], question: str, *,
+                  re_ask_reason: Optional[str] = None,
+                  partial_check: Optional[PartialCheck] = None,
+                  min_rows: Optional[int] = None,
+                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
+        """Abstract in base class, but not used in these tests."""
+        _ = (columns, cells, question, re_ask_reason, partial_check, min_rows,
+             max_rows)
+        assert False, 'ask_table not used in these tests'
+        ret: list[AnswerFields] = []
+        return ret  # pylint: disable=unreachable
+
+    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
+                 nullable: bool = False, *, default: Optional[str] = None,
+                 sensitive: bool = False) -> str:
+        """Abstract in base class, but not used in these tests."""
+        _ = (question, default, re_ask_reason, nullable, sensitive)
+        assert False, 'ask_text not used in these tests'
+        return ''  # pylint: disable=unreachable
+
+    def ask_yes_no(self, question: str, default: bool,
+                   re_ask_reason: Optional[str] = None) -> bool:
+        """Abstract in base class, but not used in these tests."""
+        _ = (question, default, re_ask_reason)
+        assert False, 'ask_yes_no not used in these tests'
+        return False  # pylint: disable=unreachable
 
     @staticmethod
     def _answer(field: AskField, overrides: dict[str, object]) -> AnswerField:
@@ -306,6 +346,46 @@ class _ImplFormBridge(WizardUiBridge):
     def show(self, message: str) -> None:
         """Ignore shown messages."""
         _ = message
+
+    # pylint: disable-next=too-many-arguments
+    def ask_multi(self, question: str, *, choices: Sequence[str],
+                  default: Optional[Sequence[str]] = None, min_select: int = 0,
+                  max_select: Optional[int] = None,
+                  re_ask_reason: Optional[str] = None) -> list[str]:
+        """Abstract in base class, but not used in these tests."""
+        _ = (question, choices, default, min_select, max_select, re_ask_reason)
+        assert False, 'ask_multi not used in these tests'
+        ret: list[AnswerFields] = []  # pylint: disable=unreachable
+        return ret
+
+    # pylint: disable-next=too-many-arguments
+    def ask_table(self, columns: Sequence[TableColumn],
+                  cells: list[list[TableCell]], question: str, *,
+                  re_ask_reason: Optional[str] = None,
+                  partial_check: Optional[PartialCheck] = None,
+                  min_rows: Optional[int] = None,
+                  max_rows: Optional[int] = None) -> list[list[Optional[str]]]:
+        """Abstract in base class, but not used in these tests."""
+        _ = (columns, cells, question, re_ask_reason, partial_check, min_rows,
+             max_rows)
+        assert False, 'ask_table not used in these tests'
+        ret: list[AnswerFields] = []
+        return ret  # pylint: disable=unreachable
+
+    def ask_text(self, question: str, re_ask_reason: Optional[str] = None,
+                 nullable: bool = False, *, default: Optional[str] = None,
+                 sensitive: bool = False) -> str:
+        """Abstract in base class, but not used in these tests."""
+        _ = (question, default, re_ask_reason, nullable, sensitive)
+        assert False, 'ask_text not used in these tests'
+        return ''  # pylint: disable=unreachable
+
+    def ask_yes_no(self, question: str, default: bool,
+                   re_ask_reason: Optional[str] = None) -> bool:
+        """Abstract in base class, but not used in these tests."""
+        _ = (question, default, re_ask_reason)
+        assert False, 'ask_yes_no not used in these tests'
+        return False  # pylint: disable=unreachable
 
 
 def test_base_fallback_names() -> None:

@@ -12,19 +12,13 @@ API and the wizard's internal data handling.
 # pylint: disable=protected-access
 
 import sys
-import warnings
-from contextlib import redirect_stderr
 from io import StringIO
-from typing import Optional, Sequence
-
 import pytest
-
 from tableio import Capabilities, ConfigSpec, CsvDialect, FileAccess, \
     access_capabilities, add_access_capabilities, \
     list_implementations_tableio
 from wizard_ui_bridge import WizardUiBridge, WizardUiBridgeConsole, \
-    TableCell, \
-    TableColumn, WizardAbort, WizardBack, WizardCancelLevel
+     WizardAbort, WizardBack, WizardCancelLevel
 from wizard_ui_bridge.bridge_helpers import INT_ERROR
 from tableio_cfg_json import tio_json_config_wizard
 import tableio_cfg_json.wizard as wizard_module
@@ -357,76 +351,6 @@ def test_ask_impl_single() -> None:
     """A single implementation needs no question and returns None."""
     bridge = _ScriptedBridge([])
     assert wizard_module._ask_implementation(('only',), bridge, None) is None
-
-
-with warnings.catch_warnings(), redirect_stderr(StringIO()):
-    warnings.simplefilter('ignore')
-
-    class _OldStyleBridge(WizardUiBridge):
-        """Old-style bridge that overrides only the deprecated ask().
-
-        It exercises the temporary backward-compatibility code: the base
-        class still backs the typed ask methods with this bridge's ask()
-        while warning that the typed methods should be overridden. Its
-        definition is wrapped so the override warning is not raised at
-        import time; test_deprecated_ask_override_warns asserts it.
-        """
-
-        def __init__(self, answers: Sequence[str | int]) -> None:
-            """Store scripted raw answers returned in order by ask()."""
-            self.answers: list[str | int] = list(answers)
-            self.shown: list[str] = []
-
-        def ask(self, question: str, re_ask_reason: Optional[str] = None,
-                choices: Optional[Sequence[str]] = None) -> str | int:
-            """Return the next scripted raw answer."""
-            _ = (question, re_ask_reason, choices)
-            return self.answers.pop(0)
-
-        def show(self, message: str) -> None:
-            """Record the shown message."""
-            self.shown.append(message)
-
-
-def test_dep_override_warns() -> None:
-    """Defining a bridge that overrides ask() warns it is deprecated."""
-    def stand_in(*_args: object) -> str:
-        """Stand-in ask() used only to trigger the override warning."""
-        return ''
-    with pytest.warns((DeprecationWarning, UserWarning), match='Overriding'):
-        type('_Overrider', (WizardUiBridge,), {'ask': stand_in})
-
-
-def test_dep_ask_call_warns() -> None:
-    """Calling the deprecated ask() warns and dispatches by arguments."""
-    text_bridge = _ScriptedBridge(['typed'])
-    with pytest.warns((DeprecationWarning, UserWarning), match='deprecated'):
-        assert text_bridge.ask('q') == 'typed'
-    choice_bridge = _ScriptedBridge([1])
-    with pytest.warns((DeprecationWarning, UserWarning), match='deprecated'):
-        assert choice_bridge.ask('q', choices=('a', 'b')) == 'b'
-
-
-def test_dep_fallback_warns() -> None:
-    """The base typed-method fallbacks warn while backing an old bridge."""
-    bridge = _OldStyleBridge(['hi', 0, 0, True])
-    with pytest.warns((DeprecationWarning, UserWarning), match='ask_text'):
-        assert bridge.ask_text('q') == 'hi'
-    with pytest.warns((DeprecationWarning, UserWarning), match='ask_choice'):
-        assert bridge.ask_choice('q', choices=('a', 'b')) == 'a'
-    with pytest.warns((DeprecationWarning, UserWarning), match='ask_multi'):
-        assert bridge.ask_multi('q', choices=('a', 'b')) == ['a']
-    with pytest.warns((DeprecationWarning, UserWarning), match='ask_yes_no'):
-        assert bridge.ask_yes_no('q', default=False) is True
-
-
-def test_dep_table_warns() -> None:
-    """The base ask_table fallback warns and fills cells via ask()."""
-    columns = (TableColumn('Value'),)
-    cells = [[TableCell(value='x')]]
-    bridge = _OldStyleBridge([''])
-    with pytest.warns((DeprecationWarning, UserWarning), match='ask_table'):
-        assert bridge.ask_table(columns, cells, 'Pick:') == [['x']]
 
 
 def test_typed_no_impl() -> None:
