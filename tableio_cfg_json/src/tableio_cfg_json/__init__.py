@@ -17,6 +17,10 @@ from tableio_cfg_json.config import TioJsonConfig, TioJsonCsvConfig, \
 from tableio_cfg_json.describe import describe_config, \
     describe_config_example, describe_config_members, \
     describe_config_reference, get_config_member_names, get_general_cfg_info
+from tableio_cfg_json.descriptions import TIO_JSON_DESCRIPTIONS, \
+    tio_json_descriptions
+from tableio_cfg_json.loader import tio_json_create_loader, \
+    tio_json_loader, tio_json_read_loader, tio_json_update_loader
 from tableio_cfg_json.wizard import tio_json_config_wizard
 from tableio_cfg_json._moved import MOVED_NAMES, WizardUiBridgeMoved, \
     moved_attr
@@ -36,10 +40,13 @@ if TYPE_CHECKING:
         make_text_ui_bridge
 
 __all__ = ['TioJsonConfig', 'TioJsonCsvConfig', 'TioJsonHtmlConfig',
-           'TioJsonLatexConfig', 'describe_config', 'describe_config_example',
-           'describe_config_members', 'describe_config_reference',
-           'get_config_member_names', 'get_general_cfg_info',
-           'tio_json_config_default', 'tio_json_config_wizard',
+           'TioJsonLatexConfig', 'TIO_JSON_DESCRIPTIONS', 'describe_config',
+           'describe_config_example', 'describe_config_members',
+           'describe_config_reference', 'get_config_member_names',
+           'get_general_cfg_info', 'tio_json_config_default',
+           'tio_json_config_wizard', 'tio_json_create_loader',
+           'tio_json_descriptions', 'tio_json_loader',
+           'tio_json_read_loader', 'tio_json_update_loader',
            'WizardUiBridgeMoved',
            'AnswerChoiceField', 'AnswerDateField', 'AnswerDateTimeField',
            'AnswerDurationField', 'AnswerField', 'AnswerFields',

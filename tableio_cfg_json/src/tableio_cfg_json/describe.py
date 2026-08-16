@@ -13,6 +13,8 @@ from tableio import Capabilities, ConfigError, ConfigSpec, FileAccess, \
     list_registered_tableio, tio_config_specs
 from tableio.factory import TableIOFactoryNoCapabilityMatch
 from tableio_cfg_json.config import tio_json_config_default
+from tableio_cfg_json.spec_text import CHOICES_LABEL, DEFAULT_LABEL, \
+    FORMATS_LABEL, IMPLS_LABEL, end_sentence, value_list
 
 _WIDTH = 79
 _BASE_NAMES = ('format_name', 'implementation')
@@ -298,21 +300,23 @@ def _add_value_list(lines: list[str], label: str,
     Returns:
         None.
     """
-    if values:
-        _add_wrapped(lines, f'{label}: {", ".join(values)}.', '  ', '  ')
+    listed = value_list(label, values)
+    if listed is not None:
+        _add_wrapped(lines, listed, '  ', '  ')
 
 
-def _end_sentence(text: str) -> str:
-    """Return text with sentence-ending punctuation.
+def _add_default(lines: list[str], spec: ConfigSpec) -> None:
+    """Append the default of one member when the metadata states one.
 
     Args:
-        text: Text that may already end with punctuation.
+        lines: Lines to extend.
+        spec: TableIO configuration specification.
     Returns:
-        Text ending with a sentence punctuation mark.
+        None.
     """
-    if text.endswith(('.', '!', '?')):
-        return text
-    return text + '.'
+    if spec.default_text is not None:
+        _add_wrapped(lines, f'{DEFAULT_LABEL}: '
+                     f'{end_sentence(spec.default_text)}', '  ', '  ')
 
 
 def _add_member(lines: list[str], spec: ConfigSpec, format_names: list[str],
@@ -330,14 +334,12 @@ def _add_member(lines: list[str], spec: ConfigSpec, format_names: list[str],
     lines.append(spec.name)
     _add_wrapped(lines, spec.description, '  ', '  ')
     _add_wrapped(lines, f'Type: {spec.value_type}.', '  ', '  ')
-    if spec.default_text is not None:
-        _add_wrapped(lines, f'Default: {_end_sentence(spec.default_text)}',
-                     '  ', '  ')
-    _add_value_list(lines, 'Choices',
+    _add_default(lines, spec)
+    _add_value_list(lines, CHOICES_LABEL,
                     _member_choices(spec, format_names, impl_names))
-    _add_value_list(lines, 'Relevant formats',
+    _add_value_list(lines, FORMATS_LABEL,
                     _filtered(spec.relevant_formats, format_names))
-    _add_value_list(lines, 'Relevant implementations',
+    _add_value_list(lines, IMPLS_LABEL,
                     _filtered(spec.relevant_impls, impl_names))
 
 
@@ -353,12 +355,10 @@ def _add_ref_member(lines: list[str], spec: ConfigSpec) -> None:
     lines.append(spec.name)
     _add_wrapped(lines, spec.description, '  ', '  ')
     _add_wrapped(lines, f'Type: {spec.value_type}.', '  ', '  ')
-    if spec.default_text is not None:
-        _add_wrapped(lines, f'Default: {_end_sentence(spec.default_text)}',
-                     '  ', '  ')
-    _add_value_list(lines, 'Choices', spec.choices)
-    _add_value_list(lines, 'Relevant formats', spec.relevant_formats)
-    _add_value_list(lines, 'Relevant implementations', spec.relevant_impls)
+    _add_default(lines, spec)
+    _add_value_list(lines, CHOICES_LABEL, spec.choices)
+    _add_value_list(lines, FORMATS_LABEL, spec.relevant_formats)
+    _add_value_list(lines, IMPLS_LABEL, spec.relevant_impls)
 
 
 def _reference_specs(member_names: Optional[Sequence[str]]) -> \

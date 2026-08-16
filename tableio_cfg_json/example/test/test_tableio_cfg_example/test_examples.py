@@ -20,7 +20,7 @@ from wizard_ui_bridge import UiBridgeType
 from tableio_cfg_example import e01_create_config, e02_write_table, \
     e03_read_table, e04_custom_config, e05_app_config, e06_split_cities, \
     e07_config_wizard, e08_edit_config, e09_rename_wizard, \
-    e10_split_rename
+    e10_split_rename, e11_config_editor
 from tableio_cfg_json import get_config_member_names, tio_json_config_default
 
 
@@ -697,3 +697,45 @@ def test_rename_back(tmp_path: Path) -> None:
     config_data = _read_json(config_file)
     assert config_data['less_output_names'] == {
         'City': 'City', 'Country': 'Country'}
+
+
+def _app_config_file(tmp_path: Path) -> Path:
+    """Write the split-cities app config and return its file."""
+    config_file = tmp_path / 'app.json'
+    syntax_file = tmp_path / 'app.txt'
+    assert e05_app_config.main(['--cfg', str(config_file),
+                                '--txt', str(syntax_file)]) == 0
+    return config_file
+
+
+def test_editor_app_config(tmp_path: Path,
+                           capsys: pytest.CaptureFixture[str]) -> None:
+    """e11 shows an app config with one description per endpoint member."""
+    config_file = _app_config_file(tmp_path)
+    assert e11_config_editor.main(['--cfg', str(config_file)]) == 0
+    text = capsys.readouterr().out
+    assert text.count('The TableIO format name to use.') == 3
+    assert 'Column whose value decides which output a row goes to.' in text
+    assert 'validation: valid' in text
+
+
+def test_editor_endpoint(tmp_path: Path,
+                         capsys: pytest.CaptureFixture[str]) -> None:
+    """e11 shows every option of a compact one-endpoint config."""
+    config_file = tmp_path / 'endpoint.json'
+    syntax_file = tmp_path / 'endpoint.txt'
+    _create_config(config_file, syntax_file, '--write', 'CSV')
+    assert e11_config_editor.main(['-e', '-w', '-c', str(config_file)]) == 0
+    text = capsys.readouterr().out
+    assert 'Choices: all, minimal, nonnumeric, none, strings, notnull.' in text
+    assert 'UNIX: Comma separated' in text
+    assert 'These settings are used only by the formats named below.' in text
+
+
+def test_editor_descriptions() -> None:
+    """Every endpoint of the app config is described below its own member."""
+    described = e11_config_editor.app_descriptions()
+    for member in e11_config_editor.ENDPOINT_MEMBERS:
+        assert (member, 'format_name') in described
+        assert (member, 'csv', 'dialect') in described
+    assert ('split_column',) in described

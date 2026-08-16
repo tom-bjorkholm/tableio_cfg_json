@@ -14,4 +14,5 @@ setup(
     'tableio >= 1.1',
     'config-as-json >= 1.4',
     'wizard-ui-bridge[textual] >= 1.2',
+    'edit-cfg-json >= 0.0.4'
   ])

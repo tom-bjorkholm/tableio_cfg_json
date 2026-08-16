@@ -26,6 +26,9 @@ This package is a good fit when one or more of these apply:
   options that are relevant to your application's capabilities.
 - You want an interactive wizard that asks a user for the TableIO
   configuration.
+- You want your users to edit stored TableIO configuration in an
+  [edit-cfg-json](https://pypi.org/project/edit-cfg-json/) editor, without
+  writing the TableIO documentation down a second time.
 
 This package is probably not the right one when:
 
@@ -139,12 +142,86 @@ thorough introduction.
   Interactive helper for creating one TableIO endpoint configuration through
   a user interface bridge.
 
+- `tio_json_descriptions()` and `TIO_JSON_DESCRIPTIONS`
+  What each configuration member means, as an `edit_cfg_json.Descriptions`
+  mapping. See *Editing the configuration* below.
+
+- `tio_json_loader()`
+  How an `edit-cfg-json` editor constructs a `TioJsonConfig`.
+
+- `tio_json_read_loader`, `tio_json_create_loader` and
+  `tio_json_update_loader`
+  Ready-made loaders, one per file access, for a program that needs a name to
+  point at rather than a call to make.
+
 - `WizardUiBridge`, `WizardUiBridgeConsole`, `WizardUiBridgeTextual` and
   `make_text_ui_bridge`
   Interfaces for connecting the wizard to a console, GUI or scripted UI.
   These now live in
   [wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge/) and are
   only re-exported here, deprecated. See *The wizard UI bridge moved*.
+
+## Editing the configuration
+
+The [edit-cfg-json](https://pypi.org/project/edit-cfg-json/) family gives an
+application a folding editor for a config-as-json configuration object. It
+discovers the editable structure by introspection, so the configuration is
+never described a second time to get one. The editors an end user sees are
+[edit-cfg-json-tk](https://pypi.org/project/edit-cfg-json-tk/) and
+[edit-cfg-json-textual](https://pypi.org/project/edit-cfg-json-textual/).
+
+What that editor cannot work out is what a member is *for*, which values a
+plain string member accepts and what those values mean, because it reads the
+class and never a validator. `tio_json_descriptions()` is the one source of
+truth for that text, so an application that stores TableIO configuration does
+not repeat the TableIO documentation and cannot have it drift:
+
+```python
+from edit_cfg_json import edit
+from edit_cfg_json_textual import TextualEditor
+from tableio import FileAccess, access_capabilities
+from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, tio_json_config_default, \
+    tio_json_loader
+
+file_access = FileAccess.CREATE
+capabilities = access_capabilities(file_access)
+config = tio_json_config_default(capabilities, file_access,
+                                 include_all_options=True)
+saved = edit(config, TextualEditor(),
+             descriptions=TIO_JSON_DESCRIPTIONS,
+             in_file='tableio.cfg',
+             loader=tio_json_loader(capabilities, file_access))
+```
+
+`tio_json_loader()` is needed because `TioJsonConfig` takes the runtime
+capabilities and file access that no configuration file holds, so the editor
+cannot construct it on its own.
+
+A program that is told a name rather than making a call — such as the
+`--loader` option of `python3 -m edit_cfg_json.dump` — uses one of the
+ready-made loaders instead. There is one per file access, and which one is
+right is the caller's to know, because the access is not in the file:
+
+```sh
+python3 -m edit_cfg_json.dump --module tableio_cfg_json \
+  --loader tio_json_create_loader --descriptions TIO_JSON_DESCRIPTIONS \
+  --input tableio.cfg --unfold
+```
+
+An application that nests `TioJsonConfig` inside its own configuration class
+needs no loader, and passes the path of the member that holds each endpoint:
+
+```python
+descriptions = {**own_descriptions,
+                **tio_json_descriptions(('input',)),
+                **tio_json_descriptions(('output',))}
+```
+
+A member that is not in the configuration file is not a row in the editor, so
+`tio_json_loader()` builds on a complete set of defaults by default. The
+editor then marks every value the file did not hold, and a compact
+configuration file opens with everything there is to set. Pass
+`include_all_options=False` to keep an edited file as compact as it was.
 
 ## The wizard UI bridge moved
 
@@ -248,10 +325,10 @@ MIT
 
 ## Test summary
 
-- Test result: 573 passed in 23s
+- Test result: 638 passed in 25s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 1.2.1
-- Build and test using Python 3.14.6
+- Build and test using Python 3.14.7

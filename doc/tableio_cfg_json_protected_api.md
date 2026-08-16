@@ -19,7 +19,7 @@
   * [\_member\_choices](#tableio_cfg_json.describe._member_choices)
   * [\_filtered](#tableio_cfg_json.describe._filtered)
   * [\_add\_value\_list](#tableio_cfg_json.describe._add_value_list)
-  * [\_end\_sentence](#tableio_cfg_json.describe._end_sentence)
+  * [\_add\_default](#tableio_cfg_json.describe._add_default)
   * [\_add\_member](#tableio_cfg_json.describe._add_member)
   * [\_add\_ref\_member](#tableio_cfg_json.describe._add_ref_member)
   * [\_reference\_specs](#tableio_cfg_json.describe._reference_specs)
@@ -34,6 +34,13 @@
   * [describe\_config\_reference](#tableio_cfg_json.describe.describe_config_reference)
   * [describe\_config\_example](#tableio_cfg_json.describe.describe_config_example)
   * [describe\_config](#tableio_cfg_json.describe.describe_config)
+* [tableio\_cfg\_json.spec\_text](#tableio_cfg_json.spec_text)
+  * [CHOICES\_LABEL](#tableio_cfg_json.spec_text.CHOICES_LABEL)
+  * [DEFAULT\_LABEL](#tableio_cfg_json.spec_text.DEFAULT_LABEL)
+  * [FORMATS\_LABEL](#tableio_cfg_json.spec_text.FORMATS_LABEL)
+  * [IMPLS\_LABEL](#tableio_cfg_json.spec_text.IMPLS_LABEL)
+  * [value\_list](#tableio_cfg_json.spec_text.value_list)
+  * [end\_sentence](#tableio_cfg_json.spec_text.end_sentence)
 * [tableio\_cfg\_json.\_moved](#tableio_cfg_json._moved)
   * [STRICT\_ENV](#tableio_cfg_json._moved.STRICT_ENV)
   * [REMOVED\_IN](#tableio_cfg_json._moved.REMOVED_IN)
@@ -119,12 +126,32 @@
   * [\_set\_json\_member](#tableio_cfg_json.wizard._set_json_member)
   * [\_get\_json\_member](#tableio_cfg_json.wizard._get_json_member)
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
+* [tableio\_cfg\_json.loader](#tableio_cfg_json.loader)
+  * [NO\_FILE\_NAME](#tableio_cfg_json.loader.NO_FILE_NAME)
+  * [\_json\_member](#tableio_cfg_json.loader._json_member)
+  * [tio\_json\_loader](#tableio_cfg_json.loader.tio_json_loader)
+  * [tio\_json\_read\_loader](#tableio_cfg_json.loader.tio_json_read_loader)
+  * [tio\_json\_create\_loader](#tableio_cfg_json.loader.tio_json_create_loader)
+  * [tio\_json\_update\_loader](#tableio_cfg_json.loader.tio_json_update_loader)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_table](#tableio_cfg_json.wizard_ui_bridge_table)
   * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge_table.__getattr__)
 * [tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs](#tableio_cfg_json.wizard_ui_bridge_form_defs)
   * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.__getattr__)
 * [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
   * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_factory.__getattr__)
+* [tableio\_cfg\_json.descriptions](#tableio_cfg_json.descriptions)
+  * [STRING\_TYPES](#tableio_cfg_json.descriptions.STRING_TYPES)
+  * [SECTION\_TEXT](#tableio_cfg_json.descriptions.SECTION_TEXT)
+  * [VALUE\_MEANINGS](#tableio_cfg_json.descriptions.VALUE_MEANINGS)
+  * [EXTRA\_NOTES](#tableio_cfg_json.descriptions.EXTRA_NOTES)
+  * [\_choice\_lines](#tableio_cfg_json.descriptions._choice_lines)
+  * [\_member\_lines](#tableio_cfg_json.descriptions._member_lines)
+  * [\_relevance\_lines](#tableio_cfg_json.descriptions._relevance_lines)
+  * [\_section\_formats](#tableio_cfg_json.descriptions._section_formats)
+  * [\_section\_lines](#tableio_cfg_json.descriptions._section_lines)
+  * [\_described](#tableio_cfg_json.descriptions._described)
+  * [tio\_json\_descriptions](#tableio_cfg_json.descriptions.tio_json_descriptions)
+  * [TIO\_JSON\_DESCRIPTIONS](#tableio_cfg_json.descriptions.TIO_JSON_DESCRIPTIONS)
 
 <a id="tableio_cfg_json"></a>
 
@@ -490,23 +517,24 @@ Append a labelled comma-separated value list when present.
 
   None.
 
-<a id="tableio_cfg_json.describe._end_sentence"></a>
+<a id="tableio_cfg_json.describe._add_default"></a>
 
-#### \_end\_sentence
+#### \_add\_default
 
 ```python
-def _end_sentence(text: str) -> str
+def _add_default(lines: list[str], spec: ConfigSpec) -> None
 ```
 
-Return text with sentence-ending punctuation.
+Append the default of one member when the metadata states one.
 
 **Arguments**:
 
-- `text` - Text that may already end with punctuation.
+- `lines` - Lines to extend.
+- `spec` - TableIO configuration specification.
 
 **Returns**:
 
-  Text ending with a sentence punctuation mark.
+  None.
 
 <a id="tableio_cfg_json.describe._add_member"></a>
 
@@ -941,6 +969,81 @@ its own words and avoid repeating the long member reference.
 
 - `TableIOFactoryNoCapabilityMatch` - The requested capabilities cannot be
   matched to any available implementation.
+
+<a id="tableio_cfg_json.spec_text"></a>
+
+# tableio\_cfg\_json.spec\_text
+
+Text fragments built from one TableIO configuration specification.
+
+TableIO owns the metadata about its configuration members, and this package
+turns that metadata into text in two places: the plain text guides of
+describe.py and the editor descriptions of descriptions.py. The labels and
+the small formatting rules are shared here so that one member reads the same
+way whichever of the two a user meets it in.
+
+<a id="tableio_cfg_json.spec_text.CHOICES_LABEL"></a>
+
+#### CHOICES\_LABEL
+
+Label of the list of values that one member accepts.
+
+<a id="tableio_cfg_json.spec_text.DEFAULT_LABEL"></a>
+
+#### DEFAULT\_LABEL
+
+Label of what one member holds when nothing is stored for it.
+
+<a id="tableio_cfg_json.spec_text.FORMATS_LABEL"></a>
+
+#### FORMATS\_LABEL
+
+Label of the formats that one member has an effect for.
+
+<a id="tableio_cfg_json.spec_text.IMPLS_LABEL"></a>
+
+#### IMPLS\_LABEL
+
+Label of the implementations that one member has an effect for.
+
+<a id="tableio_cfg_json.spec_text.value_list"></a>
+
+#### value\_list
+
+```python
+def value_list(label: str, values: Optional[tuple[str, ...]]) -> Optional[str]
+```
+
+Return one labelled comma-separated value list.
+
+**Arguments**:
+
+- `label` - Label to prepend.
+- `values` - Values to list. ``None`` and an empty tuple both mean that
+  there is no restriction worth stating.
+
+**Returns**:
+
+  The labelled list as one sentence, or ``None`` when there is nothing
+  to list.
+
+<a id="tableio_cfg_json.spec_text.end_sentence"></a>
+
+#### end\_sentence
+
+```python
+def end_sentence(text: str) -> str
+```
+
+Return text with sentence-ending punctuation.
+
+**Arguments**:
+
+- `text` - Text that may already end with punctuation.
+
+**Returns**:
+
+  Text ending with a sentence punctuation mark.
 
 <a id="tableio_cfg_json._moved"></a>
 
@@ -2281,6 +2384,131 @@ def _config_from_data(data: dict[str, object], capabilities: Capabilities,
 
 Validate JSON data and return it as a TableIO JSON config.
 
+<a id="tableio_cfg_json.loader"></a>
+
+# tableio\_cfg\_json.loader
+
+How a configuration editor constructs a TioJsonConfig.
+
+An edit-cfg-json editor constructs the configuration class itself, from the
+keyword arguments config-as-json documents. TioJsonConfig takes two more than
+that: the runtime capabilities and the file access of the endpoint, which are
+the application's and which nothing in a configuration file could supply. An
+``edit_cfg_json.ConfigLoader`` is how an application says how its class is
+built, and this module is that loader for TioJsonConfig.
+
+The defaults TableIO recommends depend on the chosen format, so the format
+and the implementation are read out of the JSON text before the defaults are
+asked for. Without that, a file selecting CSV would be built on the defaults
+of another format and refused for an implementation the user never wrote.
+
+A ready-made loader is offered for each file access, for a program that needs
+a name to point at rather than a call to make, which is what the ``--loader``
+option of ``python3 -m edit_cfg_json.dump`` takes. There are three of them and
+not one, because the file access is not in the configuration file and picking
+the wrong one is not harmless: READ matches only the formats that can be read,
+while CREATE matches every registered format, and the implementation that the
+defaults fill in for one access is not the one the other access would choose.
+
+<a id="tableio_cfg_json.loader.NO_FILE_NAME"></a>
+
+#### NO\_FILE\_NAME
+
+Message of the refusal of a file name given to this loader.
+
+<a id="tableio_cfg_json.loader._json_member"></a>
+
+#### \_json\_member
+
+```python
+def _json_member(text: Optional[str], name: str,
+                 fallback: Optional[str]) -> Optional[str]
+```
+
+Return one top-level string member of JSON text, or a fallback.
+
+Only which defaults to build on is decided here, so anything that is not
+a JSON object holding that member as a string is left to the parse step,
+which reports what is wrong with it properly.
+
+**Arguments**:
+
+- `text` - JSON text to look in, or None when there is none.
+- `name` - Name of the top-level member to look for.
+- `fallback` - Value to use when the text does not answer.
+
+**Returns**:
+
+  The value of that member, or the fallback.
+
+<a id="tableio_cfg_json.loader.tio_json_loader"></a>
+
+#### tio\_json\_loader
+
+```python
+def tio_json_loader(capabilities: Capabilities,
+                    file_access: FileAccess,
+                    format_name: Optional[str] = None,
+                    implementation: Optional[str] = None,
+                    include_all_options: bool = True) -> ConfigLoader
+```
+
+Get a loader that constructs a TioJsonConfig for a config editor.
+
+Pass the result as the ``loader`` argument of ``edit_cfg_json.edit()``,
+``editor_model()`` or ``load_config()``. An application that edits its own
+configuration class needs no loader from here: it is the class holding the
+TioJsonConfig members that the editor is given, and constructing that one
+is the application's own to describe.
+
+``include_all_options`` is what decides how much of a TableIO
+configuration an editing session can reach. A configuration file normally
+stores only the durable choices that have to be fixed, and an option that
+is not in the file is not a row in the editor, so the default here is to
+build on a complete set of defaults and let the editor mark every value
+the file did not hold. The cost is that saving then writes all of them,
+which turns a compact configuration file into a full one and fixes the
+implementation that TableIO would otherwise choose at runtime. Pass False
+to keep an edited file as compact as it was.
+
+**Arguments**:
+
+- `capabilities` - Runtime capabilities requested by the application.
+- `file_access` - Runtime file access requested by the application.
+- `format_name` - Optional preferred TableIO format name, used only when
+  the edited JSON text does not select one.
+- `implementation` - Optional preferred TableIO implementation name, used
+  only when the edited JSON text does not select one.
+- `include_all_options` - Whether the editor should offer every option as
+  a row rather than only the options the file holds.
+
+**Returns**:
+
+  A loader for TioJsonConfig, satisfying ``edit_cfg_json.ConfigLoader``.
+
+<a id="tableio_cfg_json.loader.tio_json_read_loader"></a>
+
+#### tio\_json\_read\_loader
+
+Ready-made loader for a configuration of an endpoint that is read.
+
+<a id="tableio_cfg_json.loader.tio_json_create_loader"></a>
+
+#### tio\_json\_create\_loader
+
+Ready-made loader for a configuration of an endpoint that is written.
+
+<a id="tableio_cfg_json.loader.tio_json_update_loader"></a>
+
+#### tio\_json\_update\_loader
+
+Ready-made loader for an endpoint that is both read and written.
+
+The three ready-made loaders ask for no capability beyond the access itself,
+so they match every backend that can do that access. An application that needs
+more than that, or that wants an edited file to stay as compact as it was,
+calls ``tio_json_loader()`` with what it needs.
+
 <a id="tableio_cfg_json.wizard_ui_bridge_table"></a>
 
 # tableio\_cfg\_json.wizard\_ui\_bridge\_table
@@ -2340,4 +2568,219 @@ def __getattr__(name: str) -> object
 ```
 
 Return name from its new module, warning that it moved.
+
+<a id="tableio_cfg_json.descriptions"></a>
+
+# tableio\_cfg\_json.descriptions
+
+What the TableIO configuration members mean, for a configuration editor.
+
+An application that hands its own configuration class to one of the
+edit-cfg-json editors describes the members it declares in an
+``edit_cfg_json.Descriptions`` mapping, because a member has no docstring at
+runtime. The members that come from this package are this package's to
+describe, so an application that nests a TioJsonConfig gets that text from
+here instead of writing the TableIO configuration down a second time.
+
+What the editor works out for itself is deliberately absent. It reads the
+docstring of every configuration class, it says what kind of value each
+member holds, it says which members may be left out of the file, and where a
+member holds an enum it lists the names of that enum. What it never reads is
+a validator, so the values a plain string member accepts are listed here, and
+what those values mean is written here as well.
+
+<a id="tableio_cfg_json.descriptions.STRING_TYPES"></a>
+
+#### STRING\_TYPES
+
+The member types whose accepted values the editor cannot work out.
+
+A member that holds an enum is one the editor lists the names of itself,
+because the parse converter of the configuration class names the enum class.
+A member that holds a plain string has its values in a validator instead, and
+a validator is what the editor never reads.
+
+<a id="tableio_cfg_json.descriptions.SECTION_TEXT"></a>
+
+#### SECTION\_TEXT
+
+What is said about one optional format-specific section as a whole.
+
+<a id="tableio_cfg_json.descriptions.VALUE_MEANINGS"></a>
+
+#### VALUE\_MEANINGS
+
+What each value of a member means, where the name does not say it.
+
+Only the members whose values need explaining are here. A format name, an
+implementation name and a paper size are listed without a sentence each,
+because the name is the whole of what there is to say about it.
+
+<a id="tableio_cfg_json.descriptions.EXTRA_NOTES"></a>
+
+#### EXTRA\_NOTES
+
+Rules between members that no single member validator can state.
+
+<a id="tableio_cfg_json.descriptions._choice_lines"></a>
+
+#### \_choice\_lines
+
+```python
+def _choice_lines(spec: ConfigSpec) -> list[str]
+```
+
+Return the lines saying which values one member accepts.
+
+**Arguments**:
+
+- `spec` - TableIO configuration specification.
+
+**Returns**:
+
+  The list of accepted values where the editor cannot show it, followed
+  by one line per value that needs explaining.
+
+<a id="tableio_cfg_json.descriptions._member_lines"></a>
+
+#### \_member\_lines
+
+```python
+def _member_lines(spec: ConfigSpec) -> list[str]
+```
+
+Return everything this package says about one member.
+
+**Arguments**:
+
+- `spec` - TableIO configuration specification.
+
+**Returns**:
+
+  The lines of the description of that member, most important first.
+
+<a id="tableio_cfg_json.descriptions._relevance_lines"></a>
+
+#### \_relevance\_lines
+
+```python
+def _relevance_lines(spec: ConfigSpec) -> list[str]
+```
+
+Return the lines saying where one member has an effect.
+
+**Arguments**:
+
+- `spec` - TableIO configuration specification.
+
+**Returns**:
+
+  The formats and the implementations the member matters for, leaving
+  out whichever of the two TableIO does not restrict.
+
+<a id="tableio_cfg_json.descriptions._section_formats"></a>
+
+#### \_section\_formats
+
+```python
+def _section_formats(specs: Collection[ConfigSpec]) -> dict[str, list[str]]
+```
+
+Return the formats that each optional nested section belongs to.
+
+A section is described by what its own members are relevant for, so a
+section added to TableIO later is described without being named here.
+
+**Arguments**:
+
+- `specs` - TableIO configuration specifications.
+
+**Returns**:
+
+  The relevant format names of each section, in metadata order and
+  without duplicates, keyed by the section member name.
+
+<a id="tableio_cfg_json.descriptions._section_lines"></a>
+
+#### \_section\_lines
+
+```python
+def _section_lines(formats: list[str]) -> list[str]
+```
+
+Return the description lines of one optional nested section.
+
+**Arguments**:
+
+- `formats` - Format names that the members of the section matter for.
+
+**Returns**:
+
+  The lines of the description, and nothing at all when TableIO
+  restricts the section to no particular format.
+
+<a id="tableio_cfg_json.descriptions._described"></a>
+
+#### \_described
+
+```python
+def _described(specs: Collection[ConfigSpec]) -> dict[ConfigPath, str]
+```
+
+Return the description of every member and every nested section.
+
+**Arguments**:
+
+- `specs` - TableIO configuration specifications.
+
+**Returns**:
+
+  One description per member of the TioJsonConfig tree, under the path
+  that addresses it inside a TioJsonConfig.
+
+<a id="tableio_cfg_json.descriptions.tio_json_descriptions"></a>
+
+#### tio\_json\_descriptions
+
+```python
+def tio_json_descriptions(prefix: ConfigPath = ()) -> Descriptions
+```
+
+Get what each TioJsonConfig member means, for a config editor.
+
+Pass the result to ``edit_cfg_json.edit()``, ``editor_model()`` or one of
+the edit-cfg-json editor backends, so that a user editing a TableIO
+configuration is told what the members are for. An application that
+declares a TioJsonConfig as one member of its own configuration class
+passes the path of that member as the prefix, because a description
+addresses the whole path to the member it is about. An application with
+several TableIO endpoints calls this once per endpoint and merges the
+results.
+
+The text follows the TableIO metadata, so it names the formats,
+implementations and values that are registered when this is called.
+
+**Arguments**:
+
+- `prefix` - Path of the member holding the TioJsonConfig, which is
+  ``('input',)`` for a member called ``input`` and ``()`` for a
+  TioJsonConfig that is the whole configuration being edited.
+
+**Returns**:
+
+  What each member of a TioJsonConfig and of its optional ``csv``,
+  ``html`` and ``latex`` sections means, under the absolute path of
+  that member.
+
+<a id="tableio_cfg_json.descriptions.TIO_JSON_DESCRIPTIONS"></a>
+
+#### TIO\_JSON\_DESCRIPTIONS
+
+What each member means, for a TioJsonConfig that is the whole config.
+
+This is the value of ``tio_json_descriptions()`` as the formats and
+implementations were registered when this module was imported, offered as a
+constant for a program that needs a name to point at rather than a call to
+make. An application that registers a TableIO format of its own after
+importing this module calls ``tio_json_descriptions()`` instead.
 

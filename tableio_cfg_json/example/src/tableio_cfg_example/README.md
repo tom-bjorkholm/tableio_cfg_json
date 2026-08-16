@@ -10,6 +10,9 @@ These examples show how four packages fit together:
   as config-as-json configuration classes.
 - `wizard-ui-bridge` defines how a wizard can talk to any user interface and
   is used by the wizard in `tableio-cfg-json`.
+- `edit-cfg-json` gives an application a folding editor for a config-as-json
+  configuration object, and `tableio-cfg-json` supplies the text that editor
+  shows about the TableIO members.
 
 The examples are meant to be read in order by a fluent Python programmer who
 is new to these APIs. The first class (e01–e04) uses one TableIO endpoint
@@ -17,7 +20,8 @@ config at a time. The second class (e05–e06) shows a more realistic
 application config that owns several TableIO endpoint configs and also has
 application-specific settings, built directly in code. A set of interactive
 wizard examples then produces that same application config by asking the user
-questions.
+questions. The last example (e11) opens a stored configuration of either
+shape in an editor instead.
 
 TableIO, config-as-json and wizard-ui-bridge have their own larger example sets:
 
@@ -420,6 +424,110 @@ python -m tableio_cfg_example.e10_split_rename \
   --less-than-output cities-before-limit.csv \
   --not-less-than-output cities-from-limit.csv
 ```
+
+## Editing a Stored Configuration in an Editor
+
+A wizard asks one question at a time and is the right shape for creating a
+configuration. Changing one value in a configuration that already exists is
+better served by an editor over the whole file, and the `edit-cfg-json`
+family is that editor. Its core discovers the editable structure of a
+`config_as_json.Config` object by introspection, so no configuration is
+described a second time to get one.
+
+The example source file is:
+
+- [`e11_config_editor.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e11_config_editor.py)
+  opens a stored configuration in an editor, in both of the shapes these
+  examples use: the `SplitCitiesConfig` application config of class B, and a
+  single TableIO endpoint config of class A.
+
+### Editor Walkthrough
+
+First create a configuration with one of the earlier examples, then open it:
+
+```sh
+python -m tableio_cfg_example.e05_app_config \
+  --cfg split-cities.json \
+  --txt split-cities-syntax.txt
+
+python -m tableio_cfg_example.e11_config_editor --cfg split-cities.json
+```
+
+A single TableIO endpoint config is opened with `--endpoint`, plus the access
+mode it was created for, because that is the application's own knowledge and
+is not in the file:
+
+```sh
+python -m tableio_cfg_example.e11_config_editor \
+  --cfg capitals-csv.json \
+  --endpoint \
+  --write
+```
+
+The example runs the non-interactive backend that the `edit-cfg-json` core
+ships, which prints the model once and returns. It is used here because it is
+the one backend that needs no user interface library. Installing
+[edit-cfg-json-tk](https://pypi.org/project/edit-cfg-json-tk/) or
+[edit-cfg-json-textual](https://pypi.org/project/edit-cfg-json-textual/) gives
+a real editor, and the only change in the code is which backend object is
+passed to `edit()`.
+
+### What To Look For In The Code
+
+The editor works out a great deal by itself: the docstring of every
+configuration class, what kind of value each member holds, which members may
+be left out of the file, and the names of an enum such as the CSV dialect. It
+never reads a validator, so nothing tells it which values `format_name` or
+`table_alignment` accept, or what `nonnumeric` means.
+
+That is what `tio_json_descriptions()` supplies, and it is the one source of
+truth for it, so an application storing TableIO configuration does not write
+the TableIO documentation down a second time:
+
+```python
+described = dict(APP_DESCRIPTIONS)
+for member in ENDPOINT_MEMBERS:
+    described.update(tio_json_descriptions((member,)))
+```
+
+The prefix is the name of the member that holds the endpoint, because a
+description addresses the whole path to the member it is about. For a file
+that is one endpoint and nothing else there is no member above it, and
+`TIO_JSON_DESCRIPTIONS` is the same mapping with no prefix.
+
+`TioJsonConfig` needs the runtime capabilities and file access that no
+configuration file holds, so the editor cannot construct it. That is what
+`tio_json_loader()` is for:
+
+```python
+loader = tio_json_loader(capabilities, file_access)
+saved = edit(config, backend, descriptions=TIO_JSON_DESCRIPTIONS,
+             in_file=config_file, loader=loader)
+```
+
+`SplitCitiesConfig` needs no loader, because its constructor takes only the
+arguments `config-as-json` documents and its own factory functions make the
+nested endpoints.
+
+A program that is told a name instead of making a call uses one of the
+ready-made loaders, `tio_json_read_loader`, `tio_json_create_loader` and
+`tio_json_update_loader`. That is what makes the inspection utility of the
+`edit-cfg-json` core work with no program written for it at all:
+
+```sh
+python3 -m edit_cfg_json.dump --module tableio_cfg_json \
+  --loader tio_json_create_loader \
+  --descriptions TIO_JSON_DESCRIPTIONS \
+  --input capitals-csv.json \
+  --unfold
+```
+
+One thing is worth knowing before opening a compact configuration file: a
+member that is not in the file is not a row in the editor. `tio_json_loader()`
+therefore builds on a complete set of defaults by default, and the editor
+marks every value the file did not hold, so a compact endpoint config opens
+with everything there is to set. An application config decides this for
+itself, in the class that constructs its endpoints.
 
 ## Asking a Whole Form at Once: `ask_form()`
 

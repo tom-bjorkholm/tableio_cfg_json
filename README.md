@@ -10,7 +10,10 @@
 This repository builds the package `tableio-cfg-json` stores configuration
 as validated JSON by using [config-as-json](https://pypi.org/project/config-as-json/),
 and includes a wizard for configuring TableIO. It uses
-`wizard-ui-bridge` for that wizard.
+`wizard-ui-bridge` for that wizard. It also supplies the member descriptions
+and the configuration loader that the
+[edit-cfg-json](https://pypi.org/project/edit-cfg-json/) editors need to edit
+a stored TableIO configuration.
 
 ## History
 
@@ -95,10 +98,10 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 573 passed in 23s
+- Test result: 638 passed in 25s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 1.2.1
-- Build and test using Python 3.14.6
+- Build and test using Python 3.14.7
