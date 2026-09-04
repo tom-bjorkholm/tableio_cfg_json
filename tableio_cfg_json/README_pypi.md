@@ -295,6 +295,26 @@ Choice values are matched case-insensitively where TableIO defines a finite
 set of choices. For example, configuration file may use `excel` and the
 config object will store TableIO's normal `Excel` spelling after validation.
 
+### A diagnostic names the whole path
+
+A message about a refused value names the path from the top of the
+configuration down to that value, and not just the local member name. A
+delimiter refused in the CSV section is `csv.delimiter`, and the same
+delimiter in an endpoint that an application configuration calls `input` is
+`input.csv.delimiter`. This matters because every endpoint declares the same
+member names, so a message naming only `delimiter` would leave the user
+guessing which endpoint it was about.
+
+The TableIO whole-configuration rules take part in the same naming. TableIO
+reports an issue under its own dotted parameter name, such as
+`csv.quoting`, and that name is joined onto the path of the endpoint it came
+from, so an application configuration reports
+`not_less_than_output.implementation`.
+
+`TioJsonConfig`, the three section classes and `tio_json_config_default()`
+all take a `member_name` keyword for this, and so does `tio_json_loader()`.
+A whole configuration file is a member of nothing and leaves it out.
+
 ## Nested application configs
 
 `TioJsonConfig` can be used as the whole configuration file for a small
@@ -306,6 +326,13 @@ output tables.
 For larger configs, create each nested `TioJsonConfig` with the capabilities
 and file access for that endpoint. A read endpoint and a create endpoint may
 need different defaults and may validate different implementations.
+
+Because the two endpoints differ, the application declares each of them with
+a `config_as_json.ConfigFactory` of its own, or one factory that reads the
+`member_name` it is called with. Passing that `member_name` on to
+`TioJsonConfig` is what names the endpoint in its diagnostics; a factory
+that does not accept it is called without it and config-as-json warns that
+it should be changed.
 
 The teaching examples show both styles.
 
@@ -325,10 +352,10 @@ MIT
 
 ## Test summary
 
-- Test result: 638 passed in 24s
+- Test result: 646 passed in 25s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
-- Built version(s): 1.3.1
+- Built version(s): 1.4
 - Build and test using Python 3.14.7

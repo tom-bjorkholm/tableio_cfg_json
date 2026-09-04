@@ -66,10 +66,12 @@ def _json_member(text: Optional[str], name: str,
     return value if isinstance(value, str) else fallback
 
 
+# pylint: disable=too-many-arguments
 def tio_json_loader(capabilities: Capabilities, file_access: FileAccess,
                     format_name: Optional[str] = None,
                     implementation: Optional[str] = None,
-                    include_all_options: bool = True) -> ConfigLoader:
+                    include_all_options: bool = True, *,
+                    member_name: Optional[str] = None) -> ConfigLoader:
     """Get a loader that constructs a TioJsonConfig for a config editor.
 
     Pass the result as the ``loader`` argument of ``edit_cfg_json.edit()``,
@@ -97,6 +99,13 @@ def tio_json_loader(capabilities: Capabilities, file_access: FileAccess,
             only when the edited JSON text does not select one.
         include_all_options: Whether the editor should offer every option as
             a row rather than only the options the file holds.
+        member_name: Path for reaching the loaded configuration from the
+            top level of a larger one, or ``None`` when it is that top level.
+            An editor asks a loader for a whole configuration, so an editing
+            session leaves this ``None``. It is here for an application that
+            loads one nested endpoint itself, which the loader and not
+            ``TioJsonConfig`` is the door to, because only a load decides
+            whether the defaults may fill in what the text leaves out.
     Returns:
         A loader for TioJsonConfig, satisfying ``edit_cfg_json.ConfigLoader``.
     """
@@ -131,11 +140,12 @@ def tio_json_loader(capabilities: Capabilities, file_access: FileAccess,
                                      format_name),
             implementation=_json_member(from_json_data_text, 'implementation',
                                         implementation),
-            include_all_options=include_all_options, stderr_file=stderr_file)
+            include_all_options=include_all_options, stderr_file=stderr_file,
+            member_name=member_name)
         if from_json_data_text is not None:
             config.parse_json(from_json_text=from_json_data_text,
                               ok_to_use_defaults=ok_to_use_defaults,
-                              stderr_file=stderr_file)
+                              stderr_file=stderr_file, member_name=member_name)
         return config
     return load
 

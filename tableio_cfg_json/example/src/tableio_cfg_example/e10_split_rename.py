@@ -44,7 +44,8 @@ class RenameSplitConfig(SplitCitiesConfig):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Create or read the rename-capable application configuration."""
         # The two mappings are open-ended dicts, so their keys are not a
         # fixed schema the Config base class can check against a default.
@@ -56,7 +57,7 @@ class RenameSplitConfig(SplitCitiesConfig):
         self.not_less_output_names: dict[str, str] = {}
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:

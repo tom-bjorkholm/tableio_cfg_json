@@ -18,7 +18,8 @@ from config_as_json import CharEncodingValidator, Config, \
     MemberValidatorSequence, \
     NestedConfigs, OptionalMemberValidator, ParseConverter, PathOrStr, \
     StrLenValidator, StrValidator, ValidationPlan, \
-    ValueTypeValidator, WholeConfigValidationStep, WholeConfigValidator
+    ValueTypeValidator, WholeConfigValidationStep, WholeConfigValidator, \
+    member_path
 from tableio import Capabilities, ConfigData, ConfigError, CsvConfigData, \
     CsvDialect, FileAccess, HtmlConfigData, LatexConfigData, \
     add_access_capabilities, tio_config_default, tio_config_specs, \
@@ -110,13 +111,16 @@ class _TioWholeValidator(WholeConfigValidator):
     """
 
     @override
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Validate one complete TioJsonConfig instance.
 
         Args:
             config: Configuration object to validate.
             stderr_file: Stream receiving user-facing validation messages.
+            member_name: Path for reaching ``config`` from the top level of
+                the validation, or ``None`` when ``config`` is that top
+                level and not a member of anything.
         Raises:
             AssertionError: ``config`` is not a TioJsonConfig.
             InvalidConfiguration: The tableio whole-configuration rules
@@ -129,21 +133,28 @@ class _TioWholeValidator(WholeConfigValidator):
             tio_config_validate(config, capabilities=config.capabilities,
                                 file_access=config.file_access)
         except ConfigError as err:
-            message = _issue_message(err)
+            message = _issue_message(err, member_name)
             print(message, file=stderr_file)
             raise InvalidConfiguration(message) from err
 
 
-def _issue_message(error: ConfigError) -> str:
+def _issue_message(error: ConfigError, member_name: Optional[str]) -> str:
     """Return one compact config-as-json message from tableio issues.
+
+    A tableio issue names its member by the dotted name TableIO documents,
+    such as ``csv.quoting``, which is already the path to that value inside
+    one endpoint configuration. Joining it onto the path of the endpoint
+    names the value the way every other config-as-json diagnostic does.
 
     Args:
         error: TableIO configuration error containing one or more issues.
+        member_name: Path for reaching the validated configuration, or
+            ``None`` when it is the top level and not a member of anything.
     Returns:
         A newline-separated message suitable for InvalidConfiguration.
     """
-    return '\n'.join(
-        f'{issue.name}: {issue.message}' for issue in error.issues)
+    return '\n'.join(f'{member_path(member_name, issue.name)}: '
+                     f'{issue.message}' for issue in error.issues)
 
 
 def _optional_one_char() -> OptionalMemberValidator:
@@ -182,7 +193,8 @@ class TioJsonCsvConfig(CsvConfigData, Config):
                  escapechar: Optional[str] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Create CSV settings or read them from a JSON source.
 
         Constructor arguments provide defaults. If JSON text or a filename is
@@ -198,6 +210,9 @@ class TioJsonCsvConfig(CsvConfigData, Config):
             from_json_data_text: Optional JSON text to parse.
             from_json_filename: Optional JSON file to read.
             stderr_file: Stream receiving user-facing diagnostics.
+            member_name: Path for reaching this section from the top
+                level of the complete configuration, or ``None`` when this
+                section is that top level and not a member of anything.
         Raises:
             ValueError: Both JSON text and a JSON filename were supplied.
             SystemExit: The JSON filename does not exist.
@@ -215,7 +230,7 @@ class TioJsonCsvConfig(CsvConfigData, Config):
                                escapechar=escapechar)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -283,7 +298,8 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
     def __init__(self, css_file: Optional[str] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Create HTML settings or read them from a JSON source.
 
         Constructor arguments provide defaults. If JSON text or a filename is
@@ -294,6 +310,9 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
             from_json_data_text: Optional JSON text to parse.
             from_json_filename: Optional JSON file to read.
             stderr_file: Stream receiving user-facing diagnostics.
+            member_name: Path for reaching this section from the top
+                level of the complete configuration, or ``None`` when this
+                section is that top level and not a member of anything.
         Raises:
             ValueError: Both JSON text and a JSON filename were supplied.
             SystemExit: The JSON filename does not exist.
@@ -308,7 +327,7 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
         HtmlConfigData.__init__(self, css_file=css_file)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -350,7 +369,8 @@ class TioJsonLatexConfig(LatexConfigData, Config):
                  preamble: Optional[str] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Create LaTeX settings or read them from a JSON source.
 
         Constructor arguments provide defaults. If JSON text or a filename is
@@ -362,6 +382,9 @@ class TioJsonLatexConfig(LatexConfigData, Config):
             from_json_data_text: Optional JSON text to parse.
             from_json_filename: Optional JSON file to read.
             stderr_file: Stream receiving user-facing diagnostics.
+            member_name: Path for reaching this section from the top
+                level of the complete configuration, or ``None`` when this
+                section is that top level and not a member of anything.
         Raises:
             ValueError: Both JSON text and a JSON filename were supplied.
             SystemExit: The JSON filename does not exist.
@@ -377,7 +400,7 @@ class TioJsonLatexConfig(LatexConfigData, Config):
                                  preamble=preamble)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -430,7 +453,8 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Create TableIO settings or read them from a JSON source.
 
         Default values come from tableio's recommended configuration for the
@@ -449,6 +473,11 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
             auto_ch_hook: Hook receiving config-as-json automatic changes
                 while reading old configuration files.
             stderr_file: Stream receiving user-facing diagnostics.
+            member_name: Path for reaching this configuration from the top
+                level of a larger configuration, or ``None`` when this
+                object is that top level and not a member of anything. An
+                application nesting one endpoint per member names each of
+                them, so that a diagnostic says which endpoint it is about.
         Raises:
             ConfigError: TableIO cannot select or validate default data from
                 the supplied runtime values.
@@ -479,7 +508,8 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
         Config.copy_initial_data(data, self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                        auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                        member_name=member_name)
 
     @property
     def capabilities(self) -> Capabilities:
@@ -574,7 +604,9 @@ def tio_json_config_default(capabilities: Capabilities,
                             format_name: Optional[str] = None,
                             implementation: Optional[str] = None,
                             include_all_options: bool = False,
-                            stderr_file: TextIO = sys.stderr) -> TioJsonConfig:
+                            stderr_file: TextIO = sys.stderr, *,
+                            member_name: Optional[str] = None) \
+        -> TioJsonConfig:
     """Return a TioJsonConfig with tableio's recommended defaults.
 
     The returned object can be used directly as a tableio ConfigData object
@@ -589,6 +621,9 @@ def tio_json_config_default(capabilities: Capabilities,
         include_all_options: Include explicit non-``None`` defaults for
             template-style configuration output.
         stderr_file: Stream receiving user-facing diagnostics.
+        member_name: Path for reaching the returned configuration from the
+            top level of a larger configuration, or ``None`` when it is that
+            top level and not a member of anything.
     Raises:
         ConfigError: TableIO cannot select or validate default data from the
             supplied runtime values.
@@ -604,4 +639,4 @@ def tio_json_config_default(capabilities: Capabilities,
                          format_name=format_name,
                          implementation=implementation,
                          include_all_options=include_all_options,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)

@@ -513,7 +513,9 @@ def __init__(dialect: Optional[CsvDialect] = None,
              escapechar: Optional[str] = None,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> None
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str] = None) -> None
 ```
 
 Create CSV settings or read them from a JSON source.
@@ -532,6 +534,9 @@ supplied, config-as-json applies the JSON values over those defaults.
 - `from_json_data_text` - Optional JSON text to parse.
 - `from_json_filename` - Optional JSON file to read.
 - `stderr_file` - Stream receiving user-facing diagnostics.
+- `member_name` - Path for reaching this section from the top
+  level of the complete configuration, or ``None`` when this
+  section is that top level and not a member of anything.
 
 **Raises**:
 
@@ -614,7 +619,9 @@ TioJsonConfig.
 def __init__(css_file: Optional[str] = None,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> None
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str] = None) -> None
 ```
 
 Create HTML settings or read them from a JSON source.
@@ -628,6 +635,9 @@ supplied, config-as-json applies the JSON values over those defaults.
 - `from_json_data_text` - Optional JSON text to parse.
 - `from_json_filename` - Optional JSON file to read.
 - `stderr_file` - Stream receiving user-facing diagnostics.
+- `member_name` - Path for reaching this section from the top
+  level of the complete configuration, or ``None`` when this
+  section is that top level and not a member of anything.
 
 **Raises**:
 
@@ -684,7 +694,9 @@ def __init__(document_class: Optional[str] = None,
              preamble: Optional[str] = None,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> None
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str] = None) -> None
 ```
 
 Create LaTeX settings or read them from a JSON source.
@@ -699,6 +711,9 @@ supplied, config-as-json applies the JSON values over those defaults.
 - `from_json_data_text` - Optional JSON text to parse.
 - `from_json_filename` - Optional JSON file to read.
 - `stderr_file` - Stream receiving user-facing diagnostics.
+- `member_name` - Path for reaching this section from the top
+  level of the complete configuration, or ``None`` when this
+  section is that top level and not a member of anything.
 
 **Raises**:
 
@@ -765,7 +780,9 @@ def __init__(capabilities: Capabilities,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-             stderr_file: TextIO = sys.stderr) -> None
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str] = None) -> None
 ```
 
 Create TableIO settings or read them from a JSON source.
@@ -787,6 +804,11 @@ supplied, config-as-json applies the JSON values over those defaults.
 - `auto_ch_hook` - Hook receiving config-as-json automatic changes
   while reading old configuration files.
 - `stderr_file` - Stream receiving user-facing diagnostics.
+- `member_name` - Path for reaching this configuration from the top
+  level of a larger configuration, or ``None`` when this
+  object is that top level and not a member of anything. An
+  application nesting one endpoint per member names each of
+  them, so that a diagnostic says which endpoint it is about.
 
 **Raises**:
 
@@ -884,12 +906,15 @@ depend on capabilities, file access, format and implementation.
 #### tio\_json\_config\_default
 
 ```python
-def tio_json_config_default(capabilities: Capabilities,
-                            file_access: FileAccess,
-                            format_name: Optional[str] = None,
-                            implementation: Optional[str] = None,
-                            include_all_options: bool = False,
-                            stderr_file: TextIO = sys.stderr) -> TioJsonConfig
+def tio_json_config_default(
+        capabilities: Capabilities,
+        file_access: FileAccess,
+        format_name: Optional[str] = None,
+        implementation: Optional[str] = None,
+        include_all_options: bool = False,
+        stderr_file: TextIO = sys.stderr,
+        *,
+        member_name: Optional[str] = None) -> TioJsonConfig
 ```
 
 Return a TioJsonConfig with tableio's recommended defaults.
@@ -907,6 +932,9 @@ config-as-json.
 - `include_all_options` - Include explicit non-``None`` defaults for
   template-style configuration output.
 - `stderr_file` - Stream receiving user-facing diagnostics.
+- `member_name` - Path for reaching the returned configuration from the
+  top level of a larger configuration, or ``None`` when it is that
+  top level and not a member of anything.
 
 **Raises**:
 
@@ -1039,7 +1067,9 @@ def tio_json_loader(capabilities: Capabilities,
                     file_access: FileAccess,
                     format_name: Optional[str] = None,
                     implementation: Optional[str] = None,
-                    include_all_options: bool = True) -> ConfigLoader
+                    include_all_options: bool = True,
+                    *,
+                    member_name: Optional[str] = None) -> ConfigLoader
 ```
 
 Get a loader that constructs a TioJsonConfig for a config editor.
@@ -1070,6 +1100,13 @@ to keep an edited file as compact as it was.
   only when the edited JSON text does not select one.
 - `include_all_options` - Whether the editor should offer every option as
   a row rather than only the options the file holds.
+- `member_name` - Path for reaching the loaded configuration from the
+  top level of a larger one, or ``None`` when it is that top level.
+  An editor asks a loader for a whole configuration, so an editing
+  session leaves this ``None``. It is here for an application that
+  loads one nested endpoint itself, which the loader and not
+  ``TioJsonConfig`` is the door to, because only a load decides
+  whether the defaults may fill in what the text leaves out.
 
 **Returns**:
 

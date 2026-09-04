@@ -94,6 +94,19 @@ saved = edit(config, TextualEditor(), descriptions=app_descriptions(),
 package is a dependency of `tableio-cfg-json`, so an application that wants
 one declares it for itself.
 
+## Why this example does not call edit()
+
+`edit()` is the short door, and the snippet above is what an application with
+a real editor writes: build the model, run the backend, hand back what was
+saved. This example needs the long way round for one reason only. A container
+large enough to flood a window opens folded, and a printout has no control to
+press on it, so an application configuration would print its three endpoints
+as three folded lines and none of the members this example is about. A program
+that prints therefore builds the model itself and opens every container before
+the backend runs. That is what `--unfold` of `python3 -m edit_cfg_json.dump`
+does, and it is the whole of the difference. An interactive session wants the
+folding and asks for none of this.
+
 ## Running it
 
 ```sh
@@ -110,8 +123,9 @@ from pathlib import Path
 import sys
 from typing import Optional, TextIO
 
-from edit_cfg_json import Descriptions, DumpEditor, EditorBackend, \
-    LoadPolicy, edit
+from config_as_json import Config
+from edit_cfg_json import ConfigLoader, Descriptions, DumpEditor, \
+    EditorBackend, LoadPolicy, editor_model
 from tableio import FileAccess, access_capabilities
 from tableio_cfg_example.e05_app_config import SplitCitiesConfig
 from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, tio_json_config_default, \
@@ -171,13 +185,8 @@ def edit_app_config(config_file: Path, backend: EditorBackend,
         Whether the session wrote the file.
     """
     config = SplitCitiesConfig(stderr_file=stderr_file)
-    # LoadPolicy.DEFAULTS lets the declared values fill in what the file
-    # leaves out, and the editor marks every member that was filled in, so
-    # an older or hand-trimmed file still opens.
-    saved = edit(config, backend, descriptions=app_descriptions(),
-                 in_file=config_file, policy=LoadPolicy.DEFAULTS,
-                 stderr_file=stderr_file)
-    return saved is not None
+    return _printed_session(config, backend, app_descriptions(), config_file,
+                            None, stderr_file)
 
 
 def edit_endpoint(config_file: Path, file_access: FileAccess,
@@ -207,10 +216,44 @@ def edit_endpoint(config_file: Path, file_access: FileAccess,
                                      include_all_options=True,
                                      stderr_file=stderr_file)
     loader = tio_json_loader(capabilities, file_access)
-    saved = edit(config, backend, descriptions=TIO_JSON_DESCRIPTIONS,
-                 in_file=config_file, loader=loader,
-                 policy=LoadPolicy.DEFAULTS, stderr_file=stderr_file)
-    return saved is not None
+    return _printed_session(config, backend, TIO_JSON_DESCRIPTIONS,
+                            config_file, loader, stderr_file)
+
+
+# pylint: disable=too-many-arguments,too-many-positional-arguments
+def _printed_session(config: Config, backend: EditorBackend,
+                     descriptions: Descriptions, config_file: Path,
+                     loader: Optional[ConfigLoader],
+                     stderr_file: TextIO) -> bool:
+    """Run one editing session over a whole file and report the outcome.
+
+    This is `edit_cfg_json.edit()` written out, with the one extra step a
+    printing backend needs. See the section of the module docstring about
+    not calling edit() for why that step is here and why an application
+    with a real editor calls edit() instead.
+
+    Args:
+        config: Object saying which class to edit and what it declares.
+        backend: User interface backend that runs the editing session.
+        descriptions: What to tell the editor about the members.
+        config_file: JSON configuration file to edit.
+        loader: How to construct the class, or None when the editor can
+            construct it from the signature it declares.
+        stderr_file: Stream receiving diagnostics.
+    Returns:
+        Whether the session wrote the file.
+    """
+    # LoadPolicy.DEFAULTS lets the declared values fill in what the file
+    # leaves out, and the editor marks every member that was filled in, so
+    # an older or hand-trimmed file still opens.
+    model = editor_model(config, descriptions=descriptions,
+                         in_file=config_file, loader=loader,
+                         policy=LoadPolicy.DEFAULTS, stderr_file=stderr_file)
+    # no_more_folding keeps a container open that the validation pass the
+    # backend makes before it prints would otherwise fold away again.
+    model.open_all(no_more_folding=True)
+    backend.run_editor(model)
+    return model.saved_config is not None
 
 
 # ---------------------------------------------------------------------------

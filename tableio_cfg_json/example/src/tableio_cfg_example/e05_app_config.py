@@ -56,13 +56,20 @@ class SplitCitiesConfig(Config):
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str] = None) -> None:
         """Create or read the complete application configuration.
 
         Args:
             from_json_data_text: Optional JSON text to parse.
             from_json_filename: Optional JSON file to read.
             stderr_file: Stream receiving validation diagnostics.
+            member_name: Path for reaching this configuration from the top
+                level of a larger one, or None when it is that top level.
+                This class is written as a whole configuration file, so a
+                program passes nothing here. It is accepted anyway, because
+                that is what lets the class be nested in turn, and because
+                config-as-json warns about a class that does not take it.
         """
         # A config-as-json class is normally initialized to useful defaults.
         # Application code can then assign the specific values it wants before
@@ -76,7 +83,7 @@ class SplitCitiesConfig(Config):
         self.split_limit = 'M'
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -113,17 +120,28 @@ class SplitCitiesConfig(Config):
 
     def _input_factory(self, from_json_data_text: Optional[str] = None,
                        from_json_filename: Optional[PathOrStr] = None,
-                       stderr_file: TextIO = sys.stderr) -> TioJsonConfig:
+                       stderr_file: TextIO = sys.stderr,
+                       member_name: Optional[str] = None) -> TioJsonConfig:
         """Create a nested read-capable TableIO config from JSON."""
+        # member_name is the path config-as-json is on its way down, here
+        # the plain 'input'. Handing it to the endpoint is what makes a
+        # refused value in this file say input.format_name and not
+        # format_name, which matters when three endpoints declare the same
+        # members. A factory that does not accept it is called without it,
+        # and config-as-json warns that it should be changed.
         return _json_config(FileAccess.READ, from_json_data_text,
-                            from_json_filename, stderr_file)
+                            from_json_filename, stderr_file, member_name)
 
     def _create_factory(self, from_json_data_text: Optional[str] = None,
                         from_json_filename: Optional[PathOrStr] = None,
-                        stderr_file: TextIO = sys.stderr) -> TioJsonConfig:
+                        stderr_file: TextIO = sys.stderr,
+                        member_name: Optional[str] = None) -> TioJsonConfig:
         """Create a nested create-capable TableIO config from JSON."""
+        # One factory serves both outputs, and the two are told apart by the
+        # member_name each call brings: less_than_output for one of them and
+        # not_less_than_output for the other.
         return _json_config(FileAccess.CREATE, from_json_data_text,
-                            from_json_filename, stderr_file)
+                            from_json_filename, stderr_file, member_name)
 
 
 def build_app_config(stderr_file: TextIO) -> SplitCitiesConfig:
@@ -193,14 +211,14 @@ def _default_config(file_access: FileAccess, stderr_file: TextIO,
 
 
 def _json_config(file_access: FileAccess, from_json_data_text: Optional[str],
-                 from_json_filename: Optional[PathOrStr],
-                 stderr_file: TextIO) -> TioJsonConfig:
+                 from_json_filename: Optional[PathOrStr], stderr_file: TextIO,
+                 member_name: Optional[str]) -> TioJsonConfig:
     """Read a nested TableIO config for one file access mode."""
     capabilities = access_capabilities(file_access, error_file=stderr_file)
     return TioJsonConfig(capabilities=capabilities, file_access=file_access,
                          from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
 
 def _syntax_text(config: SplitCitiesConfig, stderr_file: TextIO) -> str:

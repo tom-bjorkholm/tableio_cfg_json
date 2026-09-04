@@ -286,6 +286,13 @@ config.split_column = 'Country'
 config.split_limit = 'M'
 ```
 
+Each of the three endpoints declares the same TableIO members, so a message
+about a refused value has to say which endpoint it is about. That is what the
+`member_name` argument of the two factory functions is for: config-as-json
+hands each factory the path it is on its way down, and the factory passes it
+to the endpoint, so a bad delimiter in the input is reported as
+`input.csv.delimiter`.
+
 The runner example reads and writes dict data:
 
 ```python
@@ -469,8 +476,17 @@ ships, which prints the model once and returns. It is used here because it is
 the one backend that needs no user interface library. Installing
 [edit-cfg-json-tk](https://pypi.org/project/edit-cfg-json-tk/) or
 [edit-cfg-json-textual](https://pypi.org/project/edit-cfg-json-textual/) gives
-a real editor, and the only change in the code is which backend object is
-passed to `edit()`.
+a real editor, and which backend object is run is the only thing that changes
+about the session.
+
+Printing is the one case that needs a step an interactive editor does not. A
+container large enough to flood a window opens folded, and a printout has no
+control to press on it, so the application config would print its three
+endpoints as three folded lines. The example therefore builds the model with
+`editor_model()` and opens every container before the backend runs, which is
+what `--unfold` below does for the inspection utility. An application with a
+real editor wants the folding and calls `edit()`, which is the short door
+that builds the model and runs the backend in one call.
 
 ### What To Look For In The Code
 
@@ -504,6 +520,10 @@ loader = tio_json_loader(capabilities, file_access)
 saved = edit(config, backend, descriptions=TIO_JSON_DESCRIPTIONS,
              in_file=config_file, loader=loader)
 ```
+
+That is `edit()`, the short door an application with a real editor uses. The
+example itself spells the same session out in its three steps, for the one
+reason given above.
 
 `SplitCitiesConfig` needs no loader, because its constructor takes only the
 arguments `config-as-json` documents and its own factory functions make the

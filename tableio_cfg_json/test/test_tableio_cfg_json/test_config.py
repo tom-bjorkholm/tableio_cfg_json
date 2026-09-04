@@ -253,7 +253,7 @@ def test_csv_string_lengths(member_name: str, value: str) -> None:
     with pytest.raises(InvalidConfiguration) as exc_info:
         TioJsonConfig(Capabilities(), FileAccess.CREATE,
                       from_json_data_text=text)
-    assert member_name in str(exc_info.value)
+    assert f'csv.{member_name}' in str(exc_info.value)
 
 
 def test_member_bad_value() -> None:
@@ -266,7 +266,7 @@ def test_member_bad_value() -> None:
     with pytest.raises(InvalidConfiguration) as exc_info:
         TioJsonConfig(Capabilities(), FileAccess.CREATE,
                       from_json_data_text=text)
-    assert 'quoting' in str(exc_info.value)
+    assert 'csv.quoting' in str(exc_info.value)
 
 
 def test_whole_impl_format() -> None:

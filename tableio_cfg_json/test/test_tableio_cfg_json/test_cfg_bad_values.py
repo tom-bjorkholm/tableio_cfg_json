@@ -280,9 +280,9 @@ def test_bad_csv_dialect_file(dialect: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('delimiter', 'exception', 'error_text'),
-    [pytest.param('', InvalidConfiguration, 'delimiter', id='empty'),
-     pytest.param('::', InvalidConfiguration, 'delimiter', id='long'),
-     pytest.param(7, InvalidConfiguration, 'delimiter', id='int')])
+    [pytest.param('', InvalidConfiguration, 'csv.delimiter', id='empty'),
+     pytest.param('::', InvalidConfiguration, 'csv.delimiter', id='long'),
+     pytest.param(7, InvalidConfiguration, 'csv.delimiter', id='int')])
 def test_bad_csv_delim_file(delimiter: object, exception: type[Exception],
                             error_text: str) -> None:
     """Invalid CSV delimiters fail both writing and reading."""
@@ -309,8 +309,9 @@ def test_bad_csv_delim_file(delimiter: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('quoting', 'exception', 'error_text'),
-    [pytest.param('invalid', InvalidConfiguration, 'quoting', id='unknown'),
-     pytest.param(7, InvalidConfiguration, 'quoting', id='int')])
+    [pytest.param('invalid', InvalidConfiguration, 'csv.quoting',
+                  id='unknown'),
+     pytest.param(7, InvalidConfiguration, 'csv.quoting', id='int')])
 def test_bad_csv_quoting_file(quoting: object, exception: type[Exception],
                               error_text: str) -> None:
     """Invalid CSV quoting values fail both writing and reading."""
@@ -337,9 +338,9 @@ def test_bad_csv_quoting_file(quoting: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('quotechar', 'exception', 'error_text'),
-    [pytest.param('', InvalidConfiguration, 'quotechar', id='empty'),
-     pytest.param('""', InvalidConfiguration, 'quotechar', id='long'),
-     pytest.param(7, InvalidConfiguration, 'quotechar', id='int')])
+    [pytest.param('', InvalidConfiguration, 'csv.quotechar', id='empty'),
+     pytest.param('""', InvalidConfiguration, 'csv.quotechar', id='long'),
+     pytest.param(7, InvalidConfiguration, 'csv.quotechar', id='int')])
 def test_bad_csv_quote_file(quotechar: object, exception: type[Exception],
                             error_text: str) -> None:
     """Invalid CSV quote characters fail both writing and reading."""
@@ -366,8 +367,8 @@ def test_bad_csv_quote_file(quotechar: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('lineterminator', 'exception', 'error_text'),
-    [pytest.param('', InvalidConfiguration, 'lineterminator', id='empty'),
-     pytest.param(7, InvalidConfiguration, 'lineterminator', id='int')])
+    [pytest.param('', InvalidConfiguration, 'csv.lineterminator', id='empty'),
+     pytest.param(7, InvalidConfiguration, 'csv.lineterminator', id='int')])
 def test_bad_csv_line_file(lineterminator: object, exception: type[Exception],
                            error_text: str) -> None:
     """Invalid CSV line terminators fail both writing and reading."""
@@ -394,9 +395,9 @@ def test_bad_csv_line_file(lineterminator: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('escapechar', 'exception', 'error_text'),
-    [pytest.param('', InvalidConfiguration, 'escapechar', id='empty'),
-     pytest.param('\\\\', InvalidConfiguration, 'escapechar', id='long'),
-     pytest.param(7, InvalidConfiguration, 'escapechar', id='int')])
+    [pytest.param('', InvalidConfiguration, 'csv.escapechar', id='empty'),
+     pytest.param('\\\\', InvalidConfiguration, 'csv.escapechar', id='long'),
+     pytest.param(7, InvalidConfiguration, 'csv.escapechar', id='int')])
 def test_bad_csv_escape_file(escapechar: object, exception: type[Exception],
                              error_text: str) -> None:
     """Invalid CSV escape characters fail both writing and reading."""
@@ -423,8 +424,9 @@ def test_bad_csv_escape_file(escapechar: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('css_file', 'exception', 'error_text'),
-    [pytest.param(7, InvalidConfiguration, 'css_file', id='int'),
-     pytest.param(['style.css'], InvalidConfiguration, 'css_file', id='list')])
+    [pytest.param(7, InvalidConfiguration, 'html.css_file', id='int'),
+     pytest.param(['style.css'], InvalidConfiguration, 'html.css_file',
+                  id='list')])
 def test_bad_html_css_file(css_file: object, exception: type[Exception],
                            error_text: str) -> None:
     """Invalid HTML CSS files fail both writing and reading."""
@@ -449,9 +451,9 @@ def test_bad_html_css_file(css_file: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('document_class', 'exception', 'error_text'),
-    [pytest.param('Memo', InvalidConfiguration, 'document_class',
+    [pytest.param('Memo', InvalidConfiguration, 'latex.document_class',
                   id='unknown'),
-     pytest.param(7, InvalidConfiguration, 'document_class', id='int')])
+     pytest.param(7, InvalidConfiguration, 'latex.document_class', id='int')])
 def test_bad_latex_class(document_class: object, exception: type[Exception],
                          error_text: str) -> None:
     """Invalid LaTeX document classes fail both writing and reading."""
@@ -478,9 +480,9 @@ def test_bad_latex_class(document_class: object, exception: type[Exception],
 
 @pytest.mark.parametrize(
     ('preamble', 'exception', 'error_text'),
-    [pytest.param(7, InvalidConfiguration, 'preamble', id='int'),
-     pytest.param(['\\usepackage{booktabs}'], InvalidConfiguration, 'preamble',
-                  id='list')])
+    [pytest.param(7, InvalidConfiguration, 'latex.preamble', id='int'),
+     pytest.param(['\\usepackage{booktabs}'], InvalidConfiguration,
+                  'latex.preamble', id='list')])
 def test_bad_latex_preamble(preamble: object, exception: type[Exception],
                             error_text: str) -> None:
     """Invalid LaTeX preambles fail both writing and reading."""
