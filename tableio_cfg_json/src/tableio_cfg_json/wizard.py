@@ -86,7 +86,10 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
         default: Default values to pre-fill the wizard. This can be what a
             configuration file already contains, what the user already
             answered before going back in an enclosing wizard, or what the
-            application wants to suggest as a starting point.
+            application wants to suggest as a starting point. A format or
+            implementation that this endpoint cannot use is not offered as a
+            default, and the values of members that the chosen format and
+            implementation do not use are not kept.
         backward: When True, the wizard starts at the last question instead of
             the first. This will be set to True when the user asked to go back
             from a later question in an enclosing wizard.
@@ -104,7 +107,7 @@ def tio_json_config_wizard(capabilities: Capabilities, file_access: FileAccess,
     stderr_file = ui_bridge.error_file()
     match_caps = add_access_capabilities(file_access, capabilities,
                                          error_file=stderr_file)
-    data = _default_data(default, stderr_file)
+    data = _usable_default(_default_data(default, stderr_file), match_caps)
     run = _WizardRun(bridge=ui_bridge, caps=capabilities,
                      file_access=file_access, match_caps=match_caps,
                      stderr=stderr_file, data=data)
@@ -121,6 +124,24 @@ def _default_data(default: Optional[TioJsonConfig],
     return data
 
 
+def _usable_default(data: dict[str, object],
+                    match_caps: Capabilities) -> dict[str, object]:
+    """Return default data without what this endpoint cannot use.
+
+    A format the endpoint cannot use leaves nothing to keep, because every
+    other member depends on the format. An implementation the endpoint
+    cannot use for a usable format is dropped on its own.
+    """
+    format_name = data.get('format_name')
+    format_names = list_registered_tableio(capabilities=match_caps)
+    if not isinstance(format_name, str) or format_name not in format_names:
+        return {}
+    impl_names = _impl_names(format_name, match_caps)
+    if data.get('implementation') not in (None, *impl_names):
+        del data['implementation']
+    return data
+
+
 def _drive(run: _WizardRun, backward: bool) -> TioJsonConfig:
     """Run the endpoint steps until the configuration validates.
 
@@ -134,8 +155,7 @@ def _drive(run: _WizardRun, backward: bool) -> TioJsonConfig:
     while True:
         steps = _build_steps(run)
         if index >= len(steps):
-            return _config_from_data(run.data, run.caps, run.file_access,
-                                     run.stderr)
+            return _final_config(run, steps[-1].specs)
         try:
             _run_step(run, steps[index])
         except WizardBack:
@@ -150,6 +170,18 @@ def _drive(run: _WizardRun, backward: bool) -> TioJsonConfig:
             index = 0
             continue
         index += 1
+
+
+def _final_config(run: _WizardRun,
+                  specs: tuple[ConfigSpec, ...]) -> TioJsonConfig:
+    """Return the validated result, keeping only the members asked for.
+
+    A format without an option form asks for no member, so a value that the
+    default held for another format is dropped here rather than kept.
+    """
+    new_data = _data_from_values(run.data, specs,
+                                 _current_values(run.data, specs))
+    return _config_from_data(new_data, run.caps, run.file_access, run.stderr)
 
 
 def _start_index(run: _WizardRun, backward: bool) -> int:

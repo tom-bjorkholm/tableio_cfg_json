@@ -8,7 +8,10 @@
 
 import json
 
-from tableio import FileAccess, access_capabilities
+import pytest
+
+from tableio import CAP_NEEDED, Capabilities, FileAccess, \
+    TimeDeltaFallback, access_capabilities
 from wizard_ui_bridge import WizardBack
 from tableio_cfg_json import TioJsonConfig, tio_json_config_wizard
 from .wizard_support import _ScriptedBridge, _format_index, \
@@ -128,3 +131,87 @@ def test_pinned_impl_kept() -> None:
     assert config.implementation == 'csv'
     assert config.csv is not None
     assert config.csv.delimiter == ';'
+
+
+@pytest.mark.parametrize('backward', [False, True])
+def test_unusable_format(backward: bool) -> None:
+    """A default format the endpoint cannot use is not a default at all.
+
+    HTML cannot be read, so a default written for an HTML output gives a
+    READ endpoint nothing to start from, and the format is asked for.
+    """
+    default = _json_default(FileAccess.CREATE, {'format_name': 'HTML',
+                                                'title': 'T'})
+    answers: list[str | int] = ['', 'CSV']
+    answers.extend(_member_answer_lines('CSV', FileAccess.READ))
+    capabilities = access_capabilities(FileAccess.READ)
+    bridge = _ScriptedBridge(answers)
+    config = tio_json_config_wizard(capabilities, FileAccess.READ, bridge,
+                                    default=default, backward=backward)
+    assert config.format_name == 'CSV'
+    assert config.title is None
+    assert bridge.calls[0][0] == 'Select TableIO format:'
+    assert bridge.calls[1][1] is not None, 'blank had no default to use'
+
+
+@pytest.mark.parametrize('backward', [False, True])
+def test_unusable_impl(backward: bool) -> None:
+    """A default implementation the endpoint cannot use is dropped.
+
+    With value formatting required, only OpenPyXL can update an Excel
+    file, so no implementation question is asked and XlsxWriter from a
+    default made for writing must not survive into the result.
+    """
+    caps = Capabilities(can_fmt_value=CAP_NEEDED)
+    default = TioJsonConfig(caps, FileAccess.CREATE, format_name='Excel',
+                            implementation='XlsxWriter')
+    bridge = _ScriptedBridge([''])
+    config = tio_json_config_wizard(caps, FileAccess.UPDATE, bridge,
+                                    default=default, backward=backward)
+    assert config.format_name == 'Excel'
+    assert config.implementation is None
+    assert [call[0] for call in bridge.calls] == ['Select TableIO format:']
+
+
+def _edit(default: TioJsonConfig, answers: list[str | int],
+          backward: bool = False) -> tuple[TioJsonConfig, _ScriptedBridge]:
+    """Return what the wizard makes of a default for a CREATE endpoint."""
+    bridge = _ScriptedBridge(answers)
+    capabilities = access_capabilities(FileAccess.CREATE)
+    config = tio_json_config_wizard(capabilities, FileAccess.CREATE, bridge,
+                                    default=default, backward=backward)
+    return config, bridge
+
+
+@pytest.mark.parametrize('backward', [False, True])
+def test_stale_no_form(backward: bool) -> None:
+    """Values Excel does not use are dropped although it has no form."""
+    default = _json_default(FileAccess.CREATE, {
+        'format_name': 'Excel', 'title': 'T', 'csv': {'delimiter': ';'}})
+    answers: list[str | int] = [''] if backward else ['', '']
+    config, bridge = _edit(default, answers, backward)
+    assert config.format_name == 'Excel'
+    assert config.title is None
+    assert config.csv is None
+    assert not bridge.answers
+
+
+def test_stale_with_form() -> None:
+    """Values the chosen format does not use are dropped by its form."""
+    default = _json_default(FileAccess.CREATE, {
+        'format_name': 'CSV', 'title': 'T', 'csv': {'delimiter': ';'}})
+    answers: list[str | int] = ['']
+    answers.extend(_member_answer_lines('CSV', FileAccess.CREATE))
+    config, _ = _edit(default, answers)
+    assert config.title is None
+    assert config.csv is not None
+    assert config.csv.delimiter == ';'
+
+
+def test_default_timedelta() -> None:
+    """An enum member from the defaults is offered and kept by the form."""
+    default = _json_default(FileAccess.CREATE, {
+        'format_name': 'txt', 'timedelta_fallback': 'DHMS_STRING'})
+    config, _ = _edit(default, _member_answer_lines('txt', FileAccess.CREATE),
+                      backward=True)
+    assert config.timedelta_fallback is TimeDeltaFallback.DHMS_STRING

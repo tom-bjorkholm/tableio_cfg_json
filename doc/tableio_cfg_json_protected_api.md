@@ -93,7 +93,9 @@
   * [\_Step](#tableio_cfg_json.wizard._Step)
   * [tio\_json\_config\_wizard](#tableio_cfg_json.wizard.tio_json_config_wizard)
   * [\_default\_data](#tableio_cfg_json.wizard._default_data)
+  * [\_usable\_default](#tableio_cfg_json.wizard._usable_default)
   * [\_drive](#tableio_cfg_json.wizard._drive)
+  * [\_final\_config](#tableio_cfg_json.wizard._final_config)
   * [\_start\_index](#tableio_cfg_json.wizard._start_index)
   * [\_build\_steps](#tableio_cfg_json.wizard._build_steps)
   * [\_relevant\_specs](#tableio_cfg_json.wizard._relevant_specs)
@@ -2046,7 +2048,10 @@ optional values stay omitted so TableIO can use backend defaults later.
 - `default` - Default values to pre-fill the wizard. This can be what a
   configuration file already contains, what the user already
   answered before going back in an enclosing wizard, or what the
-  application wants to suggest as a starting point.
+  application wants to suggest as a starting point. A format or
+  implementation that this endpoint cannot use is not offered as a
+  default, and the values of members that the chosen format and
+  implementation do not use are not kept.
 - `backward` - When True, the wizard starts at the last question instead of
   the first. This will be set to True when the user asked to go back
   from a later question in an enclosing wizard.
@@ -2076,6 +2081,21 @@ def _default_data(default: Optional[TioJsonConfig],
 
 Return compact JSON data copied from a default config.
 
+<a id="tableio_cfg_json.wizard._usable_default"></a>
+
+#### \_usable\_default
+
+```python
+def _usable_default(data: dict[str, object],
+                    match_caps: Capabilities) -> dict[str, object]
+```
+
+Return default data without what this endpoint cannot use.
+
+A format the endpoint cannot use leaves nothing to keep, because every
+other member depends on the format. An implementation the endpoint
+cannot use for a usable format is dropped on its own.
+
 <a id="tableio_cfg_json.wizard._drive"></a>
 
 #### \_drive
@@ -2091,6 +2111,20 @@ available as defaults. Cancel-level returns to the first step, the
 format question that opened the later option questions, and discards
 dependent option values. Raised at the format question it propagates
 out, so the application can handle the level enclosing this endpoint.
+
+<a id="tableio_cfg_json.wizard._final_config"></a>
+
+#### \_final\_config
+
+```python
+def _final_config(run: _WizardRun, specs: tuple[ConfigSpec,
+                                                ...]) -> TioJsonConfig
+```
+
+Return the validated result, keeping only the members asked for.
+
+A format without an option form asks for no member, so a value that the
+default held for another format is dropped here rather than kept.
 
 <a id="tableio_cfg_json.wizard._start_index"></a>
 

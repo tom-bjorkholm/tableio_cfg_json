@@ -1026,7 +1026,10 @@ optional values stay omitted so TableIO can use backend defaults later.
 - `default` - Default values to pre-fill the wizard. This can be what a
   configuration file already contains, what the user already
   answered before going back in an enclosing wizard, or what the
-  application wants to suggest as a starting point.
+  application wants to suggest as a starting point. A format or
+  implementation that this endpoint cannot use is not offered as a
+  default, and the values of members that the chosen format and
+  implementation do not use are not kept.
 - `backward` - When True, the wizard starts at the last question instead of
   the first. This will be set to True when the user asked to go back
   from a later question in an enclosing wizard.

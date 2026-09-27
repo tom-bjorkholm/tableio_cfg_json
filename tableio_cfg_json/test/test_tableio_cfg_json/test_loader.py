@@ -16,7 +16,7 @@ import pytest
 from edit_cfg_json import ConfigLoader, LoadPolicy, editor_model, \
     model_as_text
 from tableio import Capabilities, ConfigError, FileAccess, \
-    access_capabilities
+    TimeDeltaFallback, access_capabilities
 from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, TioJsonConfig, \
     tio_json_config_default, tio_json_create_loader, tio_json_loader, \
     tio_json_read_loader, tio_json_update_loader
@@ -221,3 +221,53 @@ def test_read_refuses_write() -> None:
     assert isinstance(written, TioJsonConfig)
     with pytest.raises(ValueError):
         tio_json_read_loader(from_json_data_text=text, ok_to_use_defaults=True)
+
+
+@pytest.mark.parametrize('format_name,implementation,text', [
+    (None, 'mformat', {'format_name': 'CSV'}),
+    ('CSV', None, {'implementation': 'OpenPyXL'})])
+def test_preferred_clash(format_name: Optional[str],
+                         implementation: Optional[str],
+                         text: dict[str, str]) -> None:
+    """A preferred name that contradicts the file is refused, not dropped."""
+    loader = tio_json_loader(CAPS, FileAccess.CREATE, format_name,
+                             implementation)
+    with pytest.raises(ConfigError):
+        loader(from_json_data_text=json.dumps(text), ok_to_use_defaults=True)
+
+
+def test_preferred_pair() -> None:
+    """A preferred format and implementation are used together."""
+    loader = tio_json_loader(CAPS, FileAccess.CREATE, format_name='Excel',
+                             implementation='OpenPyXL')
+    config = loader()
+    assert isinstance(config, TioJsonConfig)
+    assert (config.format_name, config.implementation) == \
+        ('Excel', 'OpenPyXL')
+
+
+@pytest.mark.parametrize('include_all_options', [True, False])
+def test_names_normalized(include_all_options: bool) -> None:
+    """Names in the file match in any case and load as TableIO spells them."""
+    text = json.dumps({'format_name': 'excel', 'implementation': 'openpyxl'})
+    config = _loaded(text, include_all_options)
+    assert (config.format_name, config.implementation) == \
+        ('Excel', 'OpenPyXL')
+
+
+@pytest.mark.parametrize('include_all_options', [True, False])
+def test_timedelta_loaded(include_all_options: bool) -> None:
+    """A timedelta fallback in the file loads as its enum member."""
+    text = json.dumps({'format_name': 'txt',
+                       'timedelta_fallback': 'FLOATSECONDS'})
+    config = _loaded(text, include_all_options)
+    assert config.timedelta_fallback is TimeDeltaFallback.FLOATSECONDS
+    assert _written(config)['timedelta_fallback'] == 'FLOATSECONDS'
+
+
+def test_no_defaults_asked() -> None:
+    """Without leave to use defaults, only what the file holds is set."""
+    text = json.dumps({'format_name': 'CSV'})
+    config = _loader()(from_json_data_text=text)
+    assert isinstance(config, TioJsonConfig)
+    assert _written(config) == {'format_name': 'CSV'}

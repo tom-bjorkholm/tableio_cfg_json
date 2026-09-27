@@ -6,6 +6,7 @@
 
 import json
 from pathlib import Path
+from typing import Optional
 
 import pytest
 from config_as_json import Config, ConfigBadJson, InvalidConfiguration
@@ -85,6 +86,19 @@ def test_explicit_impl_file() -> None:
                                      format_name='CSV', implementation='csv')
     assert config.format_name == 'CSV'
     assert config.implementation == 'csv'
+
+
+@pytest.mark.parametrize('implementation,include_all,expected', [
+    (None, False, None), (None, True, 'XlsxWriter'),
+    ('OpenPyXL', False, 'OpenPyXL'), ('OpenPyXL', True, 'OpenPyXL')])
+def test_impl_by_options(implementation: Optional[str], include_all: bool,
+                         expected: Optional[str]) -> None:
+    """Only compact defaults without a requested backend leave it open."""
+    config = tio_json_config_default(Capabilities(), FileAccess.CREATE,
+                                     format_name='Excel',
+                                     implementation=implementation,
+                                     include_all_options=include_all)
+    assert config.implementation == expected
 
 
 def test_teaching_roundtrip(tmp_path: Path) -> None:

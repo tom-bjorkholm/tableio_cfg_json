@@ -4,17 +4,21 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+# pylint: disable=protected-access
+
 from enum import Enum
 from typing import Optional
 
 import pytest
 
 from config_as_json import Config, ConfigPath, ParseConverter, member_path
-from tableio import FileAccess, access_capabilities, tio_config_specs
+from tableio import ConfigSpec, FileAccess, access_capabilities, \
+    tio_config_specs
 from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, TioJsonCsvConfig, \
     TioJsonHtmlConfig, TioJsonLatexConfig, tio_json_config_default, \
     tio_json_descriptions
 from tableio_cfg_json.descriptions import EXTRA_NOTES, VALUE_MEANINGS
+import tableio_cfg_json.descriptions as descriptions_module
 
 SECTIONS = ('csv', 'html', 'latex')
 
@@ -175,3 +179,40 @@ def test_default_is_stated(name: str) -> None:
     line = _default_line(name)
     assert line is not None
     assert line.endswith('.')
+
+
+def test_member_no_default() -> None:
+    """A member whose metadata states no default gets no default line."""
+    spec = ConfigSpec('member_x', 'A member.', 'Optional[int]')
+    assert descriptions_module._member_lines(spec) == ['A member.']
+
+
+@pytest.mark.parametrize('spec,expected', [
+    (ConfigSpec('m', 'M.', 'str', choices=('a', 'b')), ['Choices: a, b.']),
+    (ConfigSpec('m', 'M.', 'Optional[Mode]', choices=('a', 'b')), []),
+    (ConfigSpec('m', 'M.', 'Optional[str]'), []),
+    (ConfigSpec('csv.quoting', 'Q.', 'Optional[str]', choices=('all', 'x')),
+     ['Choices: all, x.', 'all: Quote every field.'])])
+def test_choice_lines(spec: ConfigSpec, expected: list[str]) -> None:
+    """Values are listed for a string, and explained only where known."""
+    assert descriptions_module._choice_lines(spec) == expected
+
+
+def test_section_no_formats() -> None:
+    """A section whose members name no format has no description itself."""
+    specs = [ConfigSpec('extra.one', 'One.', 'Optional[str]'),
+             ConfigSpec('extra.two', 'Two.', 'Optional[str]',
+                        relevant_formats=())]
+    described = descriptions_module._described(specs)
+    assert set(described) == {('extra', 'one'), ('extra', 'two')}
+
+
+def test_section_merged() -> None:
+    """A section lists the formats of all its members once, in order."""
+    specs = [ConfigSpec('top', 'Top.', 'str', relevant_formats=('Z',)),
+             ConfigSpec('sec.a', 'A.', 'str', relevant_formats=('B', 'A')),
+             ConfigSpec('sec.b', 'B.', 'str', relevant_formats=('A', 'C'))]
+    described = descriptions_module._described(specs)
+    assert described[('sec',)].splitlines()[1] == \
+        'Relevant formats: B, A, C.'
+    assert ('top',) in described
