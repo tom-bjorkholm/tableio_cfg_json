@@ -80,32 +80,38 @@ to press, and that is why this example never writes the file back. It is used
 here because it is the one backend that needs no user interface library, so
 this example runs anywhere and in the test suite.
 
-An application that wants a real editor changes the one argument that says
-which backend to run, and nothing else on this page:
+An application that wants a real editor, but has no user interface of its
+own and so no reason to pick one, calls `edit_in_ui()`. It names no backend,
+and the editor opens in whichever installed user interface can run on the
+machine: a window where there is a display, a terminal screen where there is
+none.
 
 ```python
-from edit_cfg_json_textual import TextualEditor
+from edit_cfg_json import edit_in_ui
 
-saved = edit(config, TextualEditor(), descriptions=app_descriptions(),
-             in_file=config_file)
+saved = edit_in_ui(config, descriptions=app_descriptions(),
+                   in_file=config_file)
 ```
 
-`edit_cfg_json_tk.TkEditor` is the same thing in a desktop window. Neither
-package is a dependency of `tableio-cfg-json`, so an application that wants
-one declares it for itself.
+An application that has chosen its editor calls `edit()` and passes that
+backend instead, such as `edit_cfg_json_textual.TextualEditor()` for a
+terminal screen or `edit_cfg_json_tk.TkEditor()` for a desktop window.
+Neither package is a dependency of `tableio-cfg-json`, so an application that
+wants one declares it for itself, or leaves it to its users to install the
+one they prefer.
 
 ## Why this example does not call edit()
 
-`edit()` is the short door, and the snippet above is what an application with
-a real editor writes: build the model, run the backend, hand back what was
-saved. This example needs the long way round for one reason only. A container
-large enough to flood a window opens folded, and a printout has no control to
-press on it, so an application configuration would print its three endpoints
-as three folded lines and none of the members this example is about. A program
-that prints therefore builds the model itself and opens every container before
-the backend runs. That is what `--unfold` of `python3 -m edit_cfg_json.dump`
-does, and it is the whole of the difference. An interactive session wants the
-folding and asks for none of this.
+`edit()` and `edit_in_ui()` are the short doors, and the snippet above is what
+an application with a real editor writes: build the model, run the backend,
+hand back what was saved. This example needs the long way round for one reason
+only. A container large enough to flood a window opens folded, and a printout
+has no control to press on it, so an application configuration would print its
+three endpoints as three folded lines and none of the members this example is
+about. A program that prints therefore builds the model itself and opens every
+container before the backend runs. That is what `--unfold` of
+`python3 -m edit_cfg_json.dump` does, and it is the whole of the difference.
+An interactive session wants the folding and asks for none of this.
 
 ## Running it
 

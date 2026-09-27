@@ -11,8 +11,8 @@ setup(
   package_dir={'tableio_cfg_json': 'src/tableio_cfg_json'},
   package_data={'tableio_cfg_json': ['py.typed', '*.pyi']},
   install_requires=[
-    'tableio >= 1.1',
+    'tableio >= 1.2',
     'config-as-json >= 1.7',
-    'wizard-ui-bridge[textual] >= 1.3',
-    'edit-cfg-json >= 0.2.0'
+    'wizard-ui-bridge[textual] >= 1.4',
+    'edit-cfg-json >= 0.4.0'
   ])

@@ -114,8 +114,9 @@ def test_teaching_write(tmp_path: Path) -> None:
     assert set(data) == {
         'format_name', 'implementation', 'character_encoding', 'language',
         'title', 'paper_size', 'line_length', 'table_max_line_length',
-        'table_alignment', 'csv', 'html', 'latex'
+        'table_alignment', 'timedelta_fallback', 'csv', 'html', 'latex'
     }
+    assert data['timedelta_fallback'] == 'HMS_STRING'
     csv = data['csv']
     assert isinstance(csv, dict)
     assert set(csv) == {

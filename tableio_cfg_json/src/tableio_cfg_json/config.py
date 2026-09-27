@@ -22,8 +22,8 @@ from config_as_json import CharEncodingValidator, Config, \
     member_path
 from tableio import Capabilities, ConfigData, ConfigError, CsvConfigData, \
     CsvDialect, FileAccess, HtmlConfigData, LatexConfigData, \
-    add_access_capabilities, tio_config_default, tio_config_specs, \
-    tio_config_validate
+    TimeDeltaFallback, add_access_capabilities, tio_config_default, \
+    tio_config_specs, tio_config_validate
 
 
 def _choices(name: str) -> tuple[str, ...]:
@@ -539,7 +539,21 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
         """
         return ['implementation', 'character_encoding', 'language', 'title',
                 'paper_size', 'line_length', 'table_max_line_length',
-                'table_alignment', 'csv', 'html', 'latex']
+                'table_alignment', 'timedelta_fallback', 'csv', 'html',
+                'latex']
+
+    @override
+    def parse_converters(self) -> dict[str, ParseConverter]:
+        """Return JSON converters for top-level members.
+
+        ``timedelta_fallback`` is a TimeDeltaFallback enum member in tableio
+        and a string name in JSON.
+
+        Returns:
+            Conversion rules used after reading JSON.
+        """
+        return {'timedelta_fallback':
+                self.get_converter_dict(TimeDeltaFallback)}
 
     @override
     def nested_configs(self) -> NestedConfigs:

@@ -35,6 +35,7 @@
     * [\_\_init\_\_](#tableio_cfg_json.config.TioJsonConfig.__init__)
     * [capabilities](#tableio_cfg_json.config.TioJsonConfig.capabilities)
     * [file\_access](#tableio_cfg_json.config.TioJsonConfig.file_access)
+    * [parse\_converters](#tableio_cfg_json.config.TioJsonConfig.parse_converters)
     * [nested\_configs](#tableio_cfg_json.config.TioJsonConfig.nested_configs)
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
@@ -856,6 +857,24 @@ Return file access used to choose and validate the backend.
 **Returns**:
 
   Runtime file access supplied when the configuration was created.
+
+<a id="tableio_cfg_json.config.TioJsonConfig.parse_converters"></a>
+
+#### parse\_converters
+
+```python
+@override
+def parse_converters() -> dict[str, ParseConverter]
+```
+
+Return JSON converters for top-level members.
+
+``timedelta_fallback`` is a TimeDeltaFallback enum member in tableio
+and a string name in JSON.
+
+**Returns**:
+
+  Conversion rules used after reading JSON.
 
 <a id="tableio_cfg_json.config.TioJsonConfig.nested_configs"></a>
 

@@ -111,6 +111,17 @@ sections such as `csv`, `html` and `latex`. Compact output omits unset
 optional values, while template-style output can include all current default
 options.
 
+A setting that holds an enum is stored as the name of the enum member. For
+example `timedelta_fallback` says how a `timedelta` value is written by the
+formats that have no native duration type, such as CSV, Markdown and PDF:
+
+```json
+{
+    "format_name": "CSV",
+    "timedelta_fallback": "DHMS_STRING"
+}
+```
+
 Please see the [teaching examples](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/README.md) for a more
 thorough introduction.
 
@@ -169,6 +180,8 @@ discovers the editable structure by introspection, so the configuration is
 never described a second time to get one. The editors an end user sees are
 [edit-cfg-json-tk](https://pypi.org/project/edit-cfg-json-tk/) and
 [edit-cfg-json-textual](https://pypi.org/project/edit-cfg-json-textual/).
+Neither is a dependency of `tableio-cfg-json`; an application that wants one
+declares it, or leaves it to its users to install the one they prefer.
 
 What that editor cannot work out is what a member is *for*, which values a
 plain string member accepts and what those values mean, because it reads the
@@ -177,8 +190,7 @@ truth for that text, so an application that stores TableIO configuration does
 not repeat the TableIO documentation and cannot have it drift:
 
 ```python
-from edit_cfg_json import edit
-from edit_cfg_json_textual import TextualEditor
+from edit_cfg_json import edit_in_ui
 from tableio import FileAccess, access_capabilities
 from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, tio_json_config_default, \
     tio_json_loader
@@ -187,20 +199,35 @@ file_access = FileAccess.CREATE
 capabilities = access_capabilities(file_access)
 config = tio_json_config_default(capabilities, file_access,
                                  include_all_options=True)
-saved = edit(config, TextualEditor(),
-             descriptions=TIO_JSON_DESCRIPTIONS,
-             in_file='tableio.cfg',
-             loader=tio_json_loader(capabilities, file_access))
+saved = edit_in_ui(config, descriptions=TIO_JSON_DESCRIPTIONS,
+                   in_file='tableio.cfg',
+                   loader=tio_json_loader(capabilities, file_access))
 ```
+
+`edit_in_ui()` opens the editor in whichever installed user interface can run
+on the machine: a window where there is a display, a terminal screen where
+there is none. An application that has chosen its editor calls `edit()`
+instead and passes that backend, such as
+`edit_cfg_json_textual.TextualEditor()`, with the same keywords.
 
 `tio_json_loader()` is needed because `TioJsonConfig` takes the runtime
 capabilities and file access that no configuration file holds, so the editor
 cannot construct it on its own.
 
-A program that is told a name rather than making a call — such as the
-`--loader` option of `python3 -m edit_cfg_json.dump` — uses one of the
+A program that is told a name rather than making a call uses one of the
 ready-made loaders instead. There is one per file access, and which one is
-right is the caller's to know, because the access is not in the file:
+right is the caller's to know, because the access is not in the file. The
+`edit-cfg-json` program, which comes with the `edit-cfg-json` core, then
+edits a TableIO configuration file with no program written for it at all:
+
+```sh
+edit-cfg-json --module tableio_cfg_json \
+  --loader tio_json_create_loader --descriptions TIO_JSON_DESCRIPTIONS \
+  --input tableio.cfg
+```
+
+The inspection utility `python3 -m edit_cfg_json.dump` takes the same
+options, and prints what the editor would show instead of opening it:
 
 ```sh
 python3 -m edit_cfg_json.dump --module tableio_cfg_json \
@@ -352,7 +379,7 @@ MIT
 
 ## Test summary
 
-- Test result: 646 passed in 25s
+- Test result: 656 passed in 28s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

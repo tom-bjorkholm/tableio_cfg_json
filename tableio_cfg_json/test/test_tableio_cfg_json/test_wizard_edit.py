@@ -81,8 +81,9 @@ def test_back_default() -> None:
     """
     file_access = FileAccess.CREATE
     answers: list[str | int | BaseException] = [
-        _format_index('CSV', file_access), WizardBack(), '', 'utf-8',
-        '', '', '', '', '', '']
+        _format_index('CSV', file_access), WizardBack(), '']
+    answers.extend(_member_answer_lines('CSV', file_access, member_answers={
+        'character_encoding': ['utf-8']}))
     config = _run_bridge(file_access, _ScriptedBridge(answers))
     assert config.format_name == 'CSV'
     assert config.character_encoding == 'utf-8'

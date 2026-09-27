@@ -477,7 +477,9 @@ the one backend that needs no user interface library. Installing
 [edit-cfg-json-tk](https://pypi.org/project/edit-cfg-json-tk/) or
 [edit-cfg-json-textual](https://pypi.org/project/edit-cfg-json-textual/) gives
 a real editor, and which backend object is run is the only thing that changes
-about the session.
+about the session. An application that leaves that choice to the machine calls
+`edit_in_ui()`, which opens the editor in whichever installed user interface
+can run there.
 
 Printing is the one case that needs a step an interactive editor does not. A
 container large enough to flood a window opens folded, and a printout has no
@@ -485,8 +487,8 @@ control to press on it, so the application config would print its three
 endpoints as three folded lines. The example therefore builds the model with
 `editor_model()` and opens every container before the backend runs, which is
 what `--unfold` below does for the inspection utility. An application with a
-real editor wants the folding and calls `edit()`, which is the short door
-that builds the model and runs the backend in one call.
+real editor wants the folding and calls `edit()` or `edit_in_ui()`, the
+short doors that build the model and run the backend in one call.
 
 ### What To Look For In The Code
 
@@ -521,9 +523,10 @@ saved = edit(config, backend, descriptions=TIO_JSON_DESCRIPTIONS,
              in_file=config_file, loader=loader)
 ```
 
-That is `edit()`, the short door an application with a real editor uses. The
-example itself spells the same session out in its three steps, for the one
-reason given above.
+That is `edit()`, the short door an application with a real editor uses.
+`edit_in_ui()` takes the same keywords without the backend. The example itself
+spells the same session out in its three steps, for the one reason given
+above.
 
 `SplitCitiesConfig` needs no loader, because its constructor takes only the
 arguments `config-as-json` documents and its own factory functions make the
@@ -531,8 +534,19 @@ nested endpoints.
 
 A program that is told a name instead of making a call uses one of the
 ready-made loaders, `tio_json_read_loader`, `tio_json_create_loader` and
-`tio_json_update_loader`. That is what makes the inspection utility of the
-`edit-cfg-json` core work with no program written for it at all:
+`tio_json_update_loader`. That is what makes the `edit-cfg-json` program,
+which comes with the `edit-cfg-json` core, edit a TableIO configuration file
+with no program written for it at all:
+
+```sh
+edit-cfg-json --module tableio_cfg_json \
+  --loader tio_json_create_loader \
+  --descriptions TIO_JSON_DESCRIPTIONS \
+  --input capitals-csv.json
+```
+
+The inspection utility of the core takes the same options and prints what the
+editor would show:
 
 ```sh
 python3 -m edit_cfg_json.dump --module tableio_cfg_json \

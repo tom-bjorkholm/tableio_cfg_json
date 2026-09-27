@@ -227,24 +227,34 @@ def test_bad_table_len_file(table_length: object, exception: type[Exception],
 
 
 @pytest.mark.parametrize(
-    ('alignment', 'exception', 'error_text'),
-    [pytest.param('MIDDLE', InvalidConfiguration, 'table_alignment',
-                  id='unknown'),
-     pytest.param(7, InvalidConfiguration, 'table_alignment', id='int')])
-def test_bad_table_align_file(alignment: object, exception: type[Exception],
-                              error_text: str) -> None:
-    """Invalid table alignments fail both writing and reading."""
+    ('member', 'value', 'read_exception', 'read_text'),
+    [pytest.param('table_alignment', 'MIDDLE', InvalidConfiguration,
+                  'table_alignment', id='align-unknown'),
+     pytest.param('table_alignment', 7, InvalidConfiguration,
+                  'table_alignment', id='align-int'),
+     pytest.param('timedelta_fallback', 'BOGUS', ConfigBadJson,
+                  'FLOATSECONDS, HMS_STRING', id='timedelta-unknown'),
+     pytest.param('timedelta_fallback', 7, ConfigBadJson, 'int not str',
+                  id='timedelta-int')])
+def test_bad_choice_file(member: str, value: object,
+                         read_exception: type[Exception],
+                         read_text: str) -> None:
+    """Invalid top-level choice values fail both writing and reading.
+
+    A member holding an enum is converted while the file is read, so a bad
+    name in the file is refused as bad JSON rather than as a bad value.
+    """
     config = TioJsonConfig(CAPABILITIES, FILE_ACCESS)
-    config.table_alignment = cast(Optional[str], alignment)
+    setattr(config, member, value)
     with TemporaryDirectory() as temp_name:
         config_file = Path(temp_name) / 'config.json'
-        _assert_write_fails(config, config_file, exception, error_text)
+        _assert_write_fails(config, config_file, InvalidConfiguration, member)
         valid_config = TioJsonConfig(CAPABILITIES, FILE_ACCESS)
         valid_config.write(to_json_filename=config_file)
         data = _read_json_object(config_file)
-        data['table_alignment'] = alignment
+        data[member] = value
         _write_json_object(config_file, data)
-        _assert_read_fails(config_file, exception, error_text)
+        _assert_read_fails(config_file, read_exception, read_text)
 
 
 @pytest.mark.parametrize(

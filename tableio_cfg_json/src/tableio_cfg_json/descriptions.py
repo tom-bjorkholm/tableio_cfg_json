@@ -50,6 +50,19 @@ VALUE_MEANINGS: dict[str, dict[str, str]] = {
         'CENTER_BUT_DIGITS_RIGHT': 'Centered, except a value written with '
                                    'only digits, dots and commas, which goes '
                                    'to the right edge.'},
+    'timedelta_fallback': {
+        'FLOATSECONDS': 'The total number of seconds, written as a number.',
+        'HMS_STRING': 'Text such as 26:03:04, hours, minutes and seconds, '
+                      'with whole days counted into the hours.',
+        'DHMS_STRING': 'Text such as 1 d 02:03:04, with the days left out '
+                       'when there are none.',
+        'DHMS_STRING_LONG': 'Text such as 2 days 02:03:04 or 1 day 02:03:04, '
+                            'with the days left out when there are none.',
+        'WDHMS_STRING': 'Text such as 1 w 2 d 02:03:04, with the weeks and '
+                        'the days each left out when there are none.',
+        'WDHMS_STRING_LONG': 'Text such as 2 weeks 1 day 02:03:04, with the '
+                             'weeks and the days each left out when there '
+                             'are none.'},
     'csv.dialect': {
         'EXCEL': 'What Microsoft Excel reads and writes: comma separated, '
                  'carriage return and line feed at the end of a line, and '

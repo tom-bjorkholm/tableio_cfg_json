@@ -15,7 +15,7 @@ import sys
 from io import StringIO
 import pytest
 from tableio import Capabilities, ConfigSpec, CsvDialect, FileAccess, \
-    access_capabilities, add_access_capabilities, \
+    TimeDeltaFallback, access_capabilities, add_access_capabilities, \
     list_implementations_tableio
 from wizard_ui_bridge import WizardUiBridge, WizardUiBridgeConsole, \
      WizardAbort, WizardBack, WizardCancelLevel
@@ -103,11 +103,13 @@ def test_csv_custom() -> None:
     """The wizard stores entered CSV-specific values.
 
     The console option form is a choice menu per member. The leading
-    "use the default" option takes menu number 1, so UNIX is 3 in the
-    dialect menu and minimal is 3 in the quoting menu.
+    "use the default" option takes menu number 1, so DHMS_STRING is 4 in
+    the timedelta fallback menu, UNIX is 3 in the dialect menu and minimal
+    is 3 in the quoting menu.
     """
     member_answers = {
         'character_encoding': ['utf-8'],
+        'timedelta_fallback': ['4'],
         'csv.dialect': ['3'],
         'csv.delimiter': [';'],
         'csv.quoting': ['3'],
@@ -116,6 +118,7 @@ def test_csv_custom() -> None:
                           member_answers=member_answers)
     config, _, _ = _run_wizard(FileAccess.CREATE, lines)
     assert_csv_core(config)
+    assert config.timedelta_fallback is TimeDeltaFallback.DHMS_STRING
     assert config.csv is not None
     assert config.csv.quoting == 'minimal'
     assert config.csv.quotechar == '"'
@@ -341,8 +344,8 @@ def test_back_within_form() -> None:
     starting value, while fields already answered before it are kept.
     """
     answers: list[str | int | BaseException] = [
-        _format_index('CSV', FileAccess.CREATE), 'utf-8', '', WizardBack(),
-        'unix', ';', '', '', '', '']
+        _format_index('CSV', FileAccess.CREATE), 'utf-8', '', '',
+        WizardBack(), 'unix', ';', '', '', '', '']
     config = _run_bridge(FileAccess.CREATE, _ScriptedBridge(answers))
     assert_csv_core(config)
 

@@ -13,7 +13,7 @@ from tempfile import TemporaryDirectory
 from typing import Optional
 
 import pytest
-from tableio import CsvDialect
+from tableio import CsvDialect, TimeDeltaFallback
 from tableio_cfg_json import TioJsonConfig, TioJsonCsvConfig, \
     TioJsonHtmlConfig, TioJsonLatexConfig
 from .cfg_rw_support import CAPABILITIES, FILE_ACCESS
@@ -138,6 +138,21 @@ def test_line_lengths_file(line_length: int, table_length: int) -> None:
                                     from_json_filename=config_file)
         assert read_config.line_length == line_length
         assert read_config.table_max_line_length == table_length
+
+
+@pytest.mark.parametrize('fallback', list(TimeDeltaFallback))
+def test_timedelta_fallback(fallback: TimeDeltaFallback) -> None:
+    """Each timedelta fallback round-trips, stored by its name."""
+    config = TioJsonConfig(CAPABILITIES, FILE_ACCESS)
+    config.format_name = 'CSV'
+    config.timedelta_fallback = fallback
+    with TemporaryDirectory() as temp_name:
+        config_file = Path(temp_name) / 'config.json'
+        config.write(to_json_filename=config_file)
+        assert f'"{fallback.name}"' in config_file.read_text(encoding='utf-8')
+        read_config = TioJsonConfig(CAPABILITIES, FILE_ACCESS,
+                                    from_json_filename=config_file)
+        assert read_config.timedelta_fallback is fallback
 
 
 @pytest.mark.parametrize(

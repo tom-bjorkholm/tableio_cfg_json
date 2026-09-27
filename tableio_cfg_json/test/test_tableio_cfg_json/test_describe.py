@@ -225,7 +225,7 @@ def test_full_example_all() -> None:
     assert set(full) == {
         'format_name', 'implementation', 'character_encoding', 'language',
         'title', 'paper_size', 'line_length', 'table_max_line_length',
-        'table_alignment', 'csv', 'html', 'latex'
+        'table_alignment', 'timedelta_fallback', 'csv', 'html', 'latex'
     }
     assert isinstance(full['csv'], dict)
     assert isinstance(full['html'], dict)

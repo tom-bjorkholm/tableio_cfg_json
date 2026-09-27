@@ -202,7 +202,8 @@ def test_format_chain() -> None:
         # Step 14. Copy the Excel file back to CSV through config files.
         _copy_excel_to_csv(files.to_from_excel, files.step2, files.cities_xlsx,
                            files.cities_csv)
-        # Step 15. Verify the final CSV text matches the sample CSV text.
+        # Step 15. Verify the final CSV text is the sample CSV text followed
+        # by the empty line that ends every table TableIO writes to CSV.
         actual_text = files.cities_csv.read_text(encoding='utf-8')
         expected_text = sample_file.read_text(encoding='utf-8')
-        assert actual_text == expected_text
+        assert actual_text == expected_text + '\n'

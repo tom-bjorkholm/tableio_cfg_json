@@ -9,10 +9,11 @@ from typing import Optional
 
 import pytest
 
-from config_as_json import Config, ConfigPath, ParseConverter
-from tableio import tio_config_specs
+from config_as_json import Config, ConfigPath, ParseConverter, member_path
+from tableio import FileAccess, access_capabilities, tio_config_specs
 from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, TioJsonCsvConfig, \
-    TioJsonHtmlConfig, TioJsonLatexConfig, tio_json_descriptions
+    TioJsonHtmlConfig, TioJsonLatexConfig, tio_json_config_default, \
+    tio_json_descriptions
 from tableio_cfg_json.descriptions import EXTRA_NOTES, VALUE_MEANINGS
 
 SECTIONS = ('csv', 'html', 'latex')
@@ -38,10 +39,12 @@ def _enum_members() -> set[str]:
     a member the class does not declare is left out, because config-as-json
     declares one of those for every class.
     """
-    sections: list[tuple[str, Config]] = [
-        ('csv', TioJsonCsvConfig()), ('html', TioJsonHtmlConfig()),
-        ('latex', TioJsonLatexConfig())]
-    return {f'{section}.{member}' for section, config in sections
+    access = FileAccess.READ
+    top = tio_json_config_default(access_capabilities(access), access)
+    classes: list[tuple[Optional[str], Config]] = [
+        (None, top), ('csv', TioJsonCsvConfig()),
+        ('html', TioJsonHtmlConfig()), ('latex', TioJsonLatexConfig())]
+    return {member_path(section, member) for section, config in classes
             for member, converter in _converters(config).items()
             if member in vars(config)
             and issubclass(converter.result_type, Enum)}
@@ -118,12 +121,15 @@ def test_enum_choices_absent() -> None:
         assert 'Choices: ' not in described[tuple(name.split('.'))]
 
 
-def test_enum_meaning_given() -> None:
+@pytest.mark.parametrize('path, wanted', [
+    (('csv', 'dialect'), ('EXCEL: ', 'UNIX: ', 'Microsoft Excel')),
+    (('timedelta_fallback',), ('FLOATSECONDS: ', 'HMS_STRING: ', '26:03:04',
+                               'WDHMS_STRING_LONG: '))])
+def test_enum_meaning_given(path: ConfigPath, wanted: tuple[str, ...]) -> None:
     """The meaning of each enum value is what the description adds."""
-    text = tio_json_descriptions()[('csv', 'dialect')]
-    assert 'EXCEL: ' in text
-    assert 'UNIX: ' in text
-    assert 'Microsoft Excel' in text
+    text = tio_json_descriptions()[path]
+    for part in wanted:
+        assert part in text
 
 
 def test_no_type_information() -> None:
