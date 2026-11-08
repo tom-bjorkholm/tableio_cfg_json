@@ -37,9 +37,9 @@ This package is probably not the right one when:
 - Your program always uses one hard-coded table format and has no persistent
   configuration.
 - You do not want to use config-as-json for configuration files.
-- You only want the wizard user interface bridge. That is now the separate
+- You only want the wizard user interface bridge. That is the separate
   package [wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge/),
-  which does not depend on TableIO. See *The wizard UI bridge moved* below.
+  which does not depend on TableIO.
 
 ## Installation
 
@@ -165,12 +165,18 @@ thorough introduction.
   Ready-made loaders, one per file access, for a program that needs a name to
   point at rather than a call to make.
 
+### Wizard user interface bridge
+
 - `WizardUiBridge`, `WizardUiBridgeConsole`, `WizardUiBridgeTextual` and
   `make_text_ui_bridge`
   Interfaces for connecting the wizard to a console, GUI or scripted UI.
-  These now live in
-  [wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge/) and are
-  only re-exported here, deprecated. See *The wizard UI bridge moved*.
+  They belong to the separate package
+  [wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge/); import
+  them from `wizard_ui_bridge`. Versions before 2.0 also re-exported them
+  from `tableio_cfg_json`, deprecated, and 2.0 removed those re-exports.
+  `tableio-cfg-json` does not depend on Textual. An application that wants
+  the full-screen Textual wizard declares `wizard-ui-bridge[textual]` in its
+  own dependencies.
 
 ## Editing the configuration
 
@@ -250,60 +256,6 @@ editor then marks every value the file did not hold, and a compact
 configuration file opens with everything there is to set. Pass
 `include_all_options=False` to keep an edited file as compact as it was.
 
-## The wizard UI bridge moved
-
-The wizard user interface bridge is now the separate package
-[wizard-ui-bridge](https://pypi.org/project/wizard-ui-bridge/), so that a
-wizard that has nothing to do with TableIO does not have to install TableIO
-and everything TableIO depends on. `tableio-cfg-json` depends on
-`wizard-ui-bridge[textual]`, so nothing changes at install time.
-
-Programs keep working unchanged: every moved name is still available from
-`tableio_cfg_json`. Each use of an old name raises a
-`tableio_cfg_json.WizardUiBridgeMoved` warning, which is a
-`DeprecationWarning`, so it is hidden from end users by default and shown
-by pytest and unittest. The old names are removed in a later release,
-tentatively `tableio-cfg-json` 2.0, so please change the imports:
-
-| Old import | New import |
-| --- | --- |
-| `from tableio_cfg_json import <name>` | `from wizard_ui_bridge import <name>` |
-| `tableio_cfg_json.wizard_ui_bridge` | `wizard_ui_bridge.bridge` |
-| `tableio_cfg_json.wizard_ui_bridge_arg_types` | `wizard_ui_bridge.arg_types` |
-| `tableio_cfg_json.wizard_ui_bridge_console` | `wizard_ui_bridge.console` |
-| `tableio_cfg_json.wizard_ui_bridge_form_defs` | `wizard_ui_bridge.form_defs` |
-| `tableio_cfg_json.wizard_ui_bridge_textual` | `wizard_ui_bridge.textual_bridge` |
-| `tableio_cfg_json.wizard_ui_factory` | `wizard_ui_bridge.factory` |
-
-Add `wizard-ui-bridge` to your own dependencies when you import from it,
-and `wizard-ui-bridge[textual]` when you use the Textual bridge, because
-Textual is an optional extra of that package.
-
-To find every remaining old import, make them fail instead of warn in one
-of these ways:
-
-- Set the environment variable `WIZARD_UI_BRIDGE_STRICT` to any non-empty
-  value. Every old name then raises `ImportError` naming its replacement.
-  This works for any program, with or without tests.
-- Run pytest with `-W error::tableio_cfg_json.WizardUiBridgeMoved`, or put
-  that line under `filterwarnings` in your pytest configuration. Note that
-  the interpreter's own `-W` and `PYTHONWARNINGS` cannot be used for this
-  category, because they are resolved before `tableio_cfg_json` can be
-  imported; use `WIZARD_UI_BRIDGE_STRICT` there.
-
-### Source code repo history
-
-The wizard UI bridge `wizard-ui-bridge` code used to be part of
-`tableio-cfg-json` git repo, but has been split out.
-
-The two git repos
-[https://github.com/tom-bjorkholm/wizard-ui-bridge](https://github.com/tom-bjorkholm/wizard-ui-bridge)
-and
-[https://github.com/tom-bjorkholm/tableio_cfg_json](https://github.com/tom-bjorkholm/tableio_cfg_json)
-share a common history. Up until version 1.1 there was only one repo.
-Now that repo is split in two, and each repo holds only code for its
-package. However, both repos have the common history.
-
 ## Validation model
 
 The configuration file (in JSON) stores durable TableIO choices such
@@ -379,10 +331,10 @@ MIT
 
 ## Test summary
 
-- Test result: 712 passed in 28s
+- Test result: 657 passed in 28s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
-- Built version(s): 1.5.1
-- Build and test using Python 3.14.7
+- Built version(s): 2.0
+- Build and test using Python 3.15.2

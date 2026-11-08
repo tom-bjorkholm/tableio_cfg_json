@@ -31,7 +31,7 @@ TableIO, config-as-json and wizard-ui-bridge have their own larger example sets:
 
 The examples here focus only on the bridge supplied by `tableio-cfg-json`. The
 user interface bridge used by the wizard examples is its own package; see
-[wizard_ui_bridge/example/src/wizard_ui_example](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example).
+[wizard_ui_bridge/example/src/wizard_ui_example](https://github.com/tom-bjorkholm/wizard-ui-bridge/blob/master/wizard_ui_bridge/example/src/wizard_ui_example).
 
 ## Class A: One TableIO Endpoint Config
 
@@ -318,6 +318,17 @@ matching example is named where each mechanic first appears: bridge selection
 table questions (wizard_ui_bridge `e04`) and whole forms
 (wizard_ui_bridge `e05`, `e06`).
 
+The full-screen Textual interface mentioned below needs the optional extra
+`wizard-ui-bridge[textual]`. `tableio-cfg-json` does not install it, so an
+application that wants the Textual wizard declares it in its own
+dependencies. To try it with these examples:
+
+```sh
+pip install 'wizard-ui-bridge[textual]'
+```
+
+Without Textual the examples use the console bridge, also in a terminal.
+
 The core wizard example source files are:
 
 - [`e07_config_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e07_config_wizard.py)
@@ -325,8 +336,9 @@ The core wizard example source files are:
   `e05_app_config.py`. It calls `tio_json_config_wizard()` once for the input
   endpoint and once for each output endpoint, and asks the application's own
   split column and split limit with the bridge's ask methods. It obtains its
-  bridge from `make_text_ui_bridge()`: in a real terminal that is a full-screen
-  Textual interface, and with redirected input it is the console bridge, so the
+  bridge from `make_text_ui_bridge()`: in a real terminal with Textual installed
+  that is a full-screen Textual interface, and otherwise it is the console
+  bridge, so the
   same program is both interactive and scriptable.
 - [`e08_edit_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_edit_config.py)
   reopens a stored application config and re-asks the same items, seeding each
@@ -364,8 +376,9 @@ python -m tableio_cfg_example.e07_config_wizard \
   --txt split-cities-syntax.txt
 ```
 
-Run in a terminal, this shows a full-screen Textual interface; with redirected
-input it falls back to the console bridge and produces the same files, so the
+Run in a terminal with Textual installed, this shows a full-screen Textual
+interface; with redirected input, or without Textual, it uses the console
+bridge and produces the same files, so the
 example is fully scriptable. Choosing the interface is a single line,
 `make_text_ui_bridge(out_file, in_file, err_file)`; see wizard_ui_bridge `e01`
 for the details of bridge selection.
@@ -411,10 +424,12 @@ python -m tableio_cfg_example.e09_rename_wizard \
   --txt rename-cities-syntax.txt
 ```
 
-Run in a terminal, the table is edited with the Textual Add row and Remove
-row buttons; with redirected input the console row-menu editor uses `:+` to
-add a row and `:- N` to delete row N. The `--ui {auto,console,textual}`
-option forces one bridge regardless of the terminal. Table questions are
+Run in a terminal with Textual installed, the table is edited with the
+Textual Add row and Remove row buttons; on the console bridge the row-menu
+editor uses `:+` to add a row and `:- N` to delete row N. The
+`--ui {auto,console,textual}` option forces one bridge regardless of the
+terminal; `--ui textual` fails with an `ImportError` naming the extra to
+install when Textual is missing. Table questions are
 taught on their own in wizard_ui_bridge `e04` and bridge selection in
 wizard_ui_bridge `e01`.
 
@@ -571,4 +586,4 @@ together. That is `WizardUiBridge.ask_form()`.
 
 The wizard user interface bridge is its own package now, and its examples
 of `ask_form()` and of the typed form fields live with it, in
-[wizard_ui_bridge/example/src/wizard_ui_example](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/wizard_ui_bridge/example/src/wizard_ui_example).
+[wizard_ui_bridge/example/src/wizard_ui_example](https://github.com/tom-bjorkholm/wizard-ui-bridge/blob/master/wizard_ui_bridge/example/src/wizard_ui_example).

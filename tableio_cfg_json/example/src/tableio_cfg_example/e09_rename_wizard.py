@@ -25,7 +25,9 @@ that this one only reuses:
 - Forcing the user interface bridge from the command line. The --ui
   option selects between the console bridge and the full-screen Textual
   bridge through make_text_ui_bridge, instead of letting it auto-select
-  by whether the program runs in a terminal. Bridge selection is taught
+  by whether the program runs in a terminal. The Textual bridge needs
+  wizard-ui-bridge[textual], which tableio-cfg-json does not install, and
+  --ui textual raises ImportError without it. Bridge selection is taught
   on its own in the wizard_ui_bridge e01 example.
 
 Everything that does not differ from e07 is reused from it: the outer
@@ -68,7 +70,8 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
         config_file: JSON application configuration file to write.
         syntax_file: Plain text guide for later hand-editing.
         bridge_type: Which user interface bridge to use. AUTO selects the
-            Textual bridge in a terminal and the console bridge otherwise;
+            Textual bridge in a terminal when Textual is installed, and
+            the console bridge otherwise;
             CONSOLE and TEXTUAL force one regardless of the terminal.
         stdin_file: Optional input stream for tests or scripted use.
         stdout_file: Optional output stream for tests or scripted use.

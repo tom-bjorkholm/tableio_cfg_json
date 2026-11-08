@@ -14,12 +14,6 @@
   * [IMPLS\_LABEL](#tableio_cfg_json.spec_text.IMPLS_LABEL)
   * [value\_list](#tableio_cfg_json.spec_text.value_list)
   * [end\_sentence](#tableio_cfg_json.spec_text.end_sentence)
-* [tableio\_cfg\_json.\_moved](#tableio_cfg_json._moved)
-  * [STRICT\_ENV](#tableio_cfg_json._moved.STRICT_ENV)
-  * [REMOVED\_IN](#tableio_cfg_json._moved.REMOVED_IN)
-  * [MOVED\_NAMES](#tableio_cfg_json._moved.MOVED_NAMES)
-  * [WizardUiBridgeMoved](#tableio_cfg_json._moved.WizardUiBridgeMoved)
-  * [moved\_attr](#tableio_cfg_json._moved.moved_attr)
 * [tableio\_cfg\_json.config](#tableio_cfg_json.config)
   * [TioJsonCsvConfig](#tableio_cfg_json.config.TioJsonCsvConfig)
     * [\_\_init\_\_](#tableio_cfg_json.config.TioJsonCsvConfig.__init__)
@@ -398,84 +392,6 @@ Return text with sentence-ending punctuation.
 **Returns**:
 
   Text ending with a sentence punctuation mark.
-
-<a id="tableio_cfg_json._moved"></a>
-
-# tableio\_cfg\_json.\_moved
-
-Support for names that moved to the wizard_ui_bridge package.
-
-The wizard user interface bridge used to be part of tableio_cfg_json.
-It is now the separate package wizard_ui_bridge, which does not depend
-on TableIO. The old names still work here, so applications keep
-running, but each use warns so that maintainers know to change the
-import.
-
-The warning is a DeprecationWarning subclass, which Python hides from
-end users by default while pytest and unittest show it by default. A
-maintainer who wants the stale imports to fail instead of warn can set
-the environment variable named by STRICT_ENV to any non-empty value.
-
-<a id="tableio_cfg_json._moved.STRICT_ENV"></a>
-
-#### STRICT\_ENV
-
-Set this environment variable to make a moved name raise ImportError.
-
-<a id="tableio_cfg_json._moved.REMOVED_IN"></a>
-
-#### REMOVED\_IN
-
-The release that removes the deprecated re-exports named here.
-
-<a id="tableio_cfg_json._moved.MOVED_NAMES"></a>
-
-#### MOVED\_NAMES
-
-The wizard UI bridge names this package used to define itself.
-
-<a id="tableio_cfg_json._moved.WizardUiBridgeMoved"></a>
-
-## WizardUiBridgeMoved Objects
-
-```python
-class WizardUiBridgeMoved(DeprecationWarning)
-```
-
-Warns that a name moved to the wizard_ui_bridge package.
-
-Being its own category lets a maintainer turn just these warnings
-into errors, by running pytest with
-`-W error::tableio_cfg_json.WizardUiBridgeMoved`. The interpreter's
-own -W and PYTHONWARNINGS cannot name this category, because they
-are resolved before this package can be imported; STRICT_ENV works
-there instead.
-
-<a id="tableio_cfg_json._moved.moved_attr"></a>
-
-#### moved\_attr
-
-```python
-def moved_attr(old_module: str, new_module: str, name: str) -> object
-```
-
-Return name from new_module, warning that it moved there.
-
-Dunder names are rejected without warning, so that attribute
-lookups made by the interpreter and by tools do not import the new
-module and do not warn.
-
-**Arguments**:
-
-- `old_module` - Deprecated module the name was looked up in.
-- `new_module` - Module the name lives in now.
-- `name` - Name that was looked up.
-  
-
-**Raises**:
-
-- `AttributeError` - If name is a dunder name.
-- `ImportError` - If strict mode is on, see STRICT_ENV.
 
 <a id="tableio_cfg_json.config"></a>
 

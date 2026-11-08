@@ -25,6 +25,11 @@ streams are redirected, as the tests do. The same program is therefore
 both a rich interactive tool and fully scriptable, with no branching in
 this file.
 
+Textual is an optional extra of wizard-ui-bridge, and tableio-cfg-json
+does not install it. An application that wants the Textual bridge puts
+wizard-ui-bridge[textual] in its own dependencies. Without Textual,
+make_text_ui_bridge() returns the console bridge also in a terminal.
+
 This example teaches only the minimal wizard mechanics it needs. The
 wizard_ui_bridge package has its own example set for the pieces used
 here: obtaining a bridge (e01), the one-question-at-a-time ask methods
@@ -83,9 +88,10 @@ def create_split_config_files(config_file: Path, syntax_file: Path,
     in_file = sys.stdin if stdin_file is None else stdin_file
     out_file = sys.stdout if stdout_file is None else stdout_file
     err_file = sys.stderr if stderr_file is None else stderr_file
-    # The one line that decides the user interface. In a terminal this is
-    # the full-screen Textual bridge; with redirected streams it is the
-    # console bridge, which keeps the example scriptable and testable.
+    # The one line that decides the user interface. In a terminal with
+    # Textual installed this is the full-screen Textual bridge; otherwise
+    # it is the console bridge, which keeps the example scriptable and
+    # testable.
     ui_bridge = make_text_ui_bridge(out_file, in_file, err_file)
     _write_split_files(ui_bridge, config_file, syntax_file, err_file)
 
@@ -318,8 +324,9 @@ def _ask_split_limit(ui_bridge: WizardUiBridge, default: str = 'M') -> str:
 def main(args: Optional[list[str]] = None) -> int:
     """Parse command line arguments and create split-cities config files.
 
-    Run this module in a terminal to see the Textual interface; redirect
-    its input to see the same wizard fall back to the console bridge.
+    Run this module in a terminal with wizard-ui-bridge[textual] installed
+    to see the Textual interface; redirect its input to see the same
+    wizard fall back to the console bridge.
     """
     return run_cfg_txt_cli(create_split_config_files,
                            'Interactively build the split-cities app config.',

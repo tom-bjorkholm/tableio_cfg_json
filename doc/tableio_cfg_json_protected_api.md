@@ -1,7 +1,5 @@
 # Table of Contents
 
-* [tableio\_cfg\_json](#tableio_cfg_json)
-  * [\_\_getattr\_\_](#tableio_cfg_json.__getattr__)
 * [tableio\_cfg\_json.describe](#tableio_cfg_json.describe)
   * [\_DescriptionContext](#tableio_cfg_json.describe._DescriptionContext)
   * [\_wrapped](#tableio_cfg_json.describe._wrapped)
@@ -41,12 +39,6 @@
   * [IMPLS\_LABEL](#tableio_cfg_json.spec_text.IMPLS_LABEL)
   * [value\_list](#tableio_cfg_json.spec_text.value_list)
   * [end\_sentence](#tableio_cfg_json.spec_text.end_sentence)
-* [tableio\_cfg\_json.\_moved](#tableio_cfg_json._moved)
-  * [STRICT\_ENV](#tableio_cfg_json._moved.STRICT_ENV)
-  * [REMOVED\_IN](#tableio_cfg_json._moved.REMOVED_IN)
-  * [MOVED\_NAMES](#tableio_cfg_json._moved.MOVED_NAMES)
-  * [WizardUiBridgeMoved](#tableio_cfg_json._moved.WizardUiBridgeMoved)
-  * [moved\_attr](#tableio_cfg_json._moved.moved_attr)
 * [tableio\_cfg\_json.config](#tableio_cfg_json.config)
   * [\_choices](#tableio_cfg_json.config._choices)
   * [\_choice\_validator](#tableio_cfg_json.config._choice_validator)
@@ -80,14 +72,6 @@
     * [nested\_configs](#tableio_cfg_json.config.TioJsonConfig.nested_configs)
     * [get\_validation\_plan](#tableio_cfg_json.config.TioJsonConfig.get_validation_plan)
   * [tio\_json\_config\_default](#tableio_cfg_json.config.tio_json_config_default)
-* [tableio\_cfg\_json.wizard\_ui\_bridge](#tableio_cfg_json.wizard_ui_bridge)
-  * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge.__getattr__)
-* [tableio\_cfg\_json.wizard\_ui\_bridge\_textual](#tableio_cfg_json.wizard_ui_bridge_textual)
-  * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge_textual.__getattr__)
-* [tableio\_cfg\_json.wizard\_ui\_bridge\_console](#tableio_cfg_json.wizard_ui_bridge_console)
-  * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge_console.__getattr__)
-* [tableio\_cfg\_json.wizard\_ui\_bridge\_arg\_types](#tableio_cfg_json.wizard_ui_bridge_arg_types)
-  * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge_arg_types.__getattr__)
 * [tableio\_cfg\_json.wizard](#tableio_cfg_json.wizard)
   * [\_WizardRun](#tableio_cfg_json.wizard._WizardRun)
   * [\_Step](#tableio_cfg_json.wizard._Step)
@@ -136,12 +120,6 @@
   * [tio\_json\_read\_loader](#tableio_cfg_json.loader.tio_json_read_loader)
   * [tio\_json\_create\_loader](#tableio_cfg_json.loader.tio_json_create_loader)
   * [tio\_json\_update\_loader](#tableio_cfg_json.loader.tio_json_update_loader)
-* [tableio\_cfg\_json.wizard\_ui\_bridge\_table](#tableio_cfg_json.wizard_ui_bridge_table)
-  * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge_table.__getattr__)
-* [tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs](#tableio_cfg_json.wizard_ui_bridge_form_defs)
-  * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_bridge_form_defs.__getattr__)
-* [tableio\_cfg\_json.wizard\_ui\_factory](#tableio_cfg_json.wizard_ui_factory)
-  * [\_\_getattr\_\_](#tableio_cfg_json.wizard_ui_factory.__getattr__)
 * [tableio\_cfg\_json.descriptions](#tableio_cfg_json.descriptions)
   * [STRING\_TYPES](#tableio_cfg_json.descriptions.STRING_TYPES)
   * [SECTION\_TEXT](#tableio_cfg_json.descriptions.SECTION_TEXT)
@@ -155,28 +133,6 @@
   * [\_described](#tableio_cfg_json.descriptions._described)
   * [tio\_json\_descriptions](#tableio_cfg_json.descriptions.tio_json_descriptions)
   * [TIO\_JSON\_DESCRIPTIONS](#tableio_cfg_json.descriptions.TIO_JSON_DESCRIPTIONS)
-
-<a id="tableio_cfg_json"></a>
-
-# tableio\_cfg\_json
-
-Public API for the tableio config-as-json bridge.
-
-The wizard user interface bridge that used to be part of this package
-is now the separate package wizard_ui_bridge, which does not depend on
-TableIO. Its names are still available from here, deprecated, so that
-applications keep working while their maintainers change the imports.
-See tableio_cfg_json._moved for how the deprecation is reported.
-
-<a id="tableio_cfg_json.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return a moved wizard UI bridge name, warning that it moved.
 
 <a id="tableio_cfg_json.describe"></a>
 
@@ -1048,84 +1004,6 @@ Return text with sentence-ending punctuation.
 
   Text ending with a sentence punctuation mark.
 
-<a id="tableio_cfg_json._moved"></a>
-
-# tableio\_cfg\_json.\_moved
-
-Support for names that moved to the wizard_ui_bridge package.
-
-The wizard user interface bridge used to be part of tableio_cfg_json.
-It is now the separate package wizard_ui_bridge, which does not depend
-on TableIO. The old names still work here, so applications keep
-running, but each use warns so that maintainers know to change the
-import.
-
-The warning is a DeprecationWarning subclass, which Python hides from
-end users by default while pytest and unittest show it by default. A
-maintainer who wants the stale imports to fail instead of warn can set
-the environment variable named by STRICT_ENV to any non-empty value.
-
-<a id="tableio_cfg_json._moved.STRICT_ENV"></a>
-
-#### STRICT\_ENV
-
-Set this environment variable to make a moved name raise ImportError.
-
-<a id="tableio_cfg_json._moved.REMOVED_IN"></a>
-
-#### REMOVED\_IN
-
-The release that removes the deprecated re-exports named here.
-
-<a id="tableio_cfg_json._moved.MOVED_NAMES"></a>
-
-#### MOVED\_NAMES
-
-The wizard UI bridge names this package used to define itself.
-
-<a id="tableio_cfg_json._moved.WizardUiBridgeMoved"></a>
-
-## WizardUiBridgeMoved Objects
-
-```python
-class WizardUiBridgeMoved(DeprecationWarning)
-```
-
-Warns that a name moved to the wizard_ui_bridge package.
-
-Being its own category lets a maintainer turn just these warnings
-into errors, by running pytest with
-`-W error::tableio_cfg_json.WizardUiBridgeMoved`. The interpreter's
-own -W and PYTHONWARNINGS cannot name this category, because they
-are resolved before this package can be imported; STRICT_ENV works
-there instead.
-
-<a id="tableio_cfg_json._moved.moved_attr"></a>
-
-#### moved\_attr
-
-```python
-def moved_attr(old_module: str, new_module: str, name: str) -> object
-```
-
-Return name from new_module, warning that it moved there.
-
-Dunder names are rejected without warning, so that attribute
-lookups made by the interpreter and by tools do not import the new
-module and do not warn.
-
-**Arguments**:
-
-- `old_module` - Deprecated module the name was looked up in.
-- `new_module` - Module the name lives in now.
-- `name` - Name that was looked up.
-  
-
-**Raises**:
-
-- `AttributeError` - If name is a dunder name.
-- `ImportError` - If strict mode is on, see STRICT_ENV.
-
 <a id="tableio_cfg_json.config"></a>
 
 # tableio\_cfg\_json.config
@@ -1889,86 +1767,6 @@ config-as-json.
 
   A JSON-backed tableio configuration object.
 
-<a id="tableio_cfg_json.wizard_ui_bridge"></a>
-
-# tableio\_cfg\_json.wizard\_ui\_bridge
-
-Deprecated location of the WizardUiBridge base class.
-
-This module moved to wizard_ui_bridge.bridge. Importing from here still
-works and warns, see tableio_cfg_json._moved for how to make it fail
-instead.
-
-<a id="tableio_cfg_json.wizard_ui_bridge.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return name from its new module, warning that it moved.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual"></a>
-
-# tableio\_cfg\_json.wizard\_ui\_bridge\_textual
-
-Deprecated location of the Textual wizard UI bridge.
-
-This module moved to wizard_ui_bridge.textual_bridge. Importing from here still
-works and warns, see tableio_cfg_json._moved for how to make it fail
-instead.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_textual.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return name from its new module, warning that it moved.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_console"></a>
-
-# tableio\_cfg\_json.wizard\_ui\_bridge\_console
-
-Deprecated location of the console wizard UI bridge.
-
-This module moved to wizard_ui_bridge.console. Importing from here still
-works and warns, see tableio_cfg_json._moved for how to make it fail
-instead.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_console.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return name from its new module, warning that it moved.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_arg_types"></a>
-
-# tableio\_cfg\_json.wizard\_ui\_bridge\_arg\_types
-
-Deprecated location of the wizard UI bridge argument types.
-
-This module moved to wizard_ui_bridge.arg_types. Importing from here still
-works and warns, see tableio_cfg_json._moved for how to make it fail
-instead.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_arg_types.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return name from its new module, warning that it moved.
-
 <a id="tableio_cfg_json.wizard"></a>
 
 # tableio\_cfg\_json.wizard
@@ -2611,66 +2409,6 @@ The three ready-made loaders ask for no capability beyond the access itself,
 so they match every backend that can do that access. An application that needs
 more than that, or that wants an edited file to stay as compact as it was,
 calls ``tio_json_loader()`` with what it needs.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_table"></a>
-
-# tableio\_cfg\_json.wizard\_ui\_bridge\_table
-
-Deprecated location of the console table editor internals.
-
-This module moved to wizard_ui_bridge._table. Importing from here still
-works and warns, see tableio_cfg_json._moved for how to make it fail
-instead.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_table.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return name from its new module, warning that it moved.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_form_defs"></a>
-
-# tableio\_cfg\_json.wizard\_ui\_bridge\_form\_defs
-
-Deprecated location of the wizard UI bridge form fields.
-
-This module moved to wizard_ui_bridge.form_defs. Importing from here still
-works and warns, see tableio_cfg_json._moved for how to make it fail
-instead.
-
-<a id="tableio_cfg_json.wizard_ui_bridge_form_defs.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return name from its new module, warning that it moved.
-
-<a id="tableio_cfg_json.wizard_ui_factory"></a>
-
-# tableio\_cfg\_json.wizard\_ui\_factory
-
-Deprecated location of the text-mode wizard UI bridge factory.
-
-This module moved to wizard_ui_bridge.factory. Importing from here still
-works and warns, see tableio_cfg_json._moved for how to make it fail
-instead.
-
-<a id="tableio_cfg_json.wizard_ui_factory.__getattr__"></a>
-
-#### \_\_getattr\_\_
-
-```python
-def __getattr__(name: str) -> object
-```
-
-Return name from its new module, warning that it moved.
 
 <a id="tableio_cfg_json.descriptions"></a>
 

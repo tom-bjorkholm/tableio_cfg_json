@@ -19,8 +19,8 @@ keeps it. Two related ideas are shown:
 The exception semantics caught by run_steps (WizardBack, WizardCancelLevel
 and WizardAbort) are taught on their own in the wizard_ui_bridge
 navigation example (e03). The bridge is obtained with make_text_ui_bridge()
-exactly as in e07, so the editor is full-screen in a terminal and
-scriptable with redirected streams.
+exactly as in e07, so the editor is full-screen in a terminal when
+Textual is installed, and scriptable with redirected streams.
 """
 
 # Copyright (c) 2026 Tom Björkholm
