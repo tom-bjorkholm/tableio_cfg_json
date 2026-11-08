@@ -331,10 +331,10 @@ MIT
 
 ## Test summary
 
-- Test result: 657 passed in 53s
+- Test result: 657 passed in 60s (0:01:00)
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
 - Built version(s): 2.0
-- Build and test using Python 3.12.10
+- Build and test using Python 3.13.17
