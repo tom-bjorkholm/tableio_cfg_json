@@ -236,6 +236,44 @@ def _json_selection(text: Optional[str], filename: Optional[PathOrStr],
             _json_choice(data, 'implementation', implementation))
 
 
+def _default_data(capabilities: Capabilities, file_access: FileAccess,
+                  selected: tuple[Optional[str], Optional[str]],
+                  preferred: tuple[Optional[str], Optional[str]],
+                  include_all_options: bool) -> ConfigData:
+    """Return TableIO's recommended data for the selected format.
+
+    The selection comes from a JSON source, and TableIO may refuse it, for
+    example for an unknown format name. The data is then built compact for
+    the preferred format and implementation instead. Compact data keeps no
+    option of another format that could take the blame, so the parse that
+    follows judges the values of the source as it would without defaults,
+    and refuses the bad one with a message that names its member path.
+
+    Args:
+        capabilities: Runtime capabilities requested by the application.
+        file_access: Runtime file access requested by the application.
+        selected: Format name and implementation to build the data for.
+        preferred: Format name and implementation given by the caller.
+        include_all_options: Include explicit non-``None`` defaults for
+            template-style configuration output.
+    Raises:
+        ConfigError: TableIO refuses the preferred format and
+            implementation.
+    Returns:
+        Recommended configuration data.
+    """
+    try:
+        return tio_config_default(capabilities, file_access,
+                                  format_name=selected[0],
+                                  implementation=selected[1],
+                                  include_all_options=include_all_options)
+    except ConfigError:
+        if selected == preferred:
+            raise
+    return _default_data(capabilities, file_access, preferred, preferred,
+                         include_all_options=False)
+
+
 class TioJsonCsvConfig(CsvConfigData, Config):
     """JSON-backed CSV configuration section for TableIO.
 
@@ -576,9 +614,9 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
                 Without a JSON source it has no effect.
         Raises:
             ConfigError: TableIO cannot select or validate default data from
-                the supplied runtime values, or with ``ok_to_use_defaults``
-                true from the format and implementation that the JSON source
-                selects.
+                the supplied runtime values. A format or implementation in
+                the JSON source that TableIO refuses is reported as
+                InvalidConfiguration instead, like any other bad value.
             TypeError: File access or capabilities have invalid types in
                 tableio access-capability validation.
             ValueError: Both JSON text and a JSON filename were supplied, or
@@ -592,19 +630,13 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
             NotImplementedError: A required config-as-json override is
                 missing.
         """
+        preferred = (format_name, implementation)
+        selected = preferred
         if ok_to_use_defaults:
-            format_name, implementation = _json_selection(from_json_data_text,
-                                                          from_json_filename,
-                                                          format_name,
-                                                          implementation)
-        data = tio_config_default(capabilities, file_access,
-                                  format_name=format_name,
-                                  implementation=implementation,
-                                  include_all_options=include_all_options)
-        # Compact output should not lock the runtime implementation unless
-        # the caller explicitly requested one.
-        if implementation is None and not include_all_options:
-            data.implementation = None
+            selected = _json_selection(from_json_data_text, from_json_filename,
+                                       *preferred)
+        data = _default_data(capabilities, file_access, selected, preferred,
+                             include_all_options)
         self._capabilities = add_access_capabilities(file_access, capabilities,
                                                      error_file=stderr_file)
         self._file_access = file_access

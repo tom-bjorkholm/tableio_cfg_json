@@ -53,6 +53,7 @@
   * [\_json\_object](#tableio_cfg_json.config._json_object)
   * [\_json\_choice](#tableio_cfg_json.config._json_choice)
   * [\_json\_selection](#tableio_cfg_json.config._json_selection)
+  * [\_default\_data](#tableio_cfg_json.config._default_data)
   * [TioJsonCsvConfig](#tableio_cfg_json.config.TioJsonCsvConfig)
     * [\_\_init\_\_](#tableio_cfg_json.config.TioJsonCsvConfig.__init__)
     * [\_omit\_none\_from\_json](#tableio_cfg_json.config.TioJsonCsvConfig._omit_none_from_json)
@@ -1293,6 +1294,44 @@ Return the format and implementation that a JSON source selects.
 
   The format name and the implementation name to build defaults for.
 
+<a id="tableio_cfg_json.config._default_data"></a>
+
+#### \_default\_data
+
+```python
+def _default_data(capabilities: Capabilities, file_access: FileAccess,
+                  selected: tuple[Optional[str], Optional[str]],
+                  preferred: tuple[Optional[str], Optional[str]],
+                  include_all_options: bool) -> ConfigData
+```
+
+Return TableIO's recommended data for the selected format.
+
+The selection comes from a JSON source, and TableIO may refuse it, for
+example for an unknown format name. The data is then built compact for
+the preferred format and implementation instead. Compact data keeps no
+option of another format that could take the blame, so the parse that
+follows judges the values of the source as it would without defaults,
+and refuses the bad one with a message that names its member path.
+
+**Arguments**:
+
+- `capabilities` - Runtime capabilities requested by the application.
+- `file_access` - Runtime file access requested by the application.
+- `selected` - Format name and implementation to build the data for.
+- `preferred` - Format name and implementation given by the caller.
+- `include_all_options` - Include explicit non-``None`` defaults for
+  template-style configuration output.
+
+**Raises**:
+
+- `ConfigError` - TableIO refuses the preferred format and
+  implementation.
+
+**Returns**:
+
+  Recommended configuration data.
+
 <a id="tableio_cfg_json.config.TioJsonCsvConfig"></a>
 
 ## TioJsonCsvConfig Objects
@@ -1700,9 +1739,9 @@ format, and be refused for values the user never wrote.
 **Raises**:
 
 - `ConfigError` - TableIO cannot select or validate default data from
-  the supplied runtime values, or with ``ok_to_use_defaults``
-  true from the format and implementation that the JSON source
-  selects.
+  the supplied runtime values. A format or implementation in
+  the JSON source that TableIO refuses is reported as
+  InvalidConfiguration instead, like any other bad value.
 - `TypeError` - File access or capabilities have invalid types in
   tableio access-capability validation.
 - `ValueError` - Both JSON text and a JSON filename were supplied, or

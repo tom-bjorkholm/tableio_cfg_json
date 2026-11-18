@@ -6,6 +6,7 @@
 
 # pylint: disable=protected-access
 
+from io import StringIO
 import json
 from pathlib import Path
 import sys
@@ -13,9 +14,10 @@ from typing import Optional
 
 import pytest
 
+from config_as_json import InvalidConfiguration
 from edit_cfg_json import ConfigLoader, LoadPolicy, editor_model, \
     model_as_text
-from tableio import Capabilities, ConfigError, FileAccess, \
+from tableio import Capabilities, FileAccess, \
     TimeDeltaFallback, access_capabilities
 from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, TioJsonConfig, \
     tio_json_config_default, tio_json_create_loader, tio_json_loader, \
@@ -122,8 +124,32 @@ def test_file_name_refused() -> None:
 
 def test_bad_format_refused() -> None:
     """An unregistered format is reported and not worked around."""
-    with pytest.raises(ConfigError):
+    with pytest.raises(InvalidConfiguration):
         _loaded(json.dumps({'format_name': 'Nonsense'}))
+
+
+def _refusal(text: str, ok_to_use_defaults: bool) -> tuple[str, str]:
+    """Return the message and the diagnostics of a refused endpoint."""
+    loader = tio_json_loader(CAPS, FileAccess.READ, member_name='input')
+    stderr_file = StringIO()
+    with pytest.raises(InvalidConfiguration) as caught:
+        loader(from_json_data_text=text, stderr_file=stderr_file,
+               ok_to_use_defaults=ok_to_use_defaults)
+    return str(caught.value), stderr_file.getvalue()
+
+
+@pytest.mark.parametrize('member,text', [
+    ('format_name', {'format_name': 'Nonsense'}),
+    ('implementation', {'format_name': 'CSV', 'implementation': 'Nonsense'}),
+    ('format_name', {'format_name': 'HTML'})])
+def test_bad_choice_path(member: str, text: dict[str, str]) -> None:
+    """A refused choice names its path, with or without defaults allowed."""
+    strict = _refusal(json.dumps(text), ok_to_use_defaults=False)
+    lenient = _refusal(json.dumps(text), ok_to_use_defaults=True)
+    assert lenient == strict
+    message, diagnostics = lenient
+    assert f'input.{member}' in message
+    assert message in diagnostics
 
 
 def test_file_access_kept() -> None:
@@ -211,7 +237,7 @@ def test_read_refuses_write() -> None:
 
 
 @pytest.mark.parametrize('format_name,implementation,text', [
-    (None, 'mformat', {'format_name': 'CSV'}),
+    (None, 'csv', {'format_name': 'Excel'}),
     ('CSV', None, {'implementation': 'OpenPyXL'})])
 def test_preferred_clash(format_name: Optional[str],
                          implementation: Optional[str],
@@ -219,7 +245,7 @@ def test_preferred_clash(format_name: Optional[str],
     """A preferred name that contradicts the file is refused, not dropped."""
     loader = tio_json_loader(CAPS, FileAccess.CREATE, format_name,
                              implementation)
-    with pytest.raises(ConfigError):
+    with pytest.raises(InvalidConfiguration):
         loader(from_json_data_text=json.dumps(text), ok_to_use_defaults=True)
 
 

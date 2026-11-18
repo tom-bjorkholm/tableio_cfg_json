@@ -762,9 +762,9 @@ format, and be refused for values the user never wrote.
 **Raises**:
 
 - `ConfigError` - TableIO cannot select or validate default data from
-  the supplied runtime values, or with ``ok_to_use_defaults``
-  true from the format and implementation that the JSON source
-  selects.
+  the supplied runtime values. A format or implementation in
+  the JSON source that TableIO refuses is reported as
+  InvalidConfiguration instead, like any other bad value.
 - `TypeError` - File access or capabilities have invalid types in
   tableio access-capability validation.
 - `ValueError` - Both JSON text and a JSON filename were supplied, or
