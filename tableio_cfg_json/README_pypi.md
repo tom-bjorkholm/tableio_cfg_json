@@ -294,6 +294,32 @@ from, so an application configuration reports
 all take a `member_name` keyword for this, and so does `tio_json_loader()`.
 A whole configuration file is a member of nothing and leaves it out.
 
+### Reading a file that lacks values
+
+`TioJsonConfig` and the three section classes take the config-as-json keyword
+`ok_to_use_defaults` and pass it on. With `ok_to_use_defaults=True` a JSON
+source may leave members out, and each of them keeps its default;
+`kept_value_paths()` tells which ones did. The defaults TableIO recommends
+depend on the format, so `TioJsonConfig` then builds them for the format and
+implementation that the JSON source selects, rather than for the preferred
+ones given to the constructor:
+
+```python
+config = TioJsonConfig(capabilities, file_access, include_all_options=True,
+                       from_json_data_text='{"format_name": "CSV"}',
+                       ok_to_use_defaults=True)
+```
+
+That configuration gets the CSV implementation and CSV settings TableIO
+recommends. Without `ok_to_use_defaults` the source has to hold every
+required member, and an optional member that it leaves out is `None`.
+
+`ok_to_use_defaults` is for a file of the current format that leaves values
+out, such as one trimmed by hand. It is not the way to read a file written by
+an older version of an application: that is what the "Read Old Configuration
+File" (ROCF) rules of config-as-json are for, which migrate renamed, moved and
+removed keys and report every change.
+
 ## Nested application configs
 
 `TioJsonConfig` can be used as the whole configuration file for a small
@@ -313,6 +339,14 @@ a `config_as_json.ConfigFactory` of its own, or one factory that reads the
 that does not accept it is called without it and config-as-json warns that
 it should be changed.
 
+A factory should accept `ok_to_use_defaults` as well, and pass it on to
+`TioJsonConfig`, and so should the constructor of the application
+configuration. Then an application configuration read with
+`ok_to_use_defaults=True`, as an `edit-cfg-json` editor does under its
+default-filling load policy, fills in what an endpoint lacks from the TableIO
+defaults for its format. A factory that does not accept it is called without
+it, with a warning, and reads its endpoint strictly.
+
 The teaching examples show both styles.
 
 ## Documentation
@@ -331,7 +365,7 @@ MIT
 
 ## Test summary
 
-- Test result: 657 passed in 28s
+- Test result: 684 passed in 32s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

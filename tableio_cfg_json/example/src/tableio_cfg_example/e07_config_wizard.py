@@ -63,7 +63,7 @@ The title labels the item in the back and cancel messages. The function
 asks that one item and stores its answer in the shared results dict. Its
 third argument is a backward flag: True asks the item as if entered from
 a later item, so an endpoint opens at its last question. run_steps drives
-a sequence of these; e08_edit_config and e09_rename_wizard supply their
+a sequence of these; e08_edit_in_wizard and e09_rename_wizard supply their
 own sequences, the edit example seeding each item from a stored config.
 """
 
@@ -147,7 +147,7 @@ def run_steps(ui_bridge: WizardUiBridge, steps: Sequence[WizardStep],
 
     Each step is a (title, function) pair; the function asks one item and
     stores its answer in the shared results. This is the generic outer
-    navigation loop reused by e08_edit_config and e09_rename_wizard, which
+    navigation loop reused by e08_edit_in_wizard and e09_rename_wizard, which
     supply their own step lists.
 
     The snapshot stack lets going back restore the answers as they were

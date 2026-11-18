@@ -19,7 +19,7 @@ from tableio import FileAccess, access_capabilities, \
 from wizard_ui_bridge import UiBridgeType
 from tableio_cfg_example import e01_create_config, e02_write_table, \
     e03_read_table, e04_custom_config, e05_app_config, e06_split_cities, \
-    e07_config_wizard, e08_edit_config, e09_rename_wizard, \
+    e07_config_wizard, e08_edit_in_wizard, e09_rename_wizard, \
     e10_split_rename, e11_config_editor
 from tableio_cfg_json import get_config_member_names, tio_json_config_default
 
@@ -472,13 +472,19 @@ def test_split_back(tmp_path: Path) -> None:
     assert config_data['split_column'] == 'Country'
 
 
-def _edit_config(answer_lines: list[str], config_file: Path) -> None:
-    """Run the edit wizard on an existing config with scripted answers."""
+def _edit_config(answer_lines: list[str], config_file: Path) -> str:
+    """Run the edit wizard on an existing config with scripted answers.
+
+    Returns:
+        What the wizard showed the user.
+    """
     stdin_file = StringIO('\n'.join(answer_lines) + '\n')
-    e08_edit_config.edit_config_file(config_file=config_file,
-                                     stdin_file=stdin_file,
-                                     stdout_file=StringIO(),
-                                     stderr_file=StringIO())
+    stdout_file = StringIO()
+    e08_edit_in_wizard.edit_in_wizard(config_file=config_file,
+                                      stdin_file=stdin_file,
+                                      stdout_file=stdout_file,
+                                      stderr_file=StringIO())
+    return stdout_file.getvalue()
 
 
 def _edit_keep_answers() -> list[str]:
@@ -504,6 +510,30 @@ def test_edit_keeps_all(tmp_path: Path) -> None:
     before = _read_json(config_file)
     _edit_config(_edit_keep_answers(), config_file)
     assert _read_json(config_file) == before
+
+
+def test_edit_trimmed_file(tmp_path: Path) -> None:
+    """A stored file lacking a value opens, and the user is told so.
+
+    The missing split limit keeps the default of SplitCitiesConfig, which
+    the wizard then suggests, so keeping every answer stores that default.
+    """
+    config_file = tmp_path / 'app.json'
+    _create_split_config(config_file, tmp_path / 'app.txt')
+    data = _read_json(config_file)
+    del data['split_limit']
+    config_file.write_text(json.dumps(data), encoding='utf-8')
+    shown = _edit_config(_edit_keep_answers(), config_file)
+    assert 'does not hold split_limit.' in shown
+    assert _read_json(config_file) == data | {'split_limit': 'M'}
+
+
+def test_edit_complete_file(tmp_path: Path) -> None:
+    """A stored file holding every value is opened without a remark."""
+    config_file = tmp_path / 'app.json'
+    _create_split_config(config_file, tmp_path / 'app.txt')
+    shown = _edit_config(_edit_keep_answers(), config_file)
+    assert 'does not hold' not in shown
 
 
 def test_edit_changes_limit(tmp_path: Path) -> None:
@@ -717,6 +747,22 @@ def test_editor_app_config(tmp_path: Path,
     assert text.count('The TableIO format name to use.') == 3
     assert 'Column whose value decides which output a row goes to.' in text
     assert 'validation: valid' in text
+
+
+def test_editor_trimmed_app(tmp_path: Path,
+                            capsys: pytest.CaptureFixture[str]) -> None:
+    """e11 opens an app config whose file lacks values, also in an endpoint.
+
+    The editor reads it with a policy that lets defaults fill in, which
+    reaches the endpoint only through a factory that passes it on.
+    """
+    config_file = _app_config_file(tmp_path)
+    data = _read_json(config_file)
+    del data['split_limit']
+    data['not_less_than_output'] = {}
+    config_file.write_text(json.dumps(data), encoding='utf-8')
+    assert e11_config_editor.main(['--cfg', str(config_file)]) == 0
+    assert 'validation: valid' in capsys.readouterr().out
 
 
 def test_editor_endpoint(tmp_path: Path,

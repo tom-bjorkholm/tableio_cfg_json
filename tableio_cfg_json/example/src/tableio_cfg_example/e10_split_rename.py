@@ -45,7 +45,8 @@ class RenameSplitConfig(SplitCitiesConfig):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Create or read the rename-capable application configuration."""
         # The two mappings are open-ended dicts, so their keys are not a
         # fixed schema the Config base class can check against a default.
@@ -55,9 +56,13 @@ class RenameSplitConfig(SplitCitiesConfig):
                                  'not_less_output_names']
         self.less_output_names: dict[str, str] = {}
         self.not_less_output_names: dict[str, str] = {}
+        # A derived class passes ok_to_use_defaults on, just as it passes
+        # member_name on, so that a file lacking one of the two mappings can
+        # still be read when the caller allows defaults.
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:

@@ -293,6 +293,13 @@ hands each factory the path it is on its way down, and the factory passes it
 to the endpoint, so a bad delimiter in the input is reported as
 `input.csv.delimiter`.
 
+The constructor and the two factory functions also take `ok_to_use_defaults`
+and pass it on. When the application configuration is read with
+`ok_to_use_defaults=True`, config-as-json passes it to each factory, and an
+endpoint that lacks a value then gets the TableIO default for the format it
+selects instead of being refused. A factory that does not take it is called
+without it, with a warning, and reads its endpoint strictly.
+
 The runner example reads and writes dict data:
 
 ```python
@@ -340,9 +347,12 @@ The core wizard example source files are:
   that is a full-screen Textual interface, and otherwise it is the console
   bridge, so the
   same program is both interactive and scriptable.
-- [`e08_edit_config.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_edit_config.py)
-  reopens a stored application config and re-asks the same items, seeding each
-  one with the stored value so pressing Enter keeps it. It reuses the same
+- [`e08_edit_in_wizard.py`](https://github.com/tom-bjorkholm/tableio_cfg_json/blob/master/tableio_cfg_json/example/src/tableio_cfg_example/e08_edit_in_wizard.py)
+  reopens a stored application config in the wizard and re-asks the same
+  items, seeding each one with the stored value so pressing Enter keeps it.
+  It reads the stored file with `ok_to_use_defaults=True`, so a file that
+  lacks values still opens, and it tells the user which values those are
+  (using `kept_value_paths()`) before the wizard starts. It reuses the same
   outer navigation loop as `e07_config_wizard.py` to move between the
   application's endpoints, re-opening an earlier endpoint at its last question
   when the user goes back into it.
@@ -383,19 +393,35 @@ example is fully scriptable. Choosing the interface is a single line,
 `make_text_ui_bridge(out_file, in_file, err_file)`; see wizard_ui_bridge `e01`
 for the details of bridge selection.
 
-### Edit Configuration Walkthrough
+### Edit in Wizard Walkthrough
 
-After creating the split-cities config, you can reopen it and keep or change
-the stored answers:
+After creating the split-cities config, you can reopen it in the wizard and
+keep or change the stored answers. (Editing the whole file at once in a
+folding editor is shown later, by `e11_config_editor.py`.)
 
 ```sh
-python -m tableio_cfg_example.e08_edit_config \
+python -m tableio_cfg_example.e08_edit_in_wizard \
   --cfg split-cities.json
 ```
 
-The example reads the file as a `SplitCitiesConfig` and passes each stored
-endpoint to the wizard as its `default`, so pressing Enter keeps the old
-answer. The same outer navigation loop that `e07_config_wizard.py` uses lets
+The example reads the file as a `SplitCitiesConfig` with
+`ok_to_use_defaults=True`, so a file that lacks some values, for example
+because it was trimmed by hand, still opens. Each value the file lacks keeps
+its default, and `kept_value_paths()` names those values so the user is told
+about them first. (A file written by an older version of the program is a
+different case: it is read with the "Read Old Configuration File" (ROCF)
+rules of config-as-json, not with `ok_to_use_defaults`.)
+
+```python
+stored = SplitCitiesConfig(from_json_filename=config_file,
+                           stderr_file=stderr_file, ok_to_use_defaults=True)
+names = sorted('.'.join(str(part) for part in path)
+               for path in stored.kept_value_paths())
+```
+
+It then passes each stored endpoint to the wizard as its `default`, so
+pressing Enter keeps the old answer. The same outer navigation loop that
+`e07_config_wizard.py` uses lets
 the user move between the application's endpoints: going back into an earlier
 endpoint reopens it at its last question by calling the TableIO wizard with
 `backward=True`.
@@ -545,7 +571,10 @@ above.
 
 `SplitCitiesConfig` needs no loader, because its constructor takes only the
 arguments `config-as-json` documents and its own factory functions make the
-nested endpoints.
+nested endpoints. Both take `ok_to_use_defaults` and pass it on, so the editor
+gives the constructor the text of the file together with the load policy, and
+an endpoint that lacks a value is filled in from the TableIO defaults for its
+format.
 
 A program that is told a name instead of making a call uses one of the
 ready-made loaders, `tio_json_read_loader`, `tio_json_create_loader` and

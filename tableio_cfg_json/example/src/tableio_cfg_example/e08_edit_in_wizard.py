@@ -1,12 +1,21 @@
 #! /usr/bin/env python3
-"""Edit a stored split-cities app config and navigate its endpoints.
+"""Edit a stored split-cities app config in the wizard.
 
 This builds on e07_config_wizard. That example created a fresh
 SplitCitiesConfig; this one reopens a stored config and re-asks the same
-items, but seeds each one with the value already stored so pressing Enter
-keeps it. Two related ideas are shown:
+wizard items, but seeds each one with the value already stored so pressing
+Enter keeps it. (Editing the whole file at once in a folding config editor
+is a different thing, and is shown by e11_config_editor.) Three related
+ideas are shown:
 
-- Editing with defaults. The stored config is passed to
+- Reading a stored file that lacks values. The file is read with
+  ok_to_use_defaults=True, so a file that a user trimmed by hand still
+  opens. Each value it lacks keeps its default, and
+  Config.kept_value_paths() tells which ones those are, so the user can be
+  told before the wizard starts. This is not how a file written by an
+  older version of the program is read: that is what the "Read Old
+  Configuration File" (ROCF) rules of config-as-json are for.
+- Editing in the wizard with defaults. The stored config is passed to
   tio_json_config_wizard() as its default, so every stored value becomes
   the value the matching question suggests.
 - Navigating between the application's endpoints. The same outer loop as
@@ -19,7 +28,7 @@ keeps it. Two related ideas are shown:
 The exception semantics caught by run_steps (WizardBack, WizardCancelLevel
 and WizardAbort) are taught on their own in the wizard_ui_bridge
 navigation example (e03). The bridge is obtained with make_text_ui_bridge()
-exactly as in e07, so the editor is full-screen in a terminal when
+exactly as in e07, so the wizard is full-screen in a terminal when
 Textual is installed, and scriptable with redirected streams.
 """
 
@@ -39,10 +48,10 @@ from tableio_cfg_example.e07_config_wizard import INPUT_TITLE, LESS_TITLE, \
 from wizard_ui_bridge import WizardUiBridge, make_text_ui_bridge
 
 
-def edit_config_file(config_file: Path, stdin_file: Optional[TextIO] = None,
-                     stdout_file: Optional[TextIO] = None,
-                     stderr_file: Optional[TextIO] = None) -> None:
-    """Reopen a stored app config, edit it, and write it back.
+def edit_in_wizard(config_file: Path, stdin_file: Optional[TextIO] = None,
+                   stdout_file: Optional[TextIO] = None,
+                   stderr_file: Optional[TextIO] = None) -> None:
+    """Reopen a stored app config, edit it in the wizard, and write it back.
 
     When the user abandons the edit nothing is written, so the stored file
     is left exactly as it was.
@@ -58,6 +67,7 @@ def edit_config_file(config_file: Path, stdin_file: Optional[TextIO] = None,
     err_file = sys.stderr if stderr_file is None else stderr_file
     ui_bridge = make_text_ui_bridge(out_file, in_file, err_file)
     stored = _read_stored(config_file, err_file)
+    _show_kept(stored, ui_bridge)
     # back_reenters=True is the one difference from the create wizard: going
     # back into an earlier endpoint reopens it at its last question.
     results = run_steps(ui_bridge, _edit_steps(stored), back_reenters=True)
@@ -71,12 +81,43 @@ def _read_stored(config_file: Path, stderr_file: TextIO) -> SplitCitiesConfig:
     """Return the stored app config, or a default one when absent.
 
     Reading the file gives the object whose values seed the edit. When no
-    file exists yet the editor simply starts from the class defaults.
+    file exists yet the wizard simply starts from the class defaults.
     """
-    if config_file.exists():
-        return SplitCitiesConfig(from_json_filename=config_file,
-                                 stderr_file=stderr_file)
-    return SplitCitiesConfig(stderr_file=stderr_file)
+    if not config_file.exists():
+        return SplitCitiesConfig(stderr_file=stderr_file)
+    # Without ok_to_use_defaults=True a file lacking split_limit, or an
+    # endpoint lacking format_name, is refused with ConfigMissingKey. With
+    # it, a missing value keeps its default instead: the default that
+    # SplitCitiesConfig.__init__ assigns for its own members, and the
+    # default TableIO recommends for the format of an endpoint. Values that
+    # are present are still validated as strictly as ever.
+    #
+    # Use this for a file of the current format that simply leaves values
+    # out, not for a file written by an older version of the program. An
+    # older format is read with the ROCF rules of config-as-json (see its
+    # examples e31 and e37), which migrate renamed, moved and removed keys
+    # and report every change. ok_to_use_defaults would only hide them.
+    return SplitCitiesConfig(from_json_filename=config_file,
+                             stderr_file=stderr_file, ok_to_use_defaults=True)
+
+
+def _show_kept(stored: SplitCitiesConfig, ui_bridge: WizardUiBridge) -> None:
+    """Tell the user which values the stored file did not hold.
+
+    The wizard suggests the default for each of them, so pressing Enter
+    stores a value the file never had. Saying so first keeps that from
+    being a surprise.
+    """
+    # kept_value_paths() returns one JsonPath tuple per value that the file
+    # lacked, such as ('split_limit',) or ('input', 'format_name') for a
+    # value inside a nested endpoint. When a whole member is missing only
+    # that member is named, not every value inside it. The order of the
+    # list is not guaranteed, so it is sorted for a stable message.
+    names = sorted('.'.join(str(part) for part in path)
+                   for path in stored.kept_value_paths())
+    if names:
+        ui_bridge.show('The stored file does not hold ' + ', '.join(names)
+                       + '. The wizard suggests the default for each.')
 
 
 def _edit_steps(stored: SplitCitiesConfig) -> list[WizardStep]:
@@ -130,11 +171,11 @@ def _edit_steps(stored: SplitCitiesConfig) -> list[WizardStep]:
 def main(args: Optional[list[str]] = None) -> int:
     """Parse command line arguments and edit one app config file."""
     parser = argparse.ArgumentParser(
-        description='Edit the split-cities app config with wizard defaults.')
+        description='Edit the split-cities app config in the wizard.')
     parser.add_argument('--cfg', required=True, type=Path,
                         help='JSON application configuration file to edit.')
     parsed = parser.parse_args(args)
-    edit_config_file(config_file=parsed.cfg)
+    edit_in_wizard(config_file=parsed.cfg)
     return 0
 
 

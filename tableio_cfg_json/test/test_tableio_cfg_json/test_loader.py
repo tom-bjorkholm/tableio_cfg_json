@@ -20,7 +20,7 @@ from tableio import Capabilities, ConfigError, FileAccess, \
 from tableio_cfg_json import TIO_JSON_DESCRIPTIONS, TioJsonConfig, \
     tio_json_config_default, tio_json_create_loader, tio_json_loader, \
     tio_json_read_loader, tio_json_update_loader
-from tableio_cfg_json.loader import NO_FILE_NAME, _json_member
+from tableio_cfg_json.loader import NO_FILE_NAME
 
 CAPS = Capabilities()
 
@@ -103,19 +103,6 @@ def test_json_text_wins() -> None:
                     ok_to_use_defaults=True)
     assert isinstance(config, TioJsonConfig)
     assert config.format_name == 'HTML'
-
-
-@pytest.mark.parametrize('text,expected', [
-    (None, 'kept'),
-    ('not json at all', 'kept'),
-    ('[1, 2]', 'kept'),
-    ('"text"', 'kept'),
-    ('{"format_name": null}', 'kept'),
-    ('{"other": 1}', 'kept'),
-    ('{"format_name": "CSV"}', 'CSV')])
-def test_peeked_member(text: Optional[str], expected: str) -> None:
-    """Only a JSON object holding that member as a string answers."""
-    assert _json_member(text, 'format_name', 'kept') == expected
 
 
 @pytest.mark.parametrize('text', ['not json at all', '[1, 2]', '"text"',

@@ -19,8 +19,9 @@ import warnings
 from typing import Optional, TextIO, override
 
 import pytest
-from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    InvalidConfiguration, NestedConfigs, PathOrStr, ValidationPlan
+from config_as_json import Config, ConfigMissingKey, ConfigNesting, \
+    ConfigNestingKind, InvalidConfiguration, NestedConfigs, PathOrStr, \
+    ValidationPlan
 from tableio import Capabilities, FileAccess
 from tableio_cfg_json import TioJsonConfig, TioJsonCsvConfig, \
     tio_json_config_default, tio_json_loader
@@ -29,15 +30,18 @@ CAPS = Capabilities()
 GOOD_CSV: dict[str, object] = {'format_name': 'CSV', 'implementation': 'csv'}
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _endpoint(file_access: FileAccess, from_json_data_text: Optional[str],
               from_json_filename: Optional[PathOrStr], stderr_file: TextIO,
-              member_name: Optional[str]) -> TioJsonConfig:
+              member_name: Optional[str],
+              ok_to_use_defaults: bool) -> TioJsonConfig:
     """Construct one nested endpoint, telling it where it sits."""
     return TioJsonConfig(capabilities=CAPS, file_access=file_access,
                          format_name='CSV',
                          from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
 
 class _AppConfig(Config):
@@ -46,7 +50,8 @@ class _AppConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Create or read a configuration holding two named endpoints."""
         self.input = tio_json_config_default(CAPS, FileAccess.READ,
                                              format_name='CSV')
@@ -54,7 +59,8 @@ class _AppConfig(Config):
                                               format_name='CSV')
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file, member_name=member_name)
+                        stderr_file=stderr_file, member_name=member_name,
+                        ok_to_use_defaults=ok_to_use_defaults)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -74,21 +80,27 @@ class _AppConfig(Config):
         _ = stderr_file
         return []
 
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def _read_factory(self, from_json_data_text: Optional[str] = None,
                       from_json_filename: Optional[PathOrStr] = None,
                       stderr_file: TextIO = sys.stderr,
-                      member_name: Optional[str] = None) -> TioJsonConfig:
+                      member_name: Optional[str] = None,
+                      ok_to_use_defaults: bool = False) -> TioJsonConfig:
         """Construct the read endpoint from the JSON of its member."""
         return _endpoint(FileAccess.READ, from_json_data_text,
-                         from_json_filename, stderr_file, member_name)
+                         from_json_filename, stderr_file, member_name,
+                         ok_to_use_defaults)
 
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def _write_factory(self, from_json_data_text: Optional[str] = None,
                        from_json_filename: Optional[PathOrStr] = None,
                        stderr_file: TextIO = sys.stderr,
-                       member_name: Optional[str] = None) -> TioJsonConfig:
+                       member_name: Optional[str] = None,
+                       ok_to_use_defaults: bool = False) -> TioJsonConfig:
         """Construct the write endpoint from the JSON of its member."""
         return _endpoint(FileAccess.CREATE, from_json_data_text,
-                         from_json_filename, stderr_file, member_name)
+                         from_json_filename, stderr_file, member_name,
+                         ok_to_use_defaults)
 
 
 def _app_text(member: str, faults: dict[str, object]) -> str:
@@ -155,15 +167,43 @@ def test_loader_path() -> None:
     assert 'input.csv.delimiter' in str(exc_info.value)
 
 
-def test_no_deprecation() -> None:
-    """Accepting member_name leaves config-as-json nothing to warn about."""
+@pytest.mark.parametrize('ok_to_use_defaults', [False, True])
+def test_no_deprecation(ok_to_use_defaults: bool) -> None:
+    """Accepting member_name and ok_to_use_defaults leaves nothing to warn.
+
+    config-as-json passes ok_to_use_defaults to a factory only when the
+    application configuration is read with it, so both ways are read here.
+    """
     err = io.StringIO()
     with warnings.catch_warnings(record=True) as records:
         warnings.simplefilter('always')
         config = _AppConfig(from_json_data_text=_app_text('input', {}),
-                            stderr_file=err)
+                            stderr_file=err,
+                            ok_to_use_defaults=ok_to_use_defaults)
         config.validate(err)
         config.as_json_string(err)
     deprecated = [str(record.message) for record in records
                   if issubclass(record.category, DeprecationWarning)]
     assert deprecated == []
+
+
+def test_nested_kept() -> None:
+    """A value an endpoint lacks is kept, and named below that endpoint.
+
+    The endpoint is built by a factory, so it is the factory passing
+    ok_to_use_defaults on that lets the endpoint keep a default at all.
+    """
+    text = json.dumps({'input': dict(GOOD_CSV), 'output': {}})
+    config = _AppConfig(from_json_data_text=text, stderr_file=io.StringIO(),
+                        ok_to_use_defaults=True)
+    assert config.kept_value_paths() == [('output', 'format_name')]
+    assert config.output.format_name == 'CSV'
+    assert config.output.file_access is FileAccess.CREATE
+
+
+def test_nested_strict() -> None:
+    """Read strictly, an endpoint lacking its format is refused."""
+    text = json.dumps({'input': dict(GOOD_CSV), 'output': {}})
+    with pytest.raises(ConfigMissingKey) as exc_info:
+        _AppConfig(from_json_data_text=text, stderr_file=io.StringIO())
+    assert 'output.format_name' in str(exc_info.value)

@@ -8,10 +8,11 @@ the application's and which nothing in a configuration file could supply. An
 ``edit_cfg_json.ConfigLoader`` is how an application says how its class is
 built, and this module is that loader for TioJsonConfig.
 
-The defaults TableIO recommends depend on the chosen format, so the format
-and the implementation are read out of the JSON text before the defaults are
-asked for. Without that, a file selecting CSV would be built on the defaults
-of another format and refused for an implementation the user never wrote.
+The loader hands the JSON text and the load policy to the TioJsonConfig
+constructor together, so the configuration is validated once, on the values
+of the text. The defaults TableIO recommends depend on the chosen format, and
+when the policy lets defaults fill in what the text leaves out, TioJsonConfig
+builds them for the format and implementation that the text selects.
 
 A ready-made loader is offered for each file access, for a program that needs
 a name to point at rather than a call to make, which is what the ``--loader``
@@ -25,7 +26,6 @@ defaults fill in for one access is not the one the other access would choose.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-import json
 import sys
 from typing import Optional, TextIO
 
@@ -37,33 +37,6 @@ from tableio_cfg_json.config import TioJsonConfig
 NO_FILE_NAME = ('The editor reads the configuration file itself, so this '
                 'loader is given JSON text and not a file name.')
 """Message of the refusal of a file name given to this loader."""
-
-
-def _json_member(text: Optional[str], name: str,
-                 fallback: Optional[str]) -> Optional[str]:
-    """Return one top-level string member of JSON text, or a fallback.
-
-    Only which defaults to build on is decided here, so anything that is not
-    a JSON object holding that member as a string is left to the parse step,
-    which reports what is wrong with it properly.
-
-    Args:
-        text: JSON text to look in, or None when there is none.
-        name: Name of the top-level member to look for.
-        fallback: Value to use when the text does not answer.
-    Returns:
-        The value of that member, or the fallback.
-    """
-    if text is None:
-        return fallback
-    try:
-        data = json.loads(text)
-    except ValueError:
-        return fallback
-    if not isinstance(data, dict):
-        return fallback
-    value = data.get(name)
-    return value if isinstance(value, str) else fallback
 
 
 # pylint: disable=too-many-arguments
@@ -103,9 +76,7 @@ def tio_json_loader(capabilities: Capabilities, file_access: FileAccess,
             top level of a larger one, or ``None`` when it is that top level.
             An editor asks a loader for a whole configuration, so an editing
             session leaves this ``None``. It is here for an application that
-            loads one nested endpoint itself, which the loader and not
-            ``TioJsonConfig`` is the door to, because only a load decides
-            whether the defaults may fill in what the text leaves out.
+            loads one nested endpoint itself through a loader.
     Returns:
         A loader for TioJsonConfig, satisfying ``edit_cfg_json.ConfigLoader``.
     """
@@ -134,19 +105,13 @@ def tio_json_loader(capabilities: Capabilities, file_access: FileAccess,
         """
         if from_json_filename is not None:
             raise ValueError(NO_FILE_NAME)
-        config = TioJsonConfig(
-            capabilities=capabilities, file_access=file_access,
-            format_name=_json_member(from_json_data_text, 'format_name',
-                                     format_name),
-            implementation=_json_member(from_json_data_text, 'implementation',
-                                        implementation),
-            include_all_options=include_all_options, stderr_file=stderr_file,
-            member_name=member_name)
-        if from_json_data_text is not None:
-            config.parse_json(from_json_text=from_json_data_text,
-                              ok_to_use_defaults=ok_to_use_defaults,
-                              stderr_file=stderr_file, member_name=member_name)
-        return config
+        return TioJsonConfig(capabilities=capabilities,
+                             file_access=file_access, format_name=format_name,
+                             implementation=implementation,
+                             include_all_options=include_all_options,
+                             from_json_data_text=from_json_data_text,
+                             stderr_file=stderr_file, member_name=member_name,
+                             ok_to_use_defaults=ok_to_use_defaults)
     return load
 
 

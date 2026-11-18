@@ -9,6 +9,8 @@ JSON reading, writing, nested-section handling and validation.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+import json
+from pathlib import Path
 import sys
 from typing import Optional, TextIO, override
 
@@ -176,6 +178,64 @@ def _optional_non_empty() -> OptionalMemberValidator:
     return OptionalMemberValidator(validator)
 
 
+def _json_object(text: Optional[str],
+                 filename: Optional[PathOrStr]) -> dict[str, object]:
+    """Return the top-level JSON object of a JSON source, or an empty dict.
+
+    Only which defaults to build on is decided from this, so a source that
+    cannot be read, or that is not a JSON object, answers nothing here. The
+    parse that follows reports what is wrong with it properly.
+
+    Args:
+        text: JSON text, or None when there is none.
+        filename: JSON file, or None when there is none. It is read instead
+            of the text, and config-as-json refuses having both.
+    Returns:
+        The top-level JSON object, or an empty dict.
+    """
+    try:
+        if filename is not None:
+            text = Path(filename).read_text(encoding='UTF-8')
+        data = None if text is None else json.loads(text)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _json_choice(data: dict[str, object], name: str,
+                 fallback: Optional[str]) -> Optional[str]:
+    """Return one top-level string member of JSON data, or a fallback.
+
+    Args:
+        data: Top-level JSON object to look in.
+        name: Name of the top-level member to look for.
+        fallback: Value to use when the data holds no string there.
+    Returns:
+        The value of that member, or the fallback.
+    """
+    value = data.get(name)
+    return value if isinstance(value, str) else fallback
+
+
+def _json_selection(text: Optional[str], filename: Optional[PathOrStr],
+                    format_name: Optional[str],
+                    implementation: Optional[str]) \
+        -> tuple[Optional[str], Optional[str]]:
+    """Return the format and implementation that a JSON source selects.
+
+    Args:
+        text: JSON text, or None when there is none.
+        filename: JSON file, or None when there is none.
+        format_name: Format to use when the source selects none.
+        implementation: Implementation to use when the source selects none.
+    Returns:
+        The format name and the implementation name to build defaults for.
+    """
+    data = _json_object(text, filename)
+    return (_json_choice(data, 'format_name', format_name),
+            _json_choice(data, 'implementation', implementation))
+
+
 class TioJsonCsvConfig(CsvConfigData, Config):
     """JSON-backed CSV configuration section for TableIO.
 
@@ -194,7 +254,8 @@ class TioJsonCsvConfig(CsvConfigData, Config):
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Create CSV settings or read them from a JSON source.
 
         Constructor arguments provide defaults. If JSON text or a filename is
@@ -213,6 +274,10 @@ class TioJsonCsvConfig(CsvConfigData, Config):
             member_name: Path for reaching this section from the top
                 level of the complete configuration, or ``None`` when this
                 section is that top level and not a member of anything.
+            ok_to_use_defaults: Whether the JSON source may leave out
+                members, which then keep the values given by the other
+                constructor arguments. ``Config.kept_value_paths()`` tells
+                which members did. Without a JSON source it has no effect.
         Raises:
             ValueError: Both JSON text and a JSON filename were supplied.
             SystemExit: The JSON filename does not exist.
@@ -230,7 +295,8 @@ class TioJsonCsvConfig(CsvConfigData, Config):
                                escapechar=escapechar)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file, member_name=member_name)
+                        stderr_file=stderr_file, member_name=member_name,
+                        ok_to_use_defaults=ok_to_use_defaults)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -295,11 +361,13 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
     TioJsonConfig.
     """
 
+    # pylint: disable-next=too-many-arguments
     def __init__(self, css_file: Optional[str] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Create HTML settings or read them from a JSON source.
 
         Constructor arguments provide defaults. If JSON text or a filename is
@@ -313,6 +381,10 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
             member_name: Path for reaching this section from the top
                 level of the complete configuration, or ``None`` when this
                 section is that top level and not a member of anything.
+            ok_to_use_defaults: Whether the JSON source may leave out
+                members, which then keep the values given by the other
+                constructor arguments. ``Config.kept_value_paths()`` tells
+                which members did. Without a JSON source it has no effect.
         Raises:
             ValueError: Both JSON text and a JSON filename were supplied.
             SystemExit: The JSON filename does not exist.
@@ -327,7 +399,8 @@ class TioJsonHtmlConfig(HtmlConfigData, Config):
         HtmlConfigData.__init__(self, css_file=css_file)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file, member_name=member_name)
+                        stderr_file=stderr_file, member_name=member_name,
+                        ok_to_use_defaults=ok_to_use_defaults)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -370,7 +443,8 @@ class TioJsonLatexConfig(LatexConfigData, Config):
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Create LaTeX settings or read them from a JSON source.
 
         Constructor arguments provide defaults. If JSON text or a filename is
@@ -385,6 +459,10 @@ class TioJsonLatexConfig(LatexConfigData, Config):
             member_name: Path for reaching this section from the top
                 level of the complete configuration, or ``None`` when this
                 section is that top level and not a member of anything.
+            ok_to_use_defaults: Whether the JSON source may leave out
+                members, which then keep the values given by the other
+                constructor arguments. ``Config.kept_value_paths()`` tells
+                which members did. Without a JSON source it has no effect.
         Raises:
             ValueError: Both JSON text and a JSON filename were supplied.
             SystemExit: The JSON filename does not exist.
@@ -400,7 +478,8 @@ class TioJsonLatexConfig(LatexConfigData, Config):
                                  preamble=preamble)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file, member_name=member_name)
+                        stderr_file=stderr_file, member_name=member_name,
+                        ok_to_use_defaults=ok_to_use_defaults)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -454,18 +533,30 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Create TableIO settings or read them from a JSON source.
 
         Default values come from tableio's recommended configuration for the
         supplied capabilities and file access. If JSON text or a filename is
         supplied, config-as-json applies the JSON values over those defaults.
 
+        The defaults TableIO recommends depend on the format and the
+        implementation. When the JSON source may leave members out, the
+        format and implementation that it selects are therefore used for the
+        defaults instead of the preferred ones given here. Otherwise a file
+        selecting CSV would have its gaps filled with the defaults of another
+        format, and be refused for values the user never wrote.
+
         Args:
             capabilities: Runtime capabilities requested by the application.
             file_access: Runtime file access requested by the application.
-            format_name: Optional preferred tableio format name.
+            format_name: Optional preferred tableio format name. With
+                ``ok_to_use_defaults`` true, a format name in the JSON source
+                is used instead.
             implementation: Optional preferred tableio implementation name.
+                With ``ok_to_use_defaults`` true, an implementation name in
+                the JSON source is used instead.
             include_all_options: Include explicit non-``None`` defaults for
                 template-style configuration output.
             from_json_data_text: Optional JSON text to parse.
@@ -478,9 +569,16 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
                 object is that top level and not a member of anything. An
                 application nesting one endpoint per member names each of
                 them, so that a diagnostic says which endpoint it is about.
+            ok_to_use_defaults: Whether the JSON source may leave out
+                members, which then keep the defaults TableIO recommends for
+                the format and implementation that the source selects.
+                ``Config.kept_value_paths()`` tells which members did.
+                Without a JSON source it has no effect.
         Raises:
             ConfigError: TableIO cannot select or validate default data from
-                the supplied runtime values.
+                the supplied runtime values, or with ``ok_to_use_defaults``
+                true from the format and implementation that the JSON source
+                selects.
             TypeError: File access or capabilities have invalid types in
                 tableio access-capability validation.
             ValueError: Both JSON text and a JSON filename were supplied, or
@@ -494,6 +592,11 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
             NotImplementedError: A required config-as-json override is
                 missing.
         """
+        if ok_to_use_defaults:
+            format_name, implementation = _json_selection(from_json_data_text,
+                                                          from_json_filename,
+                                                          format_name,
+                                                          implementation)
         data = tio_config_default(capabilities, file_access,
                                   format_name=format_name,
                                   implementation=implementation,
@@ -509,7 +612,8 @@ class TioJsonConfig(ConfigData, Config):  # pylint: disable=too-many-ancestors
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
-                        member_name=member_name)
+                        member_name=member_name,
+                        ok_to_use_defaults=ok_to_use_defaults)
 
     @property
     def capabilities(self) -> Capabilities:

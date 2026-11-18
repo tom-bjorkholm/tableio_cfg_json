@@ -50,6 +50,9 @@
   * [\_issue\_message](#tableio_cfg_json.config._issue_message)
   * [\_optional\_one\_char](#tableio_cfg_json.config._optional_one_char)
   * [\_optional\_non\_empty](#tableio_cfg_json.config._optional_non_empty)
+  * [\_json\_object](#tableio_cfg_json.config._json_object)
+  * [\_json\_choice](#tableio_cfg_json.config._json_choice)
+  * [\_json\_selection](#tableio_cfg_json.config._json_selection)
   * [TioJsonCsvConfig](#tableio_cfg_json.config.TioJsonCsvConfig)
     * [\_\_init\_\_](#tableio_cfg_json.config.TioJsonCsvConfig.__init__)
     * [\_omit\_none\_from\_json](#tableio_cfg_json.config.TioJsonCsvConfig._omit_none_from_json)
@@ -115,7 +118,6 @@
   * [\_config\_from\_data](#tableio_cfg_json.wizard._config_from_data)
 * [tableio\_cfg\_json.loader](#tableio_cfg_json.loader)
   * [NO\_FILE\_NAME](#tableio_cfg_json.loader.NO_FILE_NAME)
-  * [\_json\_member](#tableio_cfg_json.loader._json_member)
   * [tio\_json\_loader](#tableio_cfg_json.loader.tio_json_loader)
   * [tio\_json\_read\_loader](#tableio_cfg_json.loader.tio_json_read_loader)
   * [tio\_json\_create\_loader](#tableio_cfg_json.loader.tio_json_create_loader)
@@ -1221,6 +1223,76 @@ Return a validator for optional non-empty strings.
 
   A validator that accepts ``None`` or a non-empty string.
 
+<a id="tableio_cfg_json.config._json_object"></a>
+
+#### \_json\_object
+
+```python
+def _json_object(text: Optional[str],
+                 filename: Optional[PathOrStr]) -> dict[str, object]
+```
+
+Return the top-level JSON object of a JSON source, or an empty dict.
+
+Only which defaults to build on is decided from this, so a source that
+cannot be read, or that is not a JSON object, answers nothing here. The
+parse that follows reports what is wrong with it properly.
+
+**Arguments**:
+
+- `text` - JSON text, or None when there is none.
+- `filename` - JSON file, or None when there is none. It is read instead
+  of the text, and config-as-json refuses having both.
+
+**Returns**:
+
+  The top-level JSON object, or an empty dict.
+
+<a id="tableio_cfg_json.config._json_choice"></a>
+
+#### \_json\_choice
+
+```python
+def _json_choice(data: dict[str, object], name: str,
+                 fallback: Optional[str]) -> Optional[str]
+```
+
+Return one top-level string member of JSON data, or a fallback.
+
+**Arguments**:
+
+- `data` - Top-level JSON object to look in.
+- `name` - Name of the top-level member to look for.
+- `fallback` - Value to use when the data holds no string there.
+
+**Returns**:
+
+  The value of that member, or the fallback.
+
+<a id="tableio_cfg_json.config._json_selection"></a>
+
+#### \_json\_selection
+
+```python
+def _json_selection(
+        text: Optional[str], filename: Optional[PathOrStr],
+        format_name: Optional[str],
+        implementation: Optional[str]) -> tuple[Optional[str], Optional[str]]
+```
+
+Return the format and implementation that a JSON source selects.
+
+**Arguments**:
+
+- `text` - JSON text, or None when there is none.
+- `filename` - JSON file, or None when there is none.
+- `format_name` - Format to use when the source selects none.
+- `implementation` - Implementation to use when the source selects none.
+
+**Returns**:
+
+  The format name and the implementation name to build defaults for.
+
 <a id="tableio_cfg_json.config.TioJsonCsvConfig"></a>
 
 ## TioJsonCsvConfig Objects
@@ -1250,7 +1322,8 @@ def __init__(dialect: Optional[CsvDialect] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Create CSV settings or read them from a JSON source.
@@ -1272,6 +1345,10 @@ supplied, config-as-json applies the JSON values over those defaults.
 - `member_name` - Path for reaching this section from the top
   level of the complete configuration, or ``None`` when this
   section is that top level and not a member of anything.
+- `ok_to_use_defaults` - Whether the JSON source may leave out
+  members, which then keep the values given by the other
+  constructor arguments. ``Config.kept_value_paths()`` tells
+  which members did. Without a JSON source it has no effect.
 
 **Raises**:
 
@@ -1372,7 +1449,8 @@ def __init__(css_file: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Create HTML settings or read them from a JSON source.
@@ -1389,6 +1467,10 @@ supplied, config-as-json applies the JSON values over those defaults.
 - `member_name` - Path for reaching this section from the top
   level of the complete configuration, or ``None`` when this
   section is that top level and not a member of anything.
+- `ok_to_use_defaults` - Whether the JSON source may leave out
+  members, which then keep the values given by the other
+  constructor arguments. ``Config.kept_value_paths()`` tells
+  which members did. Without a JSON source it has no effect.
 
 **Raises**:
 
@@ -1463,7 +1545,8 @@ def __init__(document_class: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Create LaTeX settings or read them from a JSON source.
@@ -1481,6 +1564,10 @@ supplied, config-as-json applies the JSON values over those defaults.
 - `member_name` - Path for reaching this section from the top
   level of the complete configuration, or ``None`` when this
   section is that top level and not a member of anything.
+- `ok_to_use_defaults` - Whether the JSON source may leave out
+  members, which then keep the values given by the other
+  constructor arguments. ``Config.kept_value_paths()`` tells
+  which members did. Without a JSON source it has no effect.
 
 **Raises**:
 
@@ -1565,7 +1652,8 @@ def __init__(capabilities: Capabilities,
              auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Create TableIO settings or read them from a JSON source.
@@ -1574,12 +1662,23 @@ Default values come from tableio's recommended configuration for the
 supplied capabilities and file access. If JSON text or a filename is
 supplied, config-as-json applies the JSON values over those defaults.
 
+The defaults TableIO recommends depend on the format and the
+implementation. When the JSON source may leave members out, the
+format and implementation that it selects are therefore used for the
+defaults instead of the preferred ones given here. Otherwise a file
+selecting CSV would have its gaps filled with the defaults of another
+format, and be refused for values the user never wrote.
+
 **Arguments**:
 
 - `capabilities` - Runtime capabilities requested by the application.
 - `file_access` - Runtime file access requested by the application.
-- `format_name` - Optional preferred tableio format name.
+- `format_name` - Optional preferred tableio format name. With
+  ``ok_to_use_defaults`` true, a format name in the JSON source
+  is used instead.
 - `implementation` - Optional preferred tableio implementation name.
+  With ``ok_to_use_defaults`` true, an implementation name in
+  the JSON source is used instead.
 - `include_all_options` - Include explicit non-``None`` defaults for
   template-style configuration output.
 - `from_json_data_text` - Optional JSON text to parse.
@@ -1592,11 +1691,18 @@ supplied, config-as-json applies the JSON values over those defaults.
   object is that top level and not a member of anything. An
   application nesting one endpoint per member names each of
   them, so that a diagnostic says which endpoint it is about.
+- `ok_to_use_defaults` - Whether the JSON source may leave out
+  members, which then keep the defaults TableIO recommends for
+  the format and implementation that the source selects.
+  ``Config.kept_value_paths()`` tells which members did.
+  Without a JSON source it has no effect.
 
 **Raises**:
 
 - `ConfigError` - TableIO cannot select or validate default data from
-  the supplied runtime values.
+  the supplied runtime values, or with ``ok_to_use_defaults``
+  true from the format and implementation that the JSON source
+  selects.
 - `TypeError` - File access or capabilities have invalid types in
   tableio access-capability validation.
 - `ValueError` - Both JSON text and a JSON filename were supplied, or
@@ -2289,10 +2395,11 @@ the application's and which nothing in a configuration file could supply. An
 ``edit_cfg_json.ConfigLoader`` is how an application says how its class is
 built, and this module is that loader for TioJsonConfig.
 
-The defaults TableIO recommends depend on the chosen format, so the format
-and the implementation are read out of the JSON text before the defaults are
-asked for. Without that, a file selecting CSV would be built on the defaults
-of another format and refused for an implementation the user never wrote.
+The loader hands the JSON text and the load policy to the TioJsonConfig
+constructor together, so the configuration is validated once, on the values
+of the text. The defaults TableIO recommends depend on the chosen format, and
+when the policy lets defaults fill in what the text leaves out, TioJsonConfig
+builds them for the format and implementation that the text selects.
 
 A ready-made loader is offered for each file access, for a program that needs
 a name to point at rather than a call to make, which is what the ``--loader``
@@ -2307,31 +2414,6 @@ defaults fill in for one access is not the one the other access would choose.
 #### NO\_FILE\_NAME
 
 Message of the refusal of a file name given to this loader.
-
-<a id="tableio_cfg_json.loader._json_member"></a>
-
-#### \_json\_member
-
-```python
-def _json_member(text: Optional[str], name: str,
-                 fallback: Optional[str]) -> Optional[str]
-```
-
-Return one top-level string member of JSON text, or a fallback.
-
-Only which defaults to build on is decided here, so anything that is not
-a JSON object holding that member as a string is left to the parse step,
-which reports what is wrong with it properly.
-
-**Arguments**:
-
-- `text` - JSON text to look in, or None when there is none.
-- `name` - Name of the top-level member to look for.
-- `fallback` - Value to use when the text does not answer.
-
-**Returns**:
-
-  The value of that member, or the fallback.
 
 <a id="tableio_cfg_json.loader.tio_json_loader"></a>
 
@@ -2379,9 +2461,7 @@ to keep an edited file as compact as it was.
   top level of a larger one, or ``None`` when it is that top level.
   An editor asks a loader for a whole configuration, so an editing
   session leaves this ``None``. It is here for an application that
-  loads one nested endpoint itself, which the loader and not
-  ``TioJsonConfig`` is the door to, because only a load decides
-  whether the defaults may fill in what the text leaves out.
+  loads one nested endpoint itself through a loader.
 
 **Returns**:
 

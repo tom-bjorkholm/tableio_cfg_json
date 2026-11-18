@@ -57,7 +57,8 @@ class SplitCitiesConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Create or read the complete application configuration.
 
         Args:
@@ -70,6 +71,9 @@ class SplitCitiesConfig(Config):
                 program passes nothing here. It is accepted anyway, because
                 that is what lets the class be nested in turn, and because
                 config-as-json warns about a class that does not take it.
+            ok_to_use_defaults: Whether the JSON source may leave members
+                out, which then keep the defaults assigned below. False
+                means that the file must hold every required member.
         """
         # A config-as-json class is normally initialized to useful defaults.
         # Application code can then assign the specific values it wants before
@@ -81,9 +85,24 @@ class SplitCitiesConfig(Config):
                                                     stderr_file)
         self.split_column = 'Country'
         self.split_limit = 'M'
+        # ok_to_use_defaults is passed on to Config.__init__, which is what
+        # lets a file that a user trimmed by hand to the values they care
+        # about still be read: a member the file leaves out keeps the default
+        # assigned above. Accepting it also lets a config editor such as
+        # edit-cfg-json give this constructor the text of a file together
+        # with its load policy, so the values are validated only once.
+        #
+        # ok_to_use_defaults is NOT the way to read a file written by an
+        # older version of the program. The differences of an older file
+        # format (renamed, moved, removed or newly required keys) belong in
+        # the "Read Old Configuration File" (ROCF) rules of config-as-json,
+        # declared on the class and reported through the auto-change hook;
+        # see the config-as-json examples e31 and e37. ok_to_use_defaults
+        # would hide those differences instead of migrating them.
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file, member_name=member_name)
+                        stderr_file=stderr_file, member_name=member_name,
+                        ok_to_use_defaults=ok_to_use_defaults)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -118,10 +137,12 @@ class SplitCitiesConfig(Config):
                 validator=StrLenValidator(min_length=1, max_length=None))
         ]
 
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def _input_factory(self, from_json_data_text: Optional[str] = None,
                        from_json_filename: Optional[PathOrStr] = None,
                        stderr_file: TextIO = sys.stderr,
-                       member_name: Optional[str] = None) -> TioJsonConfig:
+                       member_name: Optional[str] = None,
+                       ok_to_use_defaults: bool = False) -> TioJsonConfig:
         """Create a nested read-capable TableIO config from JSON."""
         # member_name is the path config-as-json is on its way down, here
         # the plain 'input'. Handing it to the endpoint is what makes a
@@ -129,19 +150,34 @@ class SplitCitiesConfig(Config):
         # format_name, which matters when three endpoints declare the same
         # members. A factory that does not accept it is called without it,
         # and config-as-json warns that it should be changed.
+        #
+        # ok_to_use_defaults is True when SplitCitiesConfig itself is read
+        # with ok_to_use_defaults=True, and it says whether the JSON of this
+        # endpoint may leave members out. Passing it on is what lets the
+        # endpoint fill those in. A factory that does not accept it is called
+        # without it, with a warning, and its endpoint is then read strictly,
+        # so one missing member is an error even though the caller allowed
+        # defaults. A factory always constructs a new endpoint, so a member
+        # it leaves out gets the TableIO default for the format that the
+        # JSON selects, and not the value of the endpoint held before.
         return _json_config(FileAccess.READ, from_json_data_text,
-                            from_json_filename, stderr_file, member_name)
+                            from_json_filename, stderr_file, member_name,
+                            ok_to_use_defaults)
 
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def _create_factory(self, from_json_data_text: Optional[str] = None,
                         from_json_filename: Optional[PathOrStr] = None,
                         stderr_file: TextIO = sys.stderr,
-                        member_name: Optional[str] = None) -> TioJsonConfig:
+                        member_name: Optional[str] = None,
+                        ok_to_use_defaults: bool = False) -> TioJsonConfig:
         """Create a nested create-capable TableIO config from JSON."""
         # One factory serves both outputs, and the two are told apart by the
         # member_name each call brings: less_than_output for one of them and
-        # not_less_than_output for the other.
+        # not_less_than_output for the other. ok_to_use_defaults is passed on
+        # for the same reason as in _input_factory.
         return _json_config(FileAccess.CREATE, from_json_data_text,
-                            from_json_filename, stderr_file, member_name)
+                            from_json_filename, stderr_file, member_name,
+                            ok_to_use_defaults)
 
 
 def build_app_config(stderr_file: TextIO) -> SplitCitiesConfig:
@@ -210,15 +246,21 @@ def _default_config(file_access: FileAccess, stderr_file: TextIO,
                                    format_name=format_name)
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _json_config(file_access: FileAccess, from_json_data_text: Optional[str],
                  from_json_filename: Optional[PathOrStr], stderr_file: TextIO,
-                 member_name: Optional[str]) -> TioJsonConfig:
+                 member_name: Optional[str],
+                 ok_to_use_defaults: bool) -> TioJsonConfig:
     """Read a nested TableIO config for one file access mode."""
     capabilities = access_capabilities(file_access, error_file=stderr_file)
+    # With ok_to_use_defaults=True, TioJsonConfig builds the defaults that
+    # fill in missing members for the format the JSON selects, so an endpoint
+    # that only says {"format_name": "CSV"} gets CSV defaults.
     return TioJsonConfig(capabilities=capabilities, file_access=file_access,
                          from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
 
 def _syntax_text(config: SplitCitiesConfig, stderr_file: TextIO) -> str:

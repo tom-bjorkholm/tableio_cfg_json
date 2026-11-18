@@ -50,7 +50,13 @@ beyond the access itself.
 Class B stores an application configuration that owns several endpoints, and
 `SplitCitiesConfig` from e05 is that shape. That class the editor constructs
 itself, because its constructor takes only the arguments `config_as_json`
-documents, so no loader is needed. What is needed is a prefix: a description
+documents, so no loader is needed. One of those arguments is
+`ok_to_use_defaults`, and because the constructor takes it and passes it on,
+the editor hands it the text of the file together with the load policy, and
+the values are validated once, as the values of the file. The factory
+functions that make its endpoints take it as well, which is what lets an
+endpoint that lacks a value be filled in from the TableIO defaults for its
+format rather than be refused. What is needed is a prefix: a description
 addresses the whole path to the member it is about, so the members of the
 endpoint called `input` are described under `('input', ...)`. That is the one
 argument `tio_json_descriptions()` takes, and an application with several
@@ -181,7 +187,10 @@ def edit_app_config(config_file: Path, backend: EditorBackend,
     No loader is passed. SplitCitiesConfig takes only the arguments that
     config_as_json documents, so the editor constructs it by reading its
     signature, and the nested endpoints are made by the factory functions
-    that class already declares for reading a file.
+    that class already declares for reading a file. Both the constructor and
+    the factories take ok_to_use_defaults and pass it on, so the load policy
+    reaches every endpoint, and a value that the file lacks anywhere in it
+    is filled in from a default.
 
     Args:
         config_file: JSON application configuration file to edit.
@@ -251,7 +260,9 @@ def _printed_session(config: Config, backend: EditorBackend,
     """
     # LoadPolicy.DEFAULTS lets the declared values fill in what the file
     # leaves out, and the editor marks every member that was filled in, so
-    # an older or hand-trimmed file still opens.
+    # a hand-trimmed file still opens. It does not make a file written by an
+    # older version of the program readable; that is the job of the ROCF
+    # rules ("Read Old Configuration File") of config-as-json.
     model = editor_model(config, descriptions=descriptions,
                          in_file=config_file, loader=loader,
                          policy=LoadPolicy.DEFAULTS, stderr_file=stderr_file)
